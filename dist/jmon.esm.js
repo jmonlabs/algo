@@ -1457,7 +1457,9 @@ var init_tonejs = __esm({
             time: note.time,
             pitch: note.pitch,
             duration: note.duration,
-            velocity: note.velocity || 0.8
+            velocity: note.velocity || 0.8,
+            microtuning: note.microtuning
+            // Pass through microtuning in semitones
           }))
         }));
       }
@@ -2403,12 +2405,15 @@ function createPlayer(composition, options = {}) {
           const startFreq = ToneLib.Frequency(noteName).toFrequency();
           const endFreq = ToneLib.Frequency(toNote).toFrequency();
           const cents = 1200 * Math.log2(endFreq / startFreq);
+          const microtuningCents = (note.microtuning || 0) * 100;
+          const startDetune = microtuningCents;
+          const endDetune = microtuningCents + cents;
           if (synth.detune) {
             console.log(`[GLISSANDO] Using main synth detune: ${noteName} -> ${toNote} (${cents} cents)`);
             const eventId = ToneLib.Transport.schedule((schedTime) => {
               synth.triggerAttack(noteName, schedTime, velocity);
-              synth.detune.setValueAtTime(0, schedTime);
-              synth.detune.linearRampToValueAtTime(cents, schedTime + duration);
+              synth.detune.setValueAtTime(startDetune, schedTime);
+              synth.detune.linearRampToValueAtTime(endDetune, schedTime + duration);
               synth.triggerRelease(schedTime + duration);
             }, time);
             scheduledEvents.push(eventId);
@@ -2419,15 +2424,22 @@ function createPlayer(composition, options = {}) {
             activeSynths.push(glissSynth);
             const eventId = ToneLib.Transport.schedule((schedTime) => {
               glissSynth.triggerAttack(noteName, schedTime, velocity);
-              glissSynth.detune.setValueAtTime(0, schedTime);
-              glissSynth.detune.linearRampToValueAtTime(cents, schedTime + duration);
+              glissSynth.detune.setValueAtTime(startDetune, schedTime);
+              glissSynth.detune.linearRampToValueAtTime(endDetune, schedTime + duration);
               glissSynth.triggerRelease(schedTime + duration);
             }, time);
             scheduledEvents.push(eventId);
           }
         } else {
           const eventId = ToneLib.Transport.schedule((schedTime) => {
-            synth.triggerAttackRelease(noteName, duration, schedTime, velocity);
+            if (note.microtuning && synth.detune) {
+              const cents = note.microtuning * 100;
+              synth.triggerAttack(noteName, schedTime, velocity);
+              synth.detune.setValueAtTime(cents, schedTime);
+              synth.triggerRelease(schedTime + duration);
+            } else {
+              synth.triggerAttackRelease(noteName, duration, schedTime, velocity);
+            }
           }, time);
           scheduledEvents.push(eventId);
         }
@@ -8204,6 +8216,358 @@ var Tintinnabuli = class {
   }
 };
 
+// src/algorithms/processors/Corruptor.js
+var PerlinNoise = class {
+  constructor(seed = Math.random()) {
+    this.seed = seed;
+    this.permutation = this.generatePermutation();
+  }
+  generatePermutation() {
+    const p = [];
+    for (let i = 0; i < 256; i++) {
+      p[i] = i;
+    }
+    for (let i = 255; i > 0; i--) {
+      const j = Math.floor(this.random() * (i + 1));
+      [p[i], p[j]] = [p[j], p[i]];
+    }
+    return [...p, ...p];
+  }
+  random() {
+    const x = Math.sin(this.seed++) * 1e4;
+    return x - Math.floor(x);
+  }
+  fade(t) {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  }
+  lerp(t, a, b) {
+    return a + t * (b - a);
+  }
+  grad(hash, x) {
+    const h = hash & 15;
+    const grad = 1 + (h & 7);
+    return (h & 8 ? -grad : grad) * x;
+  }
+  noise(x) {
+    const X = Math.floor(x) & 255;
+    x -= Math.floor(x);
+    const u = this.fade(x);
+    const a = this.permutation[X];
+    const b = this.permutation[X + 1];
+    return this.lerp(u, this.grad(a, x), this.grad(b, x - 1));
+  }
+};
+var BrownianBridge = class {
+  constructor(start = 0, end = 0, steps = 100, volatility = 1) {
+    this.start = start;
+    this.end = end;
+    this.steps = steps;
+    this.volatility = volatility;
+  }
+  generate() {
+    const path = [this.start];
+    let current = this.start;
+    for (let i = 1; i < this.steps; i++) {
+      const timeRemaining = this.steps - i;
+      const drift = (this.end - current) / timeRemaining;
+      const diffusion = this.volatility * this.gaussianRandom();
+      current += drift + diffusion;
+      path.push(current);
+    }
+    path.push(this.end);
+    return path;
+  }
+  gaussianRandom(mean = 0, stdev = 1) {
+    const u = 1 - Math.random();
+    const v = Math.random();
+    const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    return z * stdev + mean;
+  }
+};
+var Corruptor = class {
+  constructor(options = {}) {
+    this.options = {
+      entropy: options.entropy || 0.5,
+      // 0.0 to 1.0
+      seed: options.seed || Math.random(),
+      // Temporal Instability
+      temporalJitter: options.temporalJitter !== void 0 ? options.temporalJitter : true,
+      jitterMethod: options.jitterMethod || "perlin",
+      // 'perlin' or 'brownian'
+      // Harmonic Erosion
+      microtonalDrift: options.microtonalDrift !== void 0 ? options.microtonalDrift : true,
+      driftAmount: options.driftAmount || 1,
+      // Multiplier for microtonal drift
+      // Structural Decay
+      noteAttrition: options.noteAttrition !== void 0 ? options.noteAttrition : true,
+      velocitySag: options.velocitySag !== void 0 ? options.velocitySag : true,
+      // Spectral Corruption
+      spectralCorruption: options.spectralCorruption !== void 0 ? options.spectralCorruption : false,
+      // Semantic Ghosting
+      ghostTrack: options.ghostTrack !== void 0 ? options.ghostTrack : false,
+      ghostOctaveShift: options.ghostOctaveShift || -2,
+      ghostDurationMultiplier: options.ghostDurationMultiplier || 4,
+      ghostVelocityMultiplier: options.ghostVelocityMultiplier || 0.3
+    };
+    this.perlin = new PerlinNoise(this.options.seed);
+    this.randomSeed = this.options.seed;
+  }
+  /**
+   * Seeded random number generator
+   */
+  seededRandom() {
+    const x = Math.sin(this.randomSeed++) * 1e4;
+    return x - Math.floor(x);
+  }
+  /**
+   * Gaussian random with seed
+   */
+  gaussianRandom(mean = 0, stdev = 1) {
+    const u = 1 - this.seededRandom();
+    const v = this.seededRandom();
+    const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    return z * stdev + mean;
+  }
+  /**
+   * Main corruption function
+   * @param {Object} jmonObject - The JMON object to corrupt
+   * @param {Number} entropy - Entropy level (0.0 to 1.0), overrides constructor value if provided
+   * @returns {Object} Corrupted JMON object
+   */
+  corrupt(jmonObject, entropy = null) {
+    const entropyLevel = entropy !== null ? entropy : this.options.entropy;
+    const corrupted = JSON.parse(JSON.stringify(jmonObject));
+    if (corrupted.tracks && Array.isArray(corrupted.tracks)) {
+      corrupted.tracks = corrupted.tracks.map((track) => this.corruptTrack(track, entropyLevel));
+      if (this.options.ghostTrack && corrupted.tracks.length > 0) {
+        const ghostTracks = this.generateGhostTracks(corrupted.tracks, entropyLevel);
+        corrupted.tracks.push(...ghostTracks);
+      }
+    }
+    if (this.options.spectralCorruption && corrupted.audioGraph) {
+      corrupted.audioGraph = this.corruptAudioGraph(corrupted.audioGraph, entropyLevel);
+    }
+    return corrupted;
+  }
+  /**
+   * Corrupt a single track
+   * @param {Object} track - JMON track object
+   * @param {Number} entropy - Entropy level
+   * @returns {Object} Corrupted track
+   */
+  corruptTrack(track, entropy) {
+    const corruptedTrack = { ...track };
+    if (!corruptedTrack.notes || !Array.isArray(corruptedTrack.notes)) {
+      return corruptedTrack;
+    }
+    let jitterSequence = null;
+    if (this.options.temporalJitter) {
+      jitterSequence = this.generateJitterSequence(corruptedTrack.notes.length, entropy);
+    }
+    corruptedTrack.notes = corruptedTrack.notes.map((note, index) => this.corruptNote(note, index, entropy, jitterSequence)).filter((note) => note !== null);
+    if (this.options.velocitySag && corruptedTrack.notes.length > 0) {
+      corruptedTrack.notes = this.applyVelocitySag(corruptedTrack.notes, entropy);
+    }
+    return corruptedTrack;
+  }
+  /**
+   * Generate jitter sequence for temporal instability
+   * @param {Number} length - Number of notes
+   * @param {Number} entropy - Entropy level
+   * @returns {Array} Jitter values
+   */
+  generateJitterSequence(length, entropy) {
+    if (this.options.jitterMethod === "brownian") {
+      const bridge = new BrownianBridge(0, 0, length, entropy * 0.5);
+      return bridge.generate();
+    } else {
+      const jitter = [];
+      for (let i = 0; i < length; i++) {
+        const noiseValue = this.perlin.noise(i * 0.1);
+        jitter.push(noiseValue * entropy);
+      }
+      return jitter;
+    }
+  }
+  /**
+   * Corrupt a single note
+   * @param {Object} note - JMON note object
+   * @param {Number} index - Note index in sequence
+   * @param {Number} entropy - Entropy level
+   * @param {Array} jitterSequence - Pre-generated jitter values
+   * @returns {Object|null} Corrupted note or null if dropped
+   */
+  corruptNote(note, index, entropy, jitterSequence) {
+    if (this.options.noteAttrition && entropy > 0.7) {
+      const dropProbability = (entropy - 0.7) * 0.5;
+      if (this.seededRandom() < dropProbability) {
+        return null;
+      }
+    }
+    const corruptedNote = { ...note };
+    if (this.options.temporalJitter && jitterSequence) {
+      const jitter = jitterSequence[index] || 0;
+      const maxJitter = 0.25;
+      const deltaT = jitter * maxJitter * entropy;
+      if (typeof corruptedNote.time === "number") {
+        corruptedNote.time = Math.max(0, corruptedNote.time + deltaT);
+      }
+      if (typeof corruptedNote.duration === "number") {
+        const durationJitter = this.gaussianRandom(0, 0.1 * entropy);
+        corruptedNote.duration = Math.max(0.1, corruptedNote.duration * (1 + durationJitter));
+      }
+    }
+    if (this.options.microtonalDrift) {
+      const sigma = entropy * 0.5 * this.options.driftAmount;
+      const microtuning = this.gaussianRandom(0, sigma);
+      if (!corruptedNote.microtuning) {
+        corruptedNote.microtuning = microtuning;
+      } else {
+        corruptedNote.microtuning += microtuning;
+      }
+    }
+    return corruptedNote;
+  }
+  /**
+   * Apply velocity sag over time (energy loss)
+   * @param {Array} notes - Array of JMON notes
+   * @param {Number} entropy - Entropy level
+   * @returns {Array} Notes with velocity sag applied
+   */
+  applyVelocitySag(notes, entropy) {
+    if (notes.length === 0)
+      return notes;
+    return notes.map((note, index) => {
+      const sagAmount = entropy * 0.4;
+      const progress = index / notes.length;
+      const sagFactor = 1 - sagAmount * progress;
+      const velocity = note.velocity !== void 0 ? note.velocity : 0.8;
+      const saggedVelocity = Math.max(0.1, velocity * sagFactor);
+      return {
+        ...note,
+        velocity: saggedVelocity
+      };
+    });
+  }
+  /**
+   * Generate ghost tracks (semantic ghosting)
+   * @param {Array} tracks - Original JMON tracks
+   * @param {Number} entropy - Entropy level
+   * @returns {Array} Ghost tracks
+   */
+  generateGhostTracks(tracks, entropy) {
+    const ghostTracks = [];
+    for (const track of tracks) {
+      if (!track.notes || track.notes.length === 0)
+        continue;
+      const pitches = track.notes.map((n) => typeof n.pitch === "number" ? n.pitch : 60);
+      const uniquePitches = new Set(pitches);
+      if (uniquePitches.size > 3) {
+        const ghostNotes = track.notes.map((note) => {
+          const originalPitch = typeof note.pitch === "number" ? note.pitch : 60;
+          const ghostPitch = originalPitch + this.options.ghostOctaveShift * 12;
+          return {
+            pitch: ghostPitch,
+            duration: note.duration * this.options.ghostDurationMultiplier,
+            time: note.time,
+            velocity: (note.velocity || 0.8) * this.options.ghostVelocityMultiplier
+          };
+        });
+        const ghostTrack = {
+          label: `${track.label || "Track"} (Ghost)`,
+          notes: ghostNotes,
+          midiChannel: track.midiChannel || 0,
+          synth: track.synth || { type: "Synth" }
+        };
+        ghostTracks.push(ghostTrack);
+      }
+    }
+    return ghostTracks;
+  }
+  /**
+   * Corrupt audio graph (spectral corruption)
+   * @param {Object} audioGraph - JMON audioGraph object
+   * @param {Number} entropy - Entropy level
+   * @returns {Object} Corrupted audioGraph
+   */
+  corruptAudioGraph(audioGraph, entropy) {
+    const corrupted = JSON.parse(JSON.stringify(audioGraph));
+    if (corrupted.nodes) {
+      corrupted.nodes = corrupted.nodes.map((node) => {
+        if (node.type === "Distortion" || node.type === "BitCrusher") {
+          if (!node.automation) {
+            node.automation = {};
+          }
+          if (node.type === "Distortion") {
+            node.automation.wet = this.generateAutomationCurve(entropy, 0, entropy);
+          }
+          if (node.type === "BitCrusher") {
+            const minBits = Math.max(1, Math.floor(16 - entropy * 12));
+            node.automation.bits = this.generateAutomationCurve(entropy, 16, minBits);
+          }
+        }
+        return node;
+      });
+    }
+    return corrupted;
+  }
+  /**
+   * Generate automation curve
+   * @param {Number} entropy - Entropy level
+   * @param {Number} startValue - Starting value
+   * @param {Number} endValue - Ending value
+   * @returns {Array} Automation anchor points
+   */
+  generateAutomationCurve(entropy, startValue, endValue) {
+    const points = [];
+    const numPoints = Math.floor(4 + entropy * 8);
+    for (let i = 0; i <= numPoints; i++) {
+      const time = i / numPoints;
+      const progress = Math.pow(time, 1 + entropy);
+      const value = startValue + (endValue - startValue) * progress;
+      points.push({
+        time: time.toFixed(3),
+        value
+      });
+    }
+    return points;
+  }
+  /**
+   * Apply all corruption functions to a JMON object
+   * Alias for corrupt()
+   */
+  process(jmonObject, entropy = null) {
+    return this.corrupt(jmonObject, entropy);
+  }
+  /**
+   * Set entropy level
+   * @param {Number} entropy - New entropy level (0.0 to 1.0)
+   */
+  setEntropy(entropy) {
+    this.options.entropy = Math.max(0, Math.min(1, entropy));
+  }
+  /**
+   * Get current entropy level
+   * @returns {Number} Current entropy level
+   */
+  getEntropy() {
+    return this.options.entropy;
+  }
+  /**
+   * Reset random seed
+   * @param {Number} seed - New seed value
+   */
+  setSeed(seed) {
+    this.options.seed = seed;
+    this.randomSeed = seed;
+    this.perlin = new PerlinNoise(seed);
+  }
+};
+function corruptJmon(jmonObject, entropy = 0.5, options = {}) {
+  const corruptor = new Corruptor({ ...options, entropy });
+  return corruptor.corrupt(jmonObject);
+}
+
 // src/algorithms/analysis/index.js
 var analysis_exports = {};
 __export(analysis_exports, {
@@ -8907,6 +9271,10 @@ var generative = {
     Tintinnabuli
   }
 };
+var processors = {
+  Corruptor,
+  corruptJmon
+};
 var analysis = {
   ...analysis_exports
 };
@@ -8924,6 +9292,7 @@ var algorithms_default = {
   theory,
   constants,
   generative,
+  processors,
   analysis,
   visualization,
   audio,
@@ -11999,6 +12368,7 @@ var jm = {
   // Namespaces from algorithms
   theory: algorithms_default.theory,
   generative: algorithms_default.generative,
+  processors: algorithms_default.processors,
   analysis: algorithms_default.analysis,
   constants: algorithms_default.constants,
   audio: algorithms_default.audio,
