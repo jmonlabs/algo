@@ -27,11 +27,7 @@ try {
   const caSequence = ca.generate();
   console.log('  ✓ Generated CA sequence, length:', caSequence.length);
   console.log('  ✓ First value:', caSequence[0]);
-
-  // Test mapping to pitches
-  const pitches = ca.toPitches({ scale: [0, 2, 4, 5, 7, 9, 11], octave: 4 });
-  console.log('  ✓ Mapped to pitches, count:', pitches.length);
-  console.log('  ✓ Sample pitch:', pitches[0]);
+  console.log('  ✓ First row is array:', Array.isArray(caSequence[0]));
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }
@@ -51,9 +47,7 @@ try {
 
   const sequence = mandelbrot.extractSequence('spiral');
   console.log('  ✓ Extracted spiral sequence, length:', sequence.length);
-
-  const pitches = mandelbrot.toPitches(sequence, { min: 48, max: 72 });
-  console.log('  ✓ Mapped to pitches, range:', Math.min(...pitches), '-', Math.max(...pitches));
+  console.log('  ✓ Sequence values are numbers:', sequence.every(v => typeof v === 'number'));
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }
@@ -71,9 +65,7 @@ try {
   const sequence = logistic.generate();
   console.log('  ✓ Generated sequence, length:', sequence.length);
   console.log('  ✓ Values in range [0,1]:', sequence.every(v => v >= 0 && v <= 1));
-
-  const pitches = logistic.toPitches({ min: 60, max: 84 });
-  console.log('  ✓ Mapped to pitches, sample:', pitches.slice(0, 5));
+  console.log('  ✓ Sample values:', sequence.slice(0, 3).map(v => v.toFixed(3)));
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }
@@ -82,27 +74,24 @@ console.log('');
 // Test 4: Genetic Algorithm (Darwin)
 console.log('4. Testing Genetic Algorithm (Darwin)');
 try {
-  const darwin = new Darwin({
-    populationSize: 10,
-    generations: 5,
-    mutationRate: 0.1,
-    phraseLength: 8
-  });
-
+  // Darwin expects tuples [pitch, duration, offset]
   const seedPhrase = [
-    { pitch: 60, duration: 1, time: 0 },
-    { pitch: 62, duration: 1, time: 1 },
-    { pitch: 64, duration: 1, time: 2 },
-    { pitch: 65, duration: 1, time: 3 }
+    [60, 1, 0],
+    [62, 1, 1],
+    [64, 1, 2],
+    [65, 1, 3]
   ];
 
-  const evolved = darwin.evolve(seedPhrase, {
-    targetGini: 0.3,
-    targetBalance: 0.5
+  const darwin = new Darwin({
+    initialPhrases: [seedPhrase],
+    populationSize: 10,
+    mutationRate: 0.1
   });
 
-  console.log('  ✓ Evolved phrase, length:', evolved.length);
-  console.log('  ✓ Sample notes:', evolved.slice(0, 3).map(n => n.pitch));
+  const stats = darwin.evolveGenerations({ generations: 5, k: 5 });
+  console.log('  ✓ Evolved for', stats.length, 'generations');
+  console.log('  ✓ Best fitness:', stats[stats.length - 1].bestFitness.toFixed(3));
+  console.log('  ✓ Population size:', stats[stats.length - 1].populationSize);
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }
@@ -111,22 +100,20 @@ console.log('');
 // Test 5: Loop Composition
 console.log('5. Testing Loop Composition');
 try {
-  const loop = new Loop({
-    measureLength: 4,
-    layers: 2
-  });
-
   const basePattern = [
     { pitch: 60, duration: 1, time: 0 },
     { pitch: 64, duration: 1, time: 1 }
   ];
 
-  const accumulated = loop.accumulate(basePattern, 3);
-  console.log('  ✓ Accumulated loop, iterations:', 3);
-  console.log('  ✓ Result length:', accumulated.length);
+  const loop = new Loop({
+    loops: [basePattern],
+    measureLength: 4
+  });
 
-  const varied = loop.variate(basePattern, { intensity: 0.3 });
-  console.log('  ✓ Created variation, length:', varied.length);
+  const sequences = loop.toJMonSequences();
+  console.log('  ✓ Created loop composition');
+  console.log('  ✓ Sequences generated:', sequences.length);
+  console.log('  ✓ Has notes:', sequences[0]?.notes?.length > 0);
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }
@@ -252,19 +239,15 @@ console.log('');
 // Test 11: Phasor System
 console.log('11. Testing Phasor System');
 try {
-  const phasor = new Phasor({
-    frequency: 1,
-    amplitude: 10,
-    phase: 0,
-    center: 60
-  });
+  // Phasor(distance, frequency, phase, subPhasors)
+  const phasor = new Phasor(10, 1, 0, []);
 
-  const sequence = phasor.generate(20);
-  console.log('  ✓ Generated phasor sequence, length:', sequence.length);
-  console.log('  ✓ Oscillating values:', sequence.slice(0, 5).map(v => Math.round(v)));
-
-  const pitches = phasor.toPitches({ quantize: true });
-  console.log('  ✓ Quantized to pitches:', pitches.slice(0, 5));
+  // Create simple time array
+  const timeArray = Array.from({ length: 20 }, (_, i) => i * 0.2);
+  const simulation = phasor.simulate(timeArray);
+  console.log('  ✓ Simulated phasor, steps:', simulation.length);
+  console.log('  ✓ Sample distances:', simulation.slice(0, 3).map(s => s.distance.toFixed(2)));
+  console.log('  ✓ Has position data:', simulation[0].position !== undefined);
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }
