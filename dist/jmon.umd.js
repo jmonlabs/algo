@@ -22,8 +22,7 @@ var jm = (() => {
 
   // src/algorithms/visualization/plots/PlotRenderer.js
   async function getPlotly() {
-    if (plotlyLoadAttempted)
-      return Plotly;
+    if (plotlyLoadAttempted) return Plotly;
     plotlyLoadAttempted = true;
     try {
       if (typeof globalThis.window !== "undefined" && globalThis.window.Plotly) {
@@ -674,8 +673,7 @@ var jm = (() => {
          * Find the period of a repeating sequence
          */
         static findPeriod(sequence) {
-          if (sequence.length < 4)
-            return 1;
+          if (sequence.length < 4) return 1;
           for (let period = 1; period <= Math.floor(sequence.length / 2); period++) {
             let isRepeating = true;
             for (let i = period; i < sequence.length; i++) {
@@ -684,8 +682,7 @@ var jm = (() => {
                 break;
               }
             }
-            if (isRepeating)
-              return period;
+            if (isRepeating) return period;
           }
           return 1;
         }
@@ -752,8 +749,7 @@ var jm = (() => {
     LoopVisualizer: () => LoopVisualizer
   });
   async function getPlotly2() {
-    if (plotlyLoadAttempted2)
-      return Plotly2;
+    if (plotlyLoadAttempted2) return Plotly2;
     plotlyLoadAttempted2 = true;
     try {
       if (typeof globalThis.window !== "undefined" && globalThis.window.Plotly) {
@@ -796,11 +792,9 @@ var jm = (() => {
           const layerColors = colors || this.generateColors(tracks.length, colorScheme);
           const traces = [];
           tracks.forEach((track, trackIndex) => {
-            if (!track.notes || track.notes.length === 0)
-              return;
+            if (!track.notes || track.notes.length === 0) return;
             const activeNotes = track.notes.filter((note) => note.pitch !== null);
-            if (activeNotes.length === 0)
-              return;
+            if (activeNotes.length === 0) return;
             if (showDurationArcs || showMarkers) {
               activeNotes.forEach((note) => {
                 const startTheta = note.time / measureLength * 360;
@@ -1049,20 +1043,18 @@ var jm = (() => {
     const modulations = [];
     for (let i = 0; i < notes.length; i++) {
       const n = notes[i];
-      if (!n || typeof n !== "object")
-        continue;
+      if (!n || typeof n !== "object") continue;
       const isRest = n.pitch === null || n.pitch === void 0;
       const onset = toNumber(n.time, 0);
       const dur = toNumber(n.duration, 0);
       const end = onset + Math.max(0, dur);
       const arts = normalizeArticulations(n);
-      if (arts.length === 0)
-        continue;
+      if (arts.length === 0) continue;
       for (const art of arts) {
         const type = typeof art === "string" ? art : art.type;
-        if (!type)
-          continue;
+        if (!type) continue;
         switch (type) {
+          // Simple articulations: duration / velocity shaping
           case "staccato": {
             modulations.push({
               type: "durationScale",
@@ -1111,14 +1103,13 @@ var jm = (() => {
             });
             break;
           }
+          // Complex articulations: curves / continuous modulations
           case "glissando":
           case "portamento": {
-            if (isRest)
-              break;
+            if (isRest) break;
             const fromPitch = toMainPitch(n.pitch);
             const toPitch = typeof art.target === "number" ? art.target : typeof art.to === "number" ? art.to : void 0;
-            if (typeof fromPitch !== "number" || typeof toPitch !== "number")
-              break;
+            if (typeof fromPitch !== "number" || typeof toPitch !== "number") break;
             modulations.push({
               type: "pitch",
               subtype: type,
@@ -1133,8 +1124,7 @@ var jm = (() => {
           }
           case "bend": {
             const amount = toNumber(art.amount, void 0);
-            if (amount === void 0)
-              break;
+            if (amount === void 0) break;
             modulations.push({
               type: "pitch",
               subtype: "bend",
@@ -1203,10 +1193,8 @@ var jm = (() => {
     const out = [];
     if (Array.isArray(note?.articulations)) {
       for (const a of note.articulations) {
-        if (typeof a === "string")
-          out.push({ type: a });
-        else if (a && typeof a === "object" && typeof a.type === "string")
-          out.push({ ...a });
+        if (typeof a === "string") out.push({ type: a });
+        else if (a && typeof a === "object" && typeof a.type === "string") out.push({ ...a });
       }
     }
     return out;
@@ -1224,16 +1212,13 @@ var jm = (() => {
     return [];
   }
   function toMainPitch(pitch) {
-    if (pitch == null)
-      return void 0;
+    if (pitch == null) return void 0;
     if (Array.isArray(pitch)) {
       const arr = pitch.filter((x) => typeof x === "number");
-      if (arr.length === 0)
-        return void 0;
+      if (arr.length === 0) return void 0;
       return Math.min(...arr);
     }
-    if (typeof pitch === "number")
-      return pitch;
+    if (typeof pitch === "number") return pitch;
     return void 0;
   }
   function toNumber(v, fallback) {
@@ -1242,8 +1227,7 @@ var jm = (() => {
   }
   function clamp01(v) {
     const n = toNumber(v, 0);
-    if (!Number.isFinite(n))
-      return 0;
+    if (!Number.isFinite(n)) return 0;
     return Math.max(0, Math.min(1, n));
   }
   var init_PerformanceCompiler = __esm({
@@ -1286,24 +1270,20 @@ var jm = (() => {
   });
   function midiToNoteName(midiLike) {
     const n = typeof midiLike === "string" ? parseInt(midiLike, 10) : midiLike;
-    if (!Number.isFinite(n))
-      return String(midiLike);
+    if (!Number.isFinite(n)) return String(midiLike);
     const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     const note = names[(n % 12 + 12) % 12];
     const octave = Math.floor(n / 12) - 1;
     return `${note}${octave}`;
   }
   function capitalizeFirstLetter(str) {
-    if (!str || typeof str !== "string")
-      return str;
+    if (!str || typeof str !== "string") return str;
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
   function normalizeAudioGraph(composition) {
-    if (!composition || !composition.audioGraph)
-      return composition;
+    if (!composition || !composition.audioGraph) return composition;
     const ag = composition.audioGraph;
-    if (Array.isArray(ag))
-      return composition;
+    if (Array.isArray(ag)) return composition;
     if (ag.nodes && Array.isArray(ag.nodes)) {
       const connectionsMap = /* @__PURE__ */ new Map();
       if (ag.connections && Array.isArray(ag.connections)) {
@@ -1339,16 +1319,13 @@ var jm = (() => {
     return composition;
   }
   function normalizeSamplerUrlsToNoteNames(composition) {
-    if (!composition || !Array.isArray(composition.audioGraph))
-      return composition;
+    if (!composition || !Array.isArray(composition.audioGraph)) return composition;
     composition.audioGraph.forEach((node) => {
       try {
-        if (!node || node.type !== "Sampler")
-          return;
+        if (!node || node.type !== "Sampler") return;
         const opts = node.options || {};
         const urls = opts.urls;
-        if (!urls || typeof urls !== "object")
-          return;
+        if (!urls || typeof urls !== "object") return;
         const normalized = {};
         Object.keys(urls).forEach((k) => {
           const keyStr = String(k);
@@ -1399,8 +1376,7 @@ var jm = (() => {
           const startBeats = Tonejs.parseBBTToBeats(ev.time, beatsPerBar);
           const durBeats = Tonejs.parseDurationToBeats(ev.duration, beatsPerBar);
           const endBeats = startBeats + durBeats;
-          if (endBeats > totalBeats)
-            totalBeats = endBeats;
+          if (endBeats > totalBeats) totalBeats = endBeats;
         });
       }
     });
@@ -1426,13 +1402,10 @@ var jm = (() => {
         }
         // Parse bars:beats:ticks -> beats (supports fractional beats)
         static parseBBTToBeats(timeStr, beatsPerBar = 4, ppq = 480) {
-          if (typeof timeStr === "number")
-            return timeStr;
-          if (typeof timeStr !== "string")
-            return 0;
+          if (typeof timeStr === "number") return timeStr;
+          if (typeof timeStr !== "string") return 0;
           const m = timeStr.match(/^(\d+):(\d+(?:\.\d+)?):(\d+)$/);
-          if (!m)
-            return 0;
+          if (!m) return 0;
           const bars = parseInt(m[1], 10);
           const beats = parseFloat(m[2]);
           const ticks = parseInt(m[3], 10);
@@ -1440,10 +1413,8 @@ var jm = (() => {
         }
         // Parse note value (e.g., 4n, 8n, 8t) or BBT to beats
         static parseDurationToBeats(dur, beatsPerBar = 4, ppq = 480) {
-          if (typeof dur === "number")
-            return dur;
-          if (typeof dur !== "string")
-            return 0;
+          if (typeof dur === "number") return dur;
+          if (typeof dur !== "string") return 0;
           if (/^\d+:\d+(?:\.\d+)?:\d+$/.test(dur)) {
             return this.parseBBTToBeats(dur, beatsPerBar, ppq);
           }
@@ -1610,8 +1581,7 @@ var jm = (() => {
       gmProgram = instrument;
     }
     const instrumentData = GM_INSTRUMENTS[gmProgram];
-    if (!instrumentData)
-      return null;
+    if (!instrumentData) return null;
     const {
       baseUrl = CDN_SOURCES[0],
       noteRange = [21, 108],
@@ -2206,8 +2176,7 @@ var jm = (() => {
     }
     totalTimeDisplay.textContent = formatTime(totalDuration);
     function updateTimeline() {
-      if (!window.Tone?.Transport)
-        return;
+      if (!window.Tone?.Transport) return;
       currentTime = window.Tone.Transport.seconds;
       const progress = currentTime / totalDuration * 100;
       timelineProgress.style.width = `${Math.min(progress, 100)}%`;
@@ -2389,8 +2358,7 @@ var jm = (() => {
         }
         const modsByNote = {};
         modulations.forEach((mod) => {
-          if (!modsByNote[mod.index])
-            modsByNote[mod.index] = [];
+          if (!modsByNote[mod.index]) modsByNote[mod.index] = [];
           modsByNote[mod.index].push(mod);
         });
         partEvents.forEach((note, noteIndex) => {
@@ -2545,10 +2513,10 @@ var jm = (() => {
   });
 
   // src/index.js
-  var src_exports = {};
-  __export(src_exports, {
+  var index_exports = {};
+  __export(index_exports, {
     audio: () => audio2,
-    default: () => src_default,
+    default: () => index_default,
     jm: () => jm
   });
 
@@ -3155,8 +3123,7 @@ var jm = (() => {
       if (options.end !== void 0) {
         for (let i = 0; ; i++) {
           const note = getNextNote(startNote, i);
-          if (note > options.end)
-            break;
+          if (note > options.end) break;
           result.push(note);
         }
       } else if (options.length) {
@@ -3174,11 +3141,9 @@ var jm = (() => {
      */
     getNoteNames() {
       const intervals = MusicTheoryConstants.scale_intervals[this.mode];
-      if (!intervals)
-        return [];
+      if (!intervals) return [];
       const tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(this.tonic);
-      if (tonicIndex === -1)
-        return [];
+      if (tonicIndex === -1) return [];
       return intervals.map((interval) => {
         const noteIndex = (tonicIndex + interval) % 12;
         return MusicTheoryConstants.chromatic_scale[noteIndex];
@@ -3285,8 +3250,7 @@ var jm = (() => {
       const distanceToUpper = upperPitch - pitch;
       const distanceToLower = pitch - lowerPitch;
       const totalDistance = distanceToUpper + distanceToLower;
-      if (totalDistance === 0)
-        return upperIndex - tonicIndex;
+      if (totalDistance === 0) return upperIndex - tonicIndex;
       const upperWeight = 1 - distanceToUpper / totalDistance;
       const lowerWeight = 1 - distanceToLower / totalDistance;
       const upperDegree = upperIndex - tonicIndex;
@@ -3455,8 +3419,7 @@ var jm = (() => {
           closestDistance = distance;
           closestPitch = pitch;
         }
-        if (offset > measureStart)
-          break;
+        if (offset > measureStart) break;
       }
       if (closestPitch !== null) {
         closestPitches.push(closestPitch);
@@ -3902,8 +3865,7 @@ var jm = (() => {
       const led = [];
       const available = [...chord2];
       for (const note1 of chord1) {
-        if (available.length === 0)
-          break;
+        if (available.length === 0) break;
         let minDistance = Infinity;
         let closestIndex = 0;
         for (let i = 0; i < available.length; i++) {
@@ -4244,10 +4206,8 @@ var jm = (() => {
       } else {
         pitches.push(...arpeggioDegrees.map((degree) => mainPitch + degree));
       }
-      if (direction === "down")
-        pitches.reverse();
-      if (direction === "both")
-        pitches.push(...pitches.slice(0, -1).reverse());
+      if (direction === "down") pitches.reverse();
+      if (direction === "both") pitches.push(...pitches.slice(0, -1).reverse());
       const partDuration = mainDuration / pitches.length;
       const arpeggioNotes = pitches.map((pitch, i) => ({
         pitch,
@@ -4788,8 +4748,10 @@ var jm = (() => {
       switch (direction) {
         case "up":
           return "down";
+        // In Arpeggiate, 'down' means high to low
         case "down":
           return "up";
+        // In Arpeggiate, 'up' means low to high
         case "alternate":
           const isDown = this.alternateState % 2 === 0;
           this.alternateState++;
@@ -4894,10 +4856,8 @@ var jm = (() => {
     return `${bars}:${wholeBeats}:${ticks}`;
   }
   function timeToBeats(timeString, beatsPerBar = 4, ticksPerBeat = 480) {
-    if (typeof timeString === "number")
-      return timeString;
-    if (typeof timeString !== "string")
-      return 0;
+    if (typeof timeString === "number") return timeString;
+    if (typeof timeString !== "string") return 0;
     const parts = timeString.split(":").map((x) => parseFloat(x || "0"));
     const [bars = 0, beats = 0, ticks = 0] = parts;
     return bars * beatsPerBar + beats + ticks / ticksPerBeat;
@@ -4938,8 +4898,7 @@ var jm = (() => {
     return composition;
   }
   function normalizeNotes(notes) {
-    if (!Array.isArray(notes))
-      return [];
+    if (!Array.isArray(notes)) return [];
     return notes.map((note, index) => {
       if (Array.isArray(note)) {
         const [pitch, duration, offset = 0] = note;
@@ -5017,8 +4976,7 @@ var jm = (() => {
   }
   var offsetNotes = shiftTime;
   function concatenateSequences(sequences) {
-    if (sequences.length === 0)
-      return [];
+    if (sequences.length === 0) return [];
     const result = [];
     let currentTime = 0;
     const useNumericTime = sequences[0]?.length > 0 && typeof sequences[0][0]?.time === "number";
@@ -5052,8 +5010,7 @@ var jm = (() => {
     return sequences.flat();
   }
   function getTimingInfo(notes) {
-    if (notes.length === 0)
-      return { start: 0, end: 0, duration: 0 };
+    if (notes.length === 0) return { start: 0, end: 0, duration: 0 };
     const startTimes = notes.map((note) => timeToBeats(note.time));
     const endTimes = notes.map((note) => timeToBeats(note.time) + note.duration);
     const start = Math.min(...startTimes);
@@ -5502,8 +5459,7 @@ var jm = (() => {
         return false;
       }
       const width = strips[0]?.length;
-      if (!width)
-        return false;
+      if (!width) return false;
       return strips.every(
         (strip) => Array.isArray(strip) && strip.length === width && strip.every((cell) => typeof cell === "number" && (cell === 0 || cell === 1))
       );
@@ -5751,8 +5707,7 @@ var jm = (() => {
      * Fill gaps between notes with rests (JMON format)
      */
     fillGapsWithRests(notes) {
-      if (notes.length === 0)
-        return notes;
+      if (notes.length === 0) return notes;
       const result = [];
       let currentTime = 0;
       const sortedNotes = [...notes].sort((a, b) => a.time - b.time);
@@ -5966,8 +5921,7 @@ var jm = (() => {
      * @returns {number} Gini coefficient
      */
     gini() {
-      if (this.sequence.length === 0)
-        return 0;
+      if (this.sequence.length === 0) return 0;
       const sorted = [...this.sequence].sort((a, b) => a - b);
       const n = sorted.length;
       let sum = 0;
@@ -5983,8 +5937,7 @@ var jm = (() => {
      * @returns {number} Balance metric
      */
     balance() {
-      if (this.sequence.length === 0)
-        return 0;
+      if (this.sequence.length === 0) return 0;
       const mean = this.sequence.reduce((sum, val) => sum + val, 0) / this.sequence.length;
       const variance = this.sequence.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / this.sequence.length;
       return mean === 0 ? 0 : Math.sqrt(variance) / Math.abs(mean);
@@ -5996,8 +5949,7 @@ var jm = (() => {
      * @returns {number} Motif strength
      */
     motif(maxMotifLength = 4) {
-      if (this.sequence.length < 2)
-        return 0;
+      if (this.sequence.length < 2) return 0;
       const motifCounts = /* @__PURE__ */ new Map();
       let totalMotifs = 0;
       for (let length = 2; length <= Math.min(maxMotifLength, this.sequence.length); length++) {
@@ -6022,8 +5974,7 @@ var jm = (() => {
      * @returns {number} Dissonance level
      */
     dissonance(scale) {
-      if (!scale || scale.length === 0 || this.sequence.length === 0)
-        return 0;
+      if (!scale || scale.length === 0 || this.sequence.length === 0) return 0;
       const scaleClasses = new Set(scale.map((pitch) => pitch % 12));
       let dissonantNotes = 0;
       for (const pitch of this.sequence) {
@@ -6043,8 +5994,7 @@ var jm = (() => {
      * @returns {number} Rhythmic fitness
      */
     rhythmic(measureLength = 4) {
-      if (this.sequence.length === 0)
-        return 0;
+      if (this.sequence.length === 0) return 0;
       let currentBeat = 0;
       let rhythmicErrors = 0;
       const totalDuration = this.sequence.reduce(
@@ -6073,8 +6023,7 @@ var jm = (() => {
      * @returns {number} Proportion of rests (0-1)
      */
     restProportion() {
-      if (this.originalSequence.length === 0)
-        return 0;
+      if (this.originalSequence.length === 0) return 0;
       const restCount = this.originalSequence.filter((val) => val === null || val === void 0).length;
       return restCount / this.originalSequence.length;
     }
@@ -6289,8 +6238,7 @@ var jm = (() => {
      * @returns {Object} Fitness components
      */
     calculateFitnessComponents(phrase) {
-      if (phrase.length === 0)
-        return {};
+      if (phrase.length === 0) return {};
       const pitches = phrase.map((note) => note[0]);
       const durations = phrase.map((note) => note[1]);
       const offsets = phrase.map((note) => note[2]);
@@ -6358,8 +6306,7 @@ var jm = (() => {
      * @returns {Array} Mutated phrase
      */
     mutate(phrase, rate = null) {
-      if (rate === null)
-        rate = this.mutationRate;
+      if (rate === null) rate = this.mutationRate;
       const newPhrase = [];
       let totalOffset = 0;
       for (const note of phrase) {
@@ -6576,16 +6523,11 @@ var jm = (() => {
       }
       if (typeof note.duration === "number" && !keepNumericDuration) {
         const duration = note.duration;
-        if (duration === 1)
-          jmonNote.duration = "4n";
-        else if (duration === 0.5)
-          jmonNote.duration = "8n";
-        else if (duration === 0.25)
-          jmonNote.duration = "16n";
-        else if (duration === 2)
-          jmonNote.duration = "2n";
-        else if (duration === 4)
-          jmonNote.duration = "1n";
+        if (duration === 1) jmonNote.duration = "4n";
+        else if (duration === 0.5) jmonNote.duration = "8n";
+        else if (duration === 0.25) jmonNote.duration = "16n";
+        else if (duration === 2) jmonNote.duration = "2n";
+        else if (duration === 4) jmonNote.duration = "1n";
       }
       return jmonNote;
     });
@@ -6659,8 +6601,7 @@ var jm = (() => {
      */
     updateWalkers() {
       for (const walker of this.walkers) {
-        if (!walker.active)
-          continue;
+        if (!walker.active) continue;
         for (let dim = 0; dim < this.options.dimensions; dim++) {
           const randomStep = (Math.random() - 0.5) * 2 * this.options.stepSize;
           let attractorForce = 0;
@@ -6705,8 +6646,7 @@ var jm = (() => {
     handleBranching() {
       const newBranches = [];
       for (const walker of this.walkers) {
-        if (!walker.active)
-          continue;
+        if (!walker.active) continue;
         if (Math.random() < this.options.branchProbability) {
           const branch = {
             position: [...walker.position],
@@ -6725,8 +6665,7 @@ var jm = (() => {
      * Handle merging (walker combining)
      */
     handleMerging() {
-      if (this.walkers.length <= 1)
-        return;
+      if (this.walkers.length <= 1) return;
       const activeWalkers = this.walkers.filter((w) => w.active);
       const mergeThreshold = this.options.stepSize * 2;
       for (let i = 0; i < activeWalkers.length; i++) {
@@ -6766,8 +6705,7 @@ var jm = (() => {
      */
     mapToScale(dimension = 0, scale = [0, 2, 4, 5, 7, 9, 11], octaveRange = 3) {
       const projection = this.getProjection(dimension);
-      if (projection.length === 0)
-        return [];
+      if (projection.length === 0) return [];
       const minVal = Math.min(...projection);
       const maxVal = Math.max(...projection);
       const range = maxVal - minVal || 1;
@@ -6784,8 +6722,7 @@ var jm = (() => {
      */
     mapToRhythm(dimension = 0, durations = [0.25, 0.5, 1, 2]) {
       const projection = this.getProjection(dimension);
-      if (projection.length === 0)
-        return [];
+      if (projection.length === 0) return [];
       const minVal = Math.min(...projection);
       const maxVal = Math.max(...projection);
       const range = maxVal - minVal || 1;
@@ -6801,8 +6738,7 @@ var jm = (() => {
      */
     mapToVelocity(dimension = 0, minVel = 0.3, maxVel = 1) {
       const projection = this.getProjection(dimension);
-      if (projection.length === 0)
-        return [];
+      if (projection.length === 0) return [];
       const minVal = Math.min(...projection);
       const maxVal = Math.max(...projection);
       const range = maxVal - minVal || 1;
@@ -6815,8 +6751,7 @@ var jm = (() => {
      * Generate correlated walk (walk that follows another walk with some correlation)
      */
     generateCorrelated(targetWalk, correlation = 0.5, dimension = 0) {
-      if (targetWalk.length === 0)
-        return [];
+      if (targetWalk.length === 0) return [];
       const correlatedWalk = [];
       let position = 0;
       for (let i = 0; i < targetWalk.length; i++) {
@@ -6970,8 +6905,7 @@ var jm = (() => {
           const walk = walks[walkIndex];
           const currentPosition = currentPositions[walkIndex];
           if (currentPosition === null) {
-            if (walk)
-              walk[step] = null;
+            if (walk) walk[step] = null;
             continue;
           }
           const stepSize = this.generateStep(randomFunc);
@@ -7083,11 +7017,9 @@ var jm = (() => {
     handleMerging(walks, positions, step, randomFunc = Math.random) {
       const newPositions = [...positions];
       for (let i = 0; i < positions.length; i++) {
-        if (positions[i] === null)
-          continue;
+        if (positions[i] === null) continue;
         for (let j = i + 1; j < positions.length; j++) {
-          if (positions[j] === null)
-            continue;
+          if (positions[j] === null) continue;
           const tolerance = this.roundTo !== null ? this.roundTo : 1e-3;
           if (Math.abs(positions[i] - positions[j]) <= tolerance && randomFunc() < this.mergingProbability) {
             newPositions[j] = null;
@@ -7156,8 +7088,7 @@ var jm = (() => {
     mapToScale(walks, scale = [60, 62, 64, 65, 67, 69, 71]) {
       return walks.map((walk) => {
         return walk.map((value) => {
-          if (value === null)
-            return null;
+          if (value === null) return null;
           const minVal = this.walkRange[0];
           const maxVal = this.walkRange[1];
           const range = maxVal - minVal;
@@ -7223,8 +7154,7 @@ var jm = (() => {
     getAngleFromOrigin(time) {
       const position = this.getPosition(time);
       let angle = Math.atan2(position.y, position.x) * 180 / Math.PI;
-      if (angle < 0)
-        angle += 360;
+      if (angle < 0) angle += 360;
       return angle;
     }
     /**
@@ -7504,8 +7434,7 @@ var jm = (() => {
       const sequence = [];
       const height = data.length;
       const width = data[0]?.length || 0;
-      if (height === 0 || width === 0)
-        return sequence;
+      if (height === 0 || width === 0) return sequence;
       for (let x = 0; x < width; x++) {
         sequence.push(data[0][x]);
       }
@@ -7533,8 +7462,7 @@ var jm = (() => {
       const sequence = [];
       const height = data.length;
       const width = data[0]?.length || 0;
-      if (height === 0 || width === 0)
-        return sequence;
+      if (height === 0 || width === 0) return sequence;
       let top = 0, bottom = height - 1;
       let left = 0, right = width - 1;
       while (top <= bottom && left <= right) {
@@ -7602,8 +7530,7 @@ var jm = (() => {
      * // Maps each value to a pitch based on normalized position
      */
     mapToScale({ sequence, pitches }) {
-      if (sequence.length === 0)
-        return [];
+      if (sequence.length === 0) return [];
       if (!pitches || pitches.length === 0) {
         throw new Error("pitches array is required and must not be empty");
       }
@@ -7624,8 +7551,7 @@ var jm = (() => {
      * @returns {number[]} Rhythmic durations
      */
     mapToRhythm({ sequence, subdivisions = [1, 2, 4, 8, 16] }) {
-      if (sequence.length === 0)
-        return [];
+      if (sequence.length === 0) return [];
       const minVal = Math.min(...sequence);
       const maxVal = Math.max(...sequence);
       const range = maxVal - minVal || 1;
@@ -7697,8 +7623,7 @@ var jm = (() => {
      * @returns {number[]} MIDI note sequence
      */
     mapToScale(sequence, scale = [0, 2, 4, 5, 7, 9, 11], octaveRange = 3) {
-      if (sequence.length === 0)
-        return [];
+      if (sequence.length === 0) return [];
       return sequence.map((value) => {
         const scaleIndex = Math.floor(value * scale.length * octaveRange);
         const octave = Math.floor(scaleIndex / scale.length);
@@ -7713,8 +7638,7 @@ var jm = (() => {
      * @returns {number[]} Rhythm sequence
      */
     mapToRhythm(sequence, durations = [0.25, 0.5, 1, 2]) {
-      if (sequence.length === 0)
-        return [];
+      if (sequence.length === 0) return [];
       return sequence.map((value) => {
         const durationIndex = Math.floor(value * durations.length);
         const clampedIndex = Math.max(0, Math.min(durationIndex, durations.length - 1));
@@ -7729,8 +7653,7 @@ var jm = (() => {
      * @returns {number[]} Velocity sequence
      */
     mapToVelocity(sequence, minVel = 0.3, maxVel = 1) {
-      if (sequence.length === 0)
-        return [];
+      if (sequence.length === 0) return [];
       const range = maxVel - minVel;
       return sequence.map((value) => minVel + value * range);
     }
@@ -8008,8 +7931,7 @@ var jm = (() => {
     }
     // Normalize heterogenous inputs into objects with pitch, duration, offset (beats)
     normalizeInput(sequence) {
-      if (!Array.isArray(sequence))
-        return [];
+      if (!Array.isArray(sequence)) return [];
       if (Array.isArray(sequence[0])) {
         return sequence.map(([pitch, duration, offset = 0]) => ({ pitch, duration, offset }));
       }
@@ -8017,12 +7939,9 @@ var jm = (() => {
         const pitch = n.pitch;
         const duration = n.duration;
         let offset = 0;
-        if (typeof n.offset === "number")
-          offset = n.offset;
-        else if (typeof n.time === "number")
-          offset = n.time;
-        else if (typeof n.time === "string")
-          offset = this.timeToBeats(n.time);
+        if (typeof n.offset === "number") offset = n.offset;
+        else if (typeof n.time === "number") offset = n.time;
+        else if (typeof n.time === "string") offset = this.timeToBeats(n.time);
         return { ...n, pitch, duration, offset };
       });
     }
@@ -8032,8 +7951,7 @@ var jm = (() => {
     }
     // Convert bars:beats:ticks to beats using centralized utility
     timeToBeats(timeStr) {
-      if (typeof timeStr !== "string")
-        return Number(timeStr) || 0;
+      if (typeof timeStr !== "string") return Number(timeStr) || 0;
       return barsBeatsTicksToOffset(timeStr, this.timingConfig);
     }
     // After process, recalc offsets sequentially in beats
@@ -8206,8 +8124,7 @@ var jm = (() => {
     }
     // Normalize input like MinimalismProcess
     normalizeInput(sequence) {
-      if (!Array.isArray(sequence))
-        return [];
+      if (!Array.isArray(sequence)) return [];
       if (Array.isArray(sequence[0])) {
         return sequence.map(([pitch, duration, offset = 0]) => ({ pitch, duration, offset }));
       }
@@ -8215,12 +8132,9 @@ var jm = (() => {
         const pitch = n.pitch;
         const duration = n.duration;
         let offset = 0;
-        if (typeof n.offset === "number")
-          offset = n.offset;
-        else if (typeof n.time === "number")
-          offset = n.time;
-        else if (typeof n.time === "string")
-          offset = this.timeToBeats(n.time);
+        if (typeof n.offset === "number") offset = n.offset;
+        else if (typeof n.time === "number") offset = n.time;
+        else if (typeof n.time === "string") offset = this.timeToBeats(n.time);
         return { ...n, pitch, duration, offset };
       });
     }
@@ -8230,8 +8144,7 @@ var jm = (() => {
     }
     // Convert bars:beats:ticks to beats using centralized utility
     timeToBeats(timeStr) {
-      if (typeof timeStr !== "string")
-        return Number(timeStr) || 0;
+      if (typeof timeStr !== "string") return Number(timeStr) || 0;
       return barsBeatsTicksToOffset(timeStr, this.timingConfig);
     }
   };
@@ -8455,8 +8368,7 @@ var jm = (() => {
      * @returns {Array} Notes with velocity sag applied
      */
     applyVelocitySag(notes, entropy) {
-      if (notes.length === 0)
-        return notes;
+      if (notes.length === 0) return notes;
       return notes.map((note, index) => {
         const sagAmount = entropy * 0.4;
         const progress = index / notes.length;
@@ -8478,8 +8390,7 @@ var jm = (() => {
     generateGhostTracks(tracks, entropy) {
       const ghostTracks = [];
       for (const track of tracks) {
-        if (!track.notes || track.notes.length === 0)
-          continue;
+        if (!track.notes || track.notes.length === 0) continue;
         const pitches = track.notes.map((n) => typeof n.pitch === "number" ? n.pitch : 60);
         const uniquePitches = new Set(pitches);
         if (uniquePitches.size > 3) {
@@ -8604,8 +8515,7 @@ var jm = (() => {
      * @returns {number} Gini coefficient (0-1)
      */
     static gini(values, weights) {
-      if (values.length === 0)
-        return 0;
+      if (values.length === 0) return 0;
       const n = values.length;
       const w = weights || Array(n).fill(1);
       const pairs = values.map((v, i) => ({ value: v, weight: w[i] })).sort((a, b) => a.value - b.value);
@@ -8631,8 +8541,7 @@ var jm = (() => {
      * @returns {number} Balance point
      */
     static balance(values, weights) {
-      if (values.length === 0)
-        return 0;
+      if (values.length === 0) return 0;
       const w = weights || Array(values.length).fill(1);
       const weightedSum = values.reduce((sum, val, i) => sum + val * w[i], 0);
       const totalWeight = w.reduce((sum, weight) => sum + weight, 0);
@@ -8667,8 +8576,7 @@ var jm = (() => {
      * @returns {number} Motif score
      */
     static motif(values, patternLength = 3) {
-      if (values.length < patternLength * 2)
-        return 0;
+      if (values.length < patternLength * 2) return 0;
       const patterns = /* @__PURE__ */ new Map();
       for (let i = 0; i <= values.length - patternLength; i++) {
         const pattern = values.slice(i, i + patternLength).join(",");
@@ -8685,8 +8593,7 @@ var jm = (() => {
      * @returns {number} Dissonance score (0-1)
      */
     static dissonance(pitches, scale = [0, 2, 4, 5, 7, 9, 11]) {
-      if (pitches.length === 0)
-        return 0;
+      if (pitches.length === 0) return 0;
       let conformingNotes = 0;
       for (const pitch of pitches) {
         const pitchClass = (pitch % 12 + 12) % 12;
@@ -8703,8 +8610,7 @@ var jm = (() => {
      * @returns {number} Rhythmic alignment score
      */
     static rhythmic(onsets, gridDivision = 16) {
-      if (onsets.length === 0)
-        return 0;
+      if (onsets.length === 0) return 0;
       let gridAlignedCount = 0;
       const tolerance = 0.1;
       for (const onset of onsets) {
@@ -8723,8 +8629,7 @@ var jm = (() => {
      * @returns {number} Fibonacci index
      */
     static fibonacciIndex(values) {
-      if (values.length < 2)
-        return 0;
+      if (values.length < 2) return 0;
       const goldenRatio = (1 + Math.sqrt(5)) / 2;
       let fibonacciScore = 0;
       for (let i = 1; i < values.length; i++) {
@@ -8743,8 +8648,7 @@ var jm = (() => {
      * @returns {number} Syncopation score
      */
     static syncopation(onsets, beatDivision = 4) {
-      if (onsets.length === 0)
-        return 0;
+      if (onsets.length === 0) return 0;
       let syncopatedCount = 0;
       for (const onset of onsets) {
         const beatPosition = onset * beatDivision % 1;
@@ -8761,26 +8665,19 @@ var jm = (() => {
      * @returns {number} Contour entropy
      */
     static contourEntropy(pitches) {
-      if (pitches.length < 2)
-        return 0;
+      if (pitches.length < 2) return 0;
       const directions = [];
       for (let i = 1; i < pitches.length; i++) {
         const diff = pitches[i] - pitches[i - 1];
-        if (diff > 0)
-          directions.push(1);
-        else if (diff < 0)
-          directions.push(-1);
-        else
-          directions.push(0);
+        if (diff > 0) directions.push(1);
+        else if (diff < 0) directions.push(-1);
+        else directions.push(0);
       }
       const counts = { up: 0, down: 0, same: 0 };
       for (const dir of directions) {
-        if (dir > 0)
-          counts.up++;
-        else if (dir < 0)
-          counts.down++;
-        else
-          counts.same++;
+        if (dir > 0) counts.up++;
+        else if (dir < 0) counts.down++;
+        else counts.same++;
       }
       const total = directions.length;
       const probabilities = [
@@ -8796,8 +8693,7 @@ var jm = (() => {
      * @returns {number} Interval variance
      */
     static intervalVariance(pitches) {
-      if (pitches.length < 2)
-        return 0;
+      if (pitches.length < 2) return 0;
       const intervals = [];
       for (let i = 1; i < pitches.length; i++) {
         intervals.push(Math.abs(pitches[i] - pitches[i - 1]));
@@ -8816,8 +8712,7 @@ var jm = (() => {
      * @returns {number} Note density
      */
     static density(notes, timeWindow = 1) {
-      if (notes.length === 0)
-        return 0;
+      if (notes.length === 0) return 0;
       const numericTimes = notes.map((note) => {
         if (typeof note.time === "string") {
           return parseFloat(note.time) || 0;
@@ -8835,8 +8730,7 @@ var jm = (() => {
      * @returns {number} Gap variance
      */
     static gapVariance(onsets) {
-      if (onsets.length < 2)
-        return 0;
+      if (onsets.length < 2) return 0;
       const gaps = [];
       for (let i = 1; i < onsets.length; i++) {
         gaps.push(onsets[i] - onsets[i - 1]);
@@ -8854,16 +8748,14 @@ var jm = (() => {
     static analyze(notes, options = {}) {
       const { scale = [0, 2, 4, 5, 7, 9, 11] } = options;
       const pitches = notes.map((note) => {
-        if (typeof note.note === "number")
-          return note.note;
+        if (typeof note.note === "number") return note.note;
         if (typeof note.note === "string") {
           return 60;
         }
         return Array.isArray(note.note) ? note.note[0] : 60;
       });
       const onsets = notes.map((note) => {
-        if (typeof note.time === "number")
-          return note.time;
+        if (typeof note.time === "number") return note.time;
         return parseFloat(note.time) || 0;
       });
       return {
@@ -9151,16 +9043,11 @@ var jm = (() => {
         r = g = b = l;
       } else {
         const hue2rgb = (p2, q2, t) => {
-          if (t < 0)
-            t += 1;
-          if (t > 1)
-            t -= 1;
-          if (t < 1 / 6)
-            return p2 + (q2 - p2) * 6 * t;
-          if (t < 1 / 2)
-            return q2;
-          if (t < 2 / 3)
-            return p2 + (q2 - p2) * (2 / 3 - t) * 6;
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1 / 6) return p2 + (q2 - p2) * 6 * t;
+          if (t < 1 / 2) return q2;
+          if (t < 2 / 3) return p2 + (q2 - p2) * (2 / 3 - t) * 6;
           return p2;
         };
         const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
@@ -9917,18 +9804,12 @@ var jm = (() => {
     convertDurationToNoteValue(duration) {
       const quarterNote = 0.5;
       const ratio = duration / quarterNote;
-      if (ratio >= 3.5)
-        return "1n";
-      if (ratio >= 1.75)
-        return "2n";
-      if (ratio >= 0.875)
-        return "4n";
-      if (ratio >= 0.4375)
-        return "8n";
-      if (ratio >= 0.21875)
-        return "16n";
-      if (ratio >= 0.109375)
-        return "32n";
+      if (ratio >= 3.5) return "1n";
+      if (ratio >= 1.75) return "2n";
+      if (ratio >= 0.875) return "4n";
+      if (ratio >= 0.4375) return "8n";
+      if (ratio >= 0.21875) return "16n";
+      if (ratio >= 0.109375) return "32n";
       return "16n";
     }
     /**
@@ -10140,8 +10021,7 @@ var jm = (() => {
         }
         const modsByNote = {};
         trackModulations.forEach((mod) => {
-          if (!modsByNote[mod.index])
-            modsByNote[mod.index] = [];
+          if (!modsByNote[mod.index]) modsByNote[mod.index] = [];
           modsByNote[mod.index].push(mod);
         });
         notes.forEach((note, noteIndex) => {
@@ -10215,8 +10095,7 @@ var jm = (() => {
     try {
       composition.audioGraph.forEach((node) => {
         const { id, type, options = {} } = node;
-        if (!id || !type)
-          return;
+        if (!id || !type) return;
         let instrument = null;
         if (SYNTHESIZER_TYPES2.includes(type)) {
           try {
@@ -10241,8 +10120,7 @@ var jm = (() => {
       });
       composition.audioGraph.forEach((node) => {
         const { id, target } = node;
-        if (!id || !map[id] || map[id] === Tone.Destination)
-          return;
+        if (!id || !map[id] || map[id] === Tone.Destination) return;
         const currentNode = map[id];
         if (target && map[target]) {
           if (map[target] === Tone.Destination) {
@@ -10301,8 +10179,7 @@ var jm = (() => {
 
   // src/converters/abc.js
   function midiToABC(midi2) {
-    if (typeof midi2 !== "number")
-      return "C";
+    if (typeof midi2 !== "number") return "C";
     const noteNames = ["C", "^C", "D", "^D", "E", "F", "^F", "G", "^G", "A", "^A", "B"];
     const octave = Math.floor(midi2 / 12) - 1;
     const noteName = noteNames[midi2 % 12];
@@ -10321,22 +10198,14 @@ var jm = (() => {
     }
   }
   function durationToABC(duration) {
-    if (duration >= 4)
-      return "4";
-    if (duration >= 3)
-      return "3";
-    if (duration >= 2)
-      return "2";
-    if (duration >= 1.5)
-      return "3/2";
-    if (duration >= 1)
-      return "";
-    if (duration >= 0.75)
-      return "3/4";
-    if (duration >= 0.5)
-      return "/2";
-    if (duration >= 0.25)
-      return "/4";
+    if (duration >= 4) return "4";
+    if (duration >= 3) return "3";
+    if (duration >= 2) return "2";
+    if (duration >= 1.5) return "3/2";
+    if (duration >= 1) return "";
+    if (duration >= 0.75) return "3/4";
+    if (duration >= 0.5) return "/2";
+    if (duration >= 0.25) return "/4";
     return "/8";
   }
   function abc(composition) {
@@ -10432,8 +10301,7 @@ var jm = (() => {
   // src/utils/notation/deriveVisualFromArticulations.js
   function normalizeArticulations2(articulations) {
     const out = [];
-    if (!Array.isArray(articulations))
-      return out;
+    if (!Array.isArray(articulations)) return out;
     for (const a of articulations) {
       if (typeof a === "string") {
         out.push({ type: a });
@@ -10452,14 +10320,10 @@ var jm = (() => {
   }
   function mapToVexFlowArticulationCodes(resolved) {
     const codes = [];
-    if (resolved.staccato)
-      codes.push("a.");
-    if (resolved.accent)
-      codes.push("a>");
-    if (resolved.tenuto)
-      codes.push("a-");
-    if (resolved.marcato)
-      codes.push("a^");
+    if (resolved.staccato) codes.push("a.");
+    if (resolved.accent) codes.push("a>");
+    if (resolved.tenuto) codes.push("a-");
+    if (resolved.marcato) codes.push("a^");
     return codes;
   }
   function mapToAbcDecorations(arts, options = {}) {
@@ -10467,47 +10331,33 @@ var jm = (() => {
     const abc2 = [];
     const types = new Set(arts.map((a) => a.type));
     const resolved = resolveAccentPrecedence(types);
-    if (resolved.staccato)
-      abc2.push("!staccato!");
-    if (resolved.accent)
-      abc2.push("!accent!");
-    if (resolved.tenuto)
-      abc2.push("!tenuto!");
-    if (resolved.marcato)
-      abc2.push("!marcato!");
+    if (resolved.staccato) abc2.push("!staccato!");
+    if (resolved.accent) abc2.push("!accent!");
+    if (resolved.tenuto) abc2.push("!tenuto!");
+    if (resolved.marcato) abc2.push("!marcato!");
     const want = (t) => types.has(t);
-    if (includeFermata && want("fermata"))
-      abc2.push("!fermata!");
-    if (want("trill"))
-      abc2.push("!trill!");
-    if (want("mordent"))
-      abc2.push("!mordent!");
-    if (want("turn"))
-      abc2.push("!turn!");
-    if (want("arpeggio"))
-      abc2.push("!arpeggio!");
-    if (want("glissando") || want("portamento"))
-      abc2.push("!slide!");
+    if (includeFermata && want("fermata")) abc2.push("!fermata!");
+    if (want("trill")) abc2.push("!trill!");
+    if (want("mordent")) abc2.push("!mordent!");
+    if (want("turn")) abc2.push("!turn!");
+    if (want("arpeggio")) abc2.push("!arpeggio!");
+    if (want("glissando") || want("portamento")) abc2.push("!slide!");
     return abc2;
   }
   function extractStrokeHint(arts) {
     const stroke = arts.find((a) => a.type === "stroke") || arts.find((a) => a.type === "arpeggio") || arts.find((a) => a.type === "arpeggiate");
-    if (!stroke)
-      return null;
+    if (!stroke) return null;
     const dir = typeof stroke.direction === "string" && stroke.direction.toLowerCase() === "down" ? "down" : "up";
     const style = typeof stroke.style === "string" && stroke.style.toLowerCase() === "brush" ? "brush" : "roll";
     return { direction: dir, style };
   }
   function extractGlissHint(arts) {
     const a = arts.find((x) => x.type === "glissando" || x.type === "portamento");
-    if (!a)
-      return null;
+    if (!a) return null;
     const text = a.type === "portamento" ? "port." : "gliss.";
     const out = { type: a.type, text };
-    if (typeof a.target === "number")
-      out.target = a.target;
-    if (typeof a.curve === "string")
-      out.curve = a.curve;
+    if (typeof a.target === "number") out.target = a.target;
+    if (typeof a.curve === "string") out.curve = a.curve;
     return out;
   }
   function deriveVisualFromArticulations(articulations, options = {}) {
@@ -10588,16 +10438,11 @@ var jm = (() => {
      * Convert duration to VexFlow duration string
      */
     durationToVexFlow(duration) {
-      if (duration >= 4)
-        return "w";
-      if (duration >= 2)
-        return "h";
-      if (duration >= 1)
-        return "q";
-      if (duration >= 0.5)
-        return "8";
-      if (duration >= 0.25)
-        return "16";
+      if (duration >= 4) return "w";
+      if (duration >= 2) return "h";
+      if (duration >= 1) return "q";
+      if (duration >= 0.5) return "8";
+      if (duration >= 0.25) return "16";
       return "32";
     }
     /**
@@ -10761,8 +10606,7 @@ var jm = (() => {
               typeof globalThis.window !== "undefined" && globalThis.window.Vex && (globalThis.window.Vex.Flow || globalThis.window.Vex)
             ];
             for (const c of candidates) {
-              if (c)
-                return c;
+              if (c) return c;
             }
             return null;
           })();
@@ -10853,12 +10697,10 @@ var jm = (() => {
                 g: "natural"
               };
               if (type === "sharp") {
-                for (let i = 0; i < count; i++)
-                  map[orderSharps[i]] = "sharp";
+                for (let i = 0; i < count; i++) map[orderSharps[i]] = "sharp";
               }
               if (type === "flat") {
-                for (let i = 0; i < count; i++)
-                  map[orderFlats[i]] = "flat";
+                for (let i = 0; i < count; i++) map[orderFlats[i]] = "flat";
               }
               return map;
             };
@@ -10907,10 +10749,8 @@ var jm = (() => {
                 if (firstPart && graceBuf.length) {
                   part.graceNotes = graceBuf.splice(0, graceBuf.length);
                 }
-                if (!firstPart)
-                  part.tieFromPrev = true;
-                if (slice < t)
-                  part.tieToNext = true;
+                if (!firstPart) part.tieFromPrev = true;
+                if (slice < t) part.tieToNext = true;
                 cur.push(part);
                 acc += slice;
                 t -= slice;
@@ -10922,8 +10762,7 @@ var jm = (() => {
                 }
               }
             }
-            if (cur.length)
-              measures.push(cur);
+            if (cur.length) measures.push(cur);
             const left = 10;
             const right = 10;
             const top = 40;
@@ -10935,8 +10774,7 @@ var jm = (() => {
             const mWidth = Math.max(300, Math.floor(avail / mCount));
             const keyToMidi = (k) => {
               const m = /^([a-g])(b|#)?\/(-?\d+)$/.exec(k);
-              if (!m)
-                return 60;
+              if (!m) return 60;
               const letters = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
               const letter = letters[m[1]];
               const acc2 = m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0;
@@ -11179,8 +11017,7 @@ var jm = (() => {
                   noteData.articulations.forEach((a) => {
                     const articulationType = typeof a === "string" ? a : a && a.type;
                     const code = articulationMap[articulationType] || null;
-                    if (!code)
-                      return;
+                    if (!code) return;
                     if (Flow && Flow.Articulation && Flow.Modifier && Flow.Modifier.Position && (typeof note.addArticulation === "function" || typeof note.addModifier === "function")) {
                       const art = new Flow.Articulation(code);
                       if (art && typeof art.setPosition === "function") {
@@ -11209,8 +11046,7 @@ var jm = (() => {
               });
               tickables.forEach((n, i) => {
                 const d = mNotes[i];
-                if (!d || d.isRest)
-                  return;
+                if (!d || d.isRest) return;
                 const dotCount = typeof d.dots === "number" ? d.dots : d.dots === true || d.dot === true || d.dotted === true ? 1 : 0;
                 for (let k = 0; k < dotCount; k++) {
                   if (typeof n.addDotToAll === "function") {
@@ -11279,12 +11115,10 @@ var jm = (() => {
             if (createdNotes.length && Flow.StaveTie) {
               for (let i = 0; i < createdNotes.length - 1; i++) {
                 const cur2 = createdNotes[i];
-                if (!cur2)
-                  continue;
+                if (!cur2) continue;
                 const d = cur2.data || {};
                 const isTieStart = !!(d.tieToNext || d.tieStart || d.tie === "start");
-                if (!isTieStart)
-                  continue;
+                if (!isTieStart) continue;
                 let next = null;
                 for (let j = i + 1; j < createdNotes.length; j++) {
                   if (createdNotes[j]) {
@@ -11308,11 +11142,9 @@ var jm = (() => {
             if (createdNotes.length && Flow && Flow.Glissando) {
               for (let i = 0; i < createdNotes.length - 1; i++) {
                 const start = createdNotes[i];
-                if (!start || !start.data || !start.vf)
-                  continue;
+                if (!start || !start.data || !start.vf) continue;
                 const g = start.data.gliss;
-                if (!g)
-                  continue;
+                if (!g) continue;
                 let end = null;
                 if (g.targetKey) {
                   for (let j = i + 1; j < createdNotes.length; j++) {
@@ -11429,12 +11261,10 @@ var jm = (() => {
                 g: "natural"
               };
               if (type === "sharp") {
-                for (let i = 0; i < count; i++)
-                  map[orderSharps[i]] = "sharp";
+                for (let i = 0; i < count; i++) map[orderSharps[i]] = "sharp";
               }
               if (type === "flat") {
-                for (let i = 0; i < count; i++)
-                  map[orderFlats[i]] = "flat";
+                for (let i = 0; i < count; i++) map[orderFlats[i]] = "flat";
               }
               return map;
             };
@@ -11495,10 +11325,8 @@ var jm = (() => {
                 if (firstPart && graceBuf.length) {
                   part.graceNotes = graceBuf.splice(0, graceBuf.length);
                 }
-                if (!firstPart)
-                  part.tieFromPrev = true;
-                if (slice < t)
-                  part.tieToNext = true;
+                if (!firstPart) part.tieFromPrev = true;
+                if (slice < t) part.tieToNext = true;
                 cur.push(part);
                 acc += slice;
                 t -= slice;
@@ -11510,8 +11338,7 @@ var jm = (() => {
                 }
               }
             }
-            if (cur.length)
-              measures.push(cur);
+            if (cur.length) measures.push(cur);
             const left = 10;
             const right = 10;
             const top = 40;
@@ -11523,8 +11350,7 @@ var jm = (() => {
             const mWidth = Math.max(300, Math.floor(avail / mCount));
             const fallbackKeyToMidi = (k) => {
               const m = /^([a-g])(b|#)?\/(-?\d+)$/.exec(k);
-              if (!m)
-                return 60;
+              if (!m) return 60;
               const letters = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
               const letter = letters[m[1]];
               const acc2 = m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0;
@@ -11772,8 +11598,7 @@ var jm = (() => {
                   noteData.articulations.forEach((a) => {
                     const articulationType = typeof a === "string" ? a : a && a.type;
                     const code = articulationMap[articulationType] || null;
-                    if (!code)
-                      return;
+                    if (!code) return;
                     if (Flow && Flow.Articulation && Flow.Modifier && Flow.Modifier.Position && (typeof note.addArticulation === "function" || typeof note.addModifier === "function")) {
                       const art = new Flow.Articulation(code);
                       if (art && typeof art.setPosition === "function") {
@@ -11791,8 +11616,7 @@ var jm = (() => {
               });
               tickables.forEach((n, i) => {
                 const d = mNotes[i];
-                if (!d || d.isRest)
-                  return;
+                if (!d || d.isRest) return;
                 const dotCount = typeof d.dots === "number" ? d.dots : d.dots === true || d.dot === true || d.dotted === true ? 1 : 0;
                 for (let k = 0; k < dotCount; k++) {
                   if (typeof n.addDotToAll === "function") {
@@ -11849,12 +11673,10 @@ var jm = (() => {
             if (createdNotes.length && Flow.StaveTie) {
               for (let i = 0; i < createdNotes.length - 1; i++) {
                 const cur2 = createdNotes[i];
-                if (!cur2)
-                  continue;
+                if (!cur2) continue;
                 const d = cur2.data || {};
                 const isTieStart = !!(d.tieToNext || d.tieStart || d.tie === "start");
-                if (!isTieStart)
-                  continue;
+                if (!isTieStart) continue;
                 let next = null;
                 for (let j = i + 1; j < createdNotes.length; j++) {
                   if (createdNotes[j]) {
@@ -12131,8 +11953,7 @@ var jm = (() => {
     return measures;
   }
   function midiToPitch(midi2) {
-    if (typeof midi2 !== "number")
-      return { step: "C", alter: 0, octave: 4 };
+    if (typeof midi2 !== "number") return { step: "C", alter: 0, octave: 4 };
     const pitchClass = midi2 % 12;
     const octave = Math.floor(midi2 / 12) - 1;
     const pitchMap = {
@@ -12152,16 +11973,11 @@ var jm = (() => {
     return { ...pitchMap[pitchClass], octave };
   }
   function getDurationType(duration) {
-    if (duration >= 4)
-      return "whole";
-    if (duration >= 2)
-      return "half";
-    if (duration >= 1)
-      return "quarter";
-    if (duration >= 0.5)
-      return "eighth";
-    if (duration >= 0.25)
-      return "16th";
+    if (duration >= 4) return "whole";
+    if (duration >= 2) return "half";
+    if (duration >= 1) return "quarter";
+    if (duration >= 0.5) return "eighth";
+    if (duration >= 0.25) return "16th";
     return "32nd";
   }
   function parseKeySignature(keySignature) {
@@ -12415,6 +12231,6 @@ var jm = (() => {
     VERSION: "1.0.0"
   };
   var audio2 = algorithms_default.audio;
-  var src_default = jm;
-  return __toCommonJS(src_exports);
+  var index_default = jm;
+  return __toCommonJS(index_exports);
 })();

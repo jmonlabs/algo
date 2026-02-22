@@ -1,6 +1,6 @@
 # `jmon/algo`
 
-`jmon/algo` (jam on studio - algorithms) a JavaScript music composition toolkit for the JMON (JSON Music Object Notation) format. We don'Mt provide an installation guide yet, but you can start using it on [Observable](https://observablehq.com/). Check out the [interactive guide](https://observablehq.com/collection/@essi/jmon-algo).
+`jmon/algo` (jam on studio - algorithms) a JavaScript music composition toolkit for the JMON (JSON Music Object Notation) format. We don't provide an installation guide yet, but you can start using it on [Observable](https://observablehq.com/). Check out the [interactive guide](https://observablehq.com/collection/@essi/jmon-algo).
 
 ## Features
 
