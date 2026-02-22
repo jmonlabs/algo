@@ -172,106 +172,98 @@ function jmonToMusicXML(composition) {
 }
 
 /**
+ * Normalize time values to avoid floating point precision errors
+ */
+function normalizeTime(value) {
+  return Math.round(value * 10000) / 10000;
+}
+
+/**
+ * Check if two time values are approximately equal
+ */
+function timeEqual(a, b, tolerance = 0.0001) {
+  return Math.abs(a - b) < tolerance;
+}
+
+/**
  * Split notes into measures
  */
 function splitIntoMeasures(notes, measureDuration, totalDuration) {
   const measures = [];
   let currentMeasure = [];
-  let measureStartTime = 0;
-  let currentTime = 0;
+  let currentTime = normalizeTime(0);
 
   // Sort notes by time
   const sortedNotes = [...notes].sort((a, b) => (a.time || 0) - (b.time || 0));
 
-  for (const note of sortedNotes) {
-    const noteTime = note.time || 0;
-    const noteDuration = note.duration || 1;
+  // Normalize all note times and durations
+  const normalizedNotes = sortedNotes.map(note => ({
+    ...note,
+    time: normalizeTime(note.time || 0),
+    duration: normalizeTime(note.duration || 1)
+  }));
 
-    // Fill gap with rest if needed
-    if (noteTime > currentTime + 0.001) {
-      const restDuration = noteTime - currentTime;
+  let noteIndex = 0;
+  const numMeasures = Math.ceil(normalizeTime(totalDuration) / measureDuration);
 
-      // Check if rest crosses measure boundary
-      if (currentTime + restDuration > measureStartTime + measureDuration) {
-        // Split rest at measure boundary
-        const restInThisMeasure = measureStartTime + measureDuration - currentTime;
-        if (restInThisMeasure > 0.001) {
-          currentMeasure.push({ isRest: true, duration: restInThisMeasure });
+  for (let measureNum = 0; measureNum < numMeasures; measureNum++) {
+    const measureStart = normalizeTime(measureNum * measureDuration);
+    const measureEnd = normalizeTime(measureStart + measureDuration);
+    currentMeasure = [];
+
+    // Fill measure with notes/rests
+    let measureTime = measureStart;
+
+    while (noteIndex < normalizedNotes.length && normalizedNotes[noteIndex].time < measureEnd) {
+      const note = normalizedNotes[noteIndex];
+
+      // Add rest if there's a gap
+      if (note.time > measureTime && !timeEqual(note.time, measureTime)) {
+        const restDuration = normalizeTime(note.time - measureTime);
+        if (restDuration > 0.0001) {
+          currentMeasure.push({ isRest: true, duration: restDuration });
         }
-        measures.push(currentMeasure);
-        currentMeasure = [];
-        measureStartTime += measureDuration;
-        currentTime += restInThisMeasure;
+        measureTime = note.time;
+      }
 
-        // Continue with remaining rest
-        while (currentTime + 0.001 < noteTime) {
-          const remaining = noteTime - currentTime;
-          const restDur = Math.min(remaining, measureDuration);
-          currentMeasure.push({ isRest: true, duration: restDur });
-          currentTime += restDur;
+      const noteEnd = normalizeTime(note.time + note.duration);
 
-          if (restDur >= measureDuration - 0.001) {
-            measures.push(currentMeasure);
-            currentMeasure = [];
-            measureStartTime += measureDuration;
-          }
+      // Note fits entirely in this measure
+      if (noteEnd <= measureEnd || timeEqual(noteEnd, measureEnd)) {
+        currentMeasure.push({ ...note, duration: note.duration });
+        measureTime = noteEnd;
+        noteIndex++;
+      }
+      // Note extends into next measure - split it
+      else {
+        const durationInMeasure = normalizeTime(measureEnd - measureTime);
+        if (durationInMeasure > 0.0001) {
+          currentMeasure.push({ ...note, duration: durationInMeasure });
         }
-      } else {
+
+        // Update note for next measure (tied note)
+        normalizedNotes[noteIndex] = {
+          ...note,
+          time: measureEnd,
+          duration: normalizeTime(note.duration - durationInMeasure)
+        };
+        measureTime = measureEnd;
+        break; // Move to next measure
+      }
+    }
+
+    // Fill rest of measure with rest if needed
+    if (measureTime < measureEnd && !timeEqual(measureTime, measureEnd)) {
+      const restDuration = normalizeTime(measureEnd - measureTime);
+      if (restDuration > 0.0001) {
         currentMeasure.push({ isRest: true, duration: restDuration });
-        currentTime += restDuration;
       }
     }
 
-    // Add note (check if it crosses measure boundary)
-    if (currentTime + noteDuration > measureStartTime + measureDuration + 0.001) {
-      // Note crosses measure boundary - split it
-      const durationInThisMeasure = measureStartTime + measureDuration - currentTime;
-      if (durationInThisMeasure > 0.001) {
-        currentMeasure.push({ ...note, duration: durationInThisMeasure });
-      }
+    // Only add non-empty measures
+    if (currentMeasure.length > 0) {
       measures.push(currentMeasure);
-      currentMeasure = [];
-      measureStartTime += measureDuration;
-      currentTime += durationInThisMeasure;
-
-      // Add tied note in next measure
-      const remainingDuration = noteDuration - durationInThisMeasure;
-      if (remainingDuration > 0.001) {
-        currentMeasure.push({ ...note, duration: remainingDuration });
-        currentTime += remainingDuration;
-      }
-    } else {
-      currentMeasure.push(note);
-      currentTime += noteDuration;
     }
-
-    // Check if measure is complete
-    if (currentTime >= measureStartTime + measureDuration - 0.001) {
-      measures.push(currentMeasure);
-      currentMeasure = [];
-      measureStartTime += measureDuration;
-    }
-  }
-
-  // Fill remaining time with rests
-  while (currentTime < totalDuration - 0.001) {
-    const remaining = totalDuration - currentTime;
-    const restDur = Math.min(remaining, measureStartTime + measureDuration - currentTime);
-
-    if (restDur > 0.001) {
-      currentMeasure.push({ isRest: true, duration: restDur });
-      currentTime += restDur;
-    }
-
-    if (currentTime >= measureStartTime + measureDuration - 0.001) {
-      measures.push(currentMeasure);
-      currentMeasure = [];
-      measureStartTime += measureDuration;
-    }
-  }
-
-  if (currentMeasure.length > 0) {
-    measures.push(currentMeasure);
   }
 
   return measures;
