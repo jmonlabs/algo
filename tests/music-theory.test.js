@@ -31,7 +31,7 @@ try {
   const dorianScale = dorian.generate({ octave: 4 });
   console.log('  ✓ Generated D dorian scale:', dorianScale.slice(0, 7));
 
-  const pentatonic = new Scale({ tonic: 'C', mode: 'pentatonic_major' });
+  const pentatonic = new Scale({ tonic: 'C', mode: 'major pentatonic' });
   const pentScale = pentatonic.generate({ octave: 4 });
   console.log('  ✓ Generated C pentatonic (5 notes):', pentScale.length >= 5);
 } catch (error) {
@@ -79,10 +79,11 @@ try {
   console.log('  ✓ From:', chord1);
   console.log('  ✓ To:', voiceLed);
 
-  // Test multi-voice composition
-  const melody = [60, 62, 64, 65, 67];
-  const harmonized = voice.harmonize(melody, { voices: 3 });
-  console.log('  ✓ Harmonized melody with', harmonized.length, 'voices');
+  // Test voice-led progression
+  const progression = [[60, 64, 67], [65, 69, 72], [67, 71, 74]];
+  const smoothProgression = voice.leadProgression(progression);
+  console.log('  ✓ Led chord progression');
+  console.log('  ✓ Smooth progression:', smoothProgression.length, 'chords');
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }
@@ -220,27 +221,29 @@ console.log('');
 console.log('9. Testing Articulations');
 try {
   // Test staccato
-  let note = { pitch: 60, duration: 1, time: 0 };
-  let result = Articulation.apply(note, 'staccato');
-  console.log('  ✓ Applied staccato:', result.success);
-  console.log('  ✓ Duration shortened:', note.duration < 1);
+  let notes = [{ pitch: 60, duration: 1, time: 0 }];
+  let result = Articulation.apply(notes, 0, 'staccato');
+  console.log('  ✓ Applied staccato:', Array.isArray(result));
+  console.log('  ✓ Duration shortened:', result[0].duration < 1);
+  console.log('  ✓ Rest added:', result.length === 2);
 
   // Test legato
-  note = { pitch: 62, duration: 0.5, time: 0 };
-  result = Articulation.apply(note, 'legato');
-  console.log('  ✓ Applied legato:', result.success);
+  notes = [{ pitch: 62, duration: 0.5, time: 0 }];
+  result = Articulation.apply(notes, 0, 'legato');
+  console.log('  ✓ Applied legato:', Array.isArray(result));
+  console.log('  ✓ Duration extended:', result[0].duration > 0.5);
 
   // Test accent
-  note = { pitch: 64, duration: 1, time: 0, velocity: 0.8 };
-  result = Articulation.apply(note, 'accent');
-  console.log('  ✓ Applied accent:', result.success);
-  console.log('  ✓ Velocity increased:', note.velocity > 0.8);
+  notes = [{ pitch: 64, duration: 1, time: 0, velocity: 0.8 }];
+  result = Articulation.apply(notes, 0, 'accent');
+  console.log('  ✓ Applied accent:', Array.isArray(result));
+  console.log('  ✓ Velocity increased:', result[0].velocity > 0.8);
 
   // Test glissando
-  note = { pitch: 60, duration: 1, time: 0 };
-  result = Articulation.apply(note, 'glissando', { targetPitch: 72 });
-  console.log('  ✓ Applied glissando:', result.success);
-  console.log('  ✓ Has articulation data:', note.articulations?.length > 0);
+  notes = [{ pitch: 60, duration: 1, time: 0 }];
+  result = Articulation.apply(notes, 0, 'glissando', { targetPitch: 72 });
+  console.log('  ✓ Applied glissando:', Array.isArray(result));
+  console.log('  ✓ Has articulation data:', result[0].articulations?.length > 0);
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }
