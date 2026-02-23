@@ -16,7 +16,7 @@ This chapter covers the harmonic capabilities of jmon/algo:
   <script type="module" pinned>
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
-import * as ABCJS from "npm:abcjs";
+import verovio from "npm:verovio@4.3.1/wasm";
   </script>
 
   <script type="text/markdown">
@@ -76,7 +76,7 @@ const cMajorPiece = {
   tracks: [{ notes: cMajorTrack }]
 };
 
-display(jm.score(cMajorPiece, { ABCJS }));
+display(jm.score(cMajorPiece, { verovio }));
 display(await jm.play(cMajorPiece, { Tone }));
   </script>
 
@@ -102,7 +102,7 @@ const chordPiece = {
 };
 
 display(cMajorChord);
-display(jm.score(chordPiece, { ABCJS }));
+display(jm.score(chordPiece, { verovio }));
 display(await jm.play(chordPiece, { Tone }));
   </script>
 
@@ -303,7 +303,7 @@ const harmonizedPiece = {
   ]
 };
 
-display(jm.score(harmonizedPiece, { ABCJS }));
+display(jm.score(harmonizedPiece, { verovio }));
 display(await jm.play(harmonizedPiece, { Tone }));
   </script>
 
@@ -340,7 +340,7 @@ const progressionPiece = {
   tracks: [{ notes: progressionTrack }]
 };
 
-display(jm.score(progressionPiece, { ABCJS }));
+display(jm.score(progressionPiece, { verovio }));
 display(await jm.play(progressionPiece, { Tone }));
   </script>
 
@@ -477,7 +477,7 @@ const twinkleComplete = {
   ]
 };
 
-display(jm.score(twinkleComplete, { ABCJS }));
+display(jm.score(twinkleComplete, { verovio }));
 display(await jm.play(twinkleComplete, { Tone }));
   </script>
 

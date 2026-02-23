@@ -1,89 +1,126 @@
-# `jmon/algo`
+# jmon/algo
 
-`jmon/algo` (jam on studio - algorithms) a JavaScript music composition toolkit for the JMON (JSON Music Object Notation) format.
+JavaScript music composition toolkit for algorithmic and generative music.
 
-**Quick Start:**
-- [Observable Guide](OBSERVABLE_GUIDE.md) - Get started with Observable Classic & Framework 2.0
-- [API Reference](API.md) - Complete API documentation
-- [Interactive Examples](https://observablehq.com/collection/@essi/jmon-algo) - Live Observable notebooks
+## Getting Started
+
+### Observable Notebook Kit (Recommended)
+
+The `userguide/` folder contains interactive HTML notebooks built with [Observable Notebook Kit](https://observablehq.com/framework/notebook-kit):
+
+```bash
+cd userguide
+npx http-server
+# Open http://localhost:8080/01-getting-started.html
+```
+
+**Available Guides:**
+- `01-getting-started.html` - JMON format basics
+- `02-harmony.html` - Scales, chords, voice leading
+- `03-loops.html` - Polyrhythms and loops
+- `04-minimalism.html` - Process music (additive, subtractive, tintinnabuli)
+- `05-minimalism.html` - Advanced minimalism techniques
+- `06-walks.html` - Random walks and Gaussian processes
+- `07-fractals.html` - Cellular automata and fractals
+- `08-genetic-algorithms.html` - Evolutionary composition
+- `09-microtuning.html` - Microtonality and tuning systems
+- `live-coding.html` - Live coding environment
+
+### Observable Framework
+
+Use with [Observable Framework](https://observablehq.com/framework/) for publishing:
+
+```bash
+npm install @jmon/algo
+```
+
+```javascript
+import jm from "@jmon/algo";
+import * as Tone from "tone";
+import verovio from "verovio/wasm";
+
+const melody = [
+  { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
+  { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
+  { pitch: 64, duration: 1, time: 2, velocity: 0.8 }
+];
+
+const composition = {
+  tempo: 120,
+  tracks: [{ label: 'Melody', notes: melody }]
+};
+
+// Render notation
+const svg = await jm.score(composition, { verovio });
+
+// Play audio
+const player = await jm.play(composition, { Tone });
+```
+
+## JMON Format
+
+Music as JSON objects:
+
+```javascript
+// A note
+{ pitch: 60, duration: 1, time: 0, velocity: 0.8 }
+
+// A track (array of notes)
+const track = [
+  { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
+  { pitch: 62, duration: 1, time: 1, velocity: 0.8 }
+];
+
+// A composition
+const composition = {
+  tempo: 120,
+  tracks: [
+    { label: 'Melody', notes: track }
+  ]
+};
+```
 
 ## Features
 
-### **Algorithmic Composition**
+### Theory (`jm.theory.*`)
+- Scales, intervals, chords
+- Voice leading and progressions
+- Ornaments and articulations
+- Rhythm generation
 
-- **Music theory**: Scales, progressions, harmony, rhythm
-- **Minimalism**: Process-based composition techniques
-- **Generative algorithms**: no deep learning, just you, your imagination and math: random walks, Fractals, cellular automata, genetic algorithms, Gaussian processes
+### Generative (`jm.generative.*`)
+- **Minimalism**: Process-based composition (additive, subtractive, tintinnabuli)
+- **Random Walks**: Markov chains, Brownian motion
+- **Fractals**: Mandelbrot sets, logistic maps
+- **Cellular Automata**: Conway's Game of Life, rule 30/110
+- **Genetic Algorithms**: Evolutionary composition
+- **Gaussian Processes**: Smooth interpolation (requires @tangent.to/ds)
 
-### **JMON Format Conversion**
+### Analysis (`jm.analysis.*`)
+- 11+ musical metrics
+- Gini coefficient, syncopation, contour entropy
+- Statistical pattern analysis
 
-- **Tone**: Core format validation and Tone.js integration
-- **ABC notation**: Convert JMON to ABC notation
-- **MIDI**: MIDI file conversion utilities
-- **Display**: Score visualization and playback functions
-- **SuperCollider**: JMON format to SuperCollider code
+### Converters (`jm.converters.*`)
+- MIDI files
+- Tone.js (web audio)
+- Verovio (notation rendering)
+- WAV audio
+- SuperCollider
+- ABC notation
 
-### **Analysis & Utilities**
-
-- Musical analysis tools (usefull for genetic algorithms)
-- Format conversion utilities
-- Mathematical utilities for music
-
-## Development
-
-### Building
+## Building
 
 ```bash
 deno task build    # Build ESM and UMD bundles
+deno task test     # Run tests
 ```
-
-### Jupyter Notebooks
-
-1. Install Deno: https://deno.com/manual/getting_started/installation
-2. Install JupyterLab: `pipx install jupyterlab`
-3. Install Deno kernel: `deno jupyter --install`
-4. Launch: `jupyter-lab`
-5. Create a notebook with the Deno kernel
-
-## API Overview
-
-### Core Functions
-
-| Function | JSR | npm | Description |
-|----------|-----|-----|-------------|
-| `jm.theory.*` | ✓ | ✓ | Scales, chords, progressions, intervals |
-| `jm.generative.*` | ✓ | ✓ | Melodies, walks, fractals, cellular automata |
-| `jm.analysis.*` | ✓ | ✓ | Pitch, rhythm, harmony analysis |
-| `jm.converters.*` | ✓ | ✓ | MIDI, ToneJS, WAV, SuperCollider, VexFlow |
-| `jm.audio.*` | ✓ | ✓ | DSP, synthesis, audio processing |
-| `jm.score(comp, VF, opts)` | ✓ | ✓ | Sheet music (requires VexFlow param) |
-| `jm.play(comp, opts)` | ✗ | ✓ | Audio playback (npm only) |
-| `jm.render(comp, opts)` | ✗ | ✓ | Full UI player (npm only) |
-
-### Parameter-Based Dependencies
-
-`jmon/algo` has **zero dependencies** in the JSR package. Libraries are passed as parameters:
-
-```javascript
-// VexFlow for notation (both JSR and npm)
-const notation = jm.score(composition, vexflowInstance, options);
-
-// Tone.js for audio (npm package only)
-const player = jm.play(composition, {Tone: toneInstance});
-```
-
-This design allows you to:
-- Use any version of VexFlow or Tone.js
-- Load libraries from CDN in browsers
-- Avoid dependency bloat in Deno/Node
-- Pass mocked libraries for testing
 
 ## License
 
-GPL-3
+GPL-3.0-or-later
 
 ## Links
 
-- [GitHub Repository](https://github.com/jmonlabs/algo)
-- [Issues](https://github.com/jmonlabs/algo/issues)
-
+- [GitHub](https://github.com/jmonlabs/algo)
+- [Observable Collection](https://observablehq.com/collection/@essi/jmon-algo)

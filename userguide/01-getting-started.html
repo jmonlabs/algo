@@ -18,7 +18,7 @@ In this chapter, you'll learn:
   <script type="module" pinned>
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
-import * as ABCJS from "npm:abcjs";
+import verovio from "npm:verovio@4.3.1/wasm";
   </script>
 
   <script type="text/markdown">
@@ -152,7 +152,7 @@ const twinkleComposition = {
   }]
 };
 
-display(jm.score(twinkleComposition, { ABCJS }));
+display(await jm.score(twinkleComposition, { verovio }));
 display(await jm.play(twinkleComposition, { Tone }));
   </script>
 

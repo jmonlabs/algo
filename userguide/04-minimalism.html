@@ -16,7 +16,7 @@ This chapter covers minimalist composition techniques in jmon/algo:
   <script type="module" pinned>
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
-import * as ABCJS from "npm:abcjs";
+import verovio from "npm:verovio@4.3.1/wasm";
   </script>
 
   <script type="text/markdown">
@@ -44,7 +44,7 @@ const solfegePiece = {
   tracks: [{ notes: solfege }]
 };
 
-display(jm.score(solfegePiece, { ABCJS }));
+display(jm.score(solfegePiece, { verovio }));
 display(await jm.play(solfegePiece, { Tone }));
   </script>
 
@@ -125,7 +125,7 @@ const afPiece = {
   tracks: [{ notes: afResult }]
 };
 
-display(jm.score(afPiece, { ABCJS }));
+display(jm.score(afPiece, { verovio }));
 display(await jm.play(afPiece, { Tone }));
   </script>
 
@@ -426,7 +426,7 @@ const tintPiece = {
   ]
 };
 
-display(jm.score(tintPiece, { ABCJS }));
+display(jm.score(tintPiece, { verovio }));
 display(await jm.play(tintPiece, { Tone }));
   </script>
 
@@ -526,7 +526,7 @@ display(`  Track 1 (Melody): ${mainTrack.length} notes`);
 display(`  Track 2 (Harmony): ${harmonyTrack.length} notes`);
 display("  Style: Additive process + Tintinnabuli");
 
-display(jm.score(composition, { ABCJS }));
+display(jm.score(composition, { verovio }));
 display(await jm.play(composition, { Tone }));
   </script>
 
