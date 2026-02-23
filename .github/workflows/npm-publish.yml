@@ -63,14 +63,13 @@ jobs:
           ls -la dist/
           echo "✓ Build artifacts created"
 
-      - name: Publish to NPM
-        run: npm publish --access public
-        continue-on-error: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish to JSR (Deno registry)
         run: deno publish --allow-dirty --allow-slow-types
+
+      - name: Publish to NPM
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   create-release:
     needs: build-and-publish
