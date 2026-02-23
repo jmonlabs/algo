@@ -11,6 +11,7 @@
     "doc": "deno run --allow-read --allow-write scripts/build-docs.js"
   },
   "imports": {
+    "@tangent.to/ds": "npm:@tangent.to/ds",
     "plotly.js": "npm:plotly.js@2.26.0",
     "esbuild": "npm:esbuild@0.20.2"
   },
