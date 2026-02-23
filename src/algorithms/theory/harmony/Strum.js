@@ -199,10 +199,11 @@ export class Strum {
       case 'down':
         return 'up'; // In Arpeggiate, 'up' means low to high
 
-      case 'alternate':
+      case 'alternate': {
         const isDown = this.alternateState % 2 === 0;
         this.alternateState++;
         return isDown ? 'up' : 'down';
+      }
 
       case 'random':
         return 'random';

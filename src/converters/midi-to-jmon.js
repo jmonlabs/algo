@@ -40,7 +40,7 @@ export class MidiToJmon {
    * @param {ArrayBuffer|Uint8Array} midiData - MIDI file data
    * @returns {Promise<Object>} JMON composition
    */
-  async convertToJmon(midiData) {
+  convertToJmon(midiData) {
     // Initialize Tone.js instance
     const Tone = this.initializeTone();
 

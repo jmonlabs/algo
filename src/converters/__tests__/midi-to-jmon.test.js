@@ -133,8 +133,8 @@ describe("MidiToJmon", () => {
         },
       });
 
-      await expect(badConverter.convertToJmon(mockMidiData))
-        .rejects.toThrow("Failed to parse MIDI file: Parse error");
+      expect(() => badConverter.convertToJmon(mockMidiData))
+        .toThrow("Failed to parse MIDI file: Parse error");
     });
   });
 
