@@ -1,6 +1,6 @@
 {
   "name": "@jmon/algo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Algorithmic music composition library with generative algorithms, music theory, and format conversion",
   "type": "module",
   "main": "dist/jmon.esm.js",
@@ -43,7 +43,7 @@
     "observable"
   ],
   "author": "JMON Labs",
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/jmonlabs/algo.git"
