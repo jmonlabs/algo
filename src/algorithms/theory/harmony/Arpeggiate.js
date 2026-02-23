@@ -165,19 +165,21 @@ export class Arpeggiate {
       case 'down':
         return Array.from({ length: chordLength }, (_, i) => chordLength - 1 - i);
 
-      case 'updown':
+      case 'updown': {
         // Up then down
         const up = Array.from({ length: chordLength }, (_, i) => i);
         const down = Array.from({ length: chordLength - 1 }, (_, i) => chordLength - 2 - i);
         return [...up, ...down];
+      }
 
-      case 'downup':
+      case 'downup': {
         // Down then up
         const down2 = Array.from({ length: chordLength }, (_, i) => chordLength - 1 - i);
         const up2 = Array.from({ length: chordLength - 1 }, (_, i) => i + 1);
         return [...down2, ...up2];
+      }
 
-      case 'random':
+      case 'random': {
         // Random order
         const shuffled = Array.from({ length: chordLength }, (_, i) => i);
         for (let i = shuffled.length - 1; i > 0; i--) {
@@ -185,8 +187,9 @@ export class Arpeggiate {
           [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
         return shuffled;
+      }
 
-      case 'random-walk':
+      case 'random-walk': {
         // Random walk through indices
         const walk = [Math.floor(Math.random() * chordLength)];
         for (let i = 1; i < chordLength; i++) {
@@ -196,6 +199,7 @@ export class Arpeggiate {
           walk.push(next);
         }
         return walk;
+      }
 
       default:
         // Default: up
