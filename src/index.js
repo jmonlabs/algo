@@ -128,19 +128,18 @@ function play(jmonObj, options = {}) {
 }
 
 /**
- * Render sheet music notation using abcjs
+ * Render sheet music notation using verovio
  *
  * @param {Object} jmonObj - The JMON composition to render
  * @param {Object} options - Rendering options
- * @param {Object} [options.ABCJS] - abcjs library instance (optional, will use window.ABCJS if available)
- * @param {number} [options.width] - Staff width in pixels (if omitted, uses responsive mode)
- * @param {number} [options.scale] - Scale factor for rendering (if omitted with width, uses responsive mode)
- * @param {number} [options.height] - Not used (abcjs calculates height automatically)
- * @returns {HTMLElement} DOM element containing the rendered score
+ * @param {Object} options.verovio - verovio WASM module (import from "npm:verovio@4.3.1/wasm")
+ * @param {number} [options.width] - Staff width in pixels (default: 2100)
+ * @param {number} [options.scale] - Scale factor for rendering (default: 40)
+ * @returns {Promise<HTMLElement>} DOM element containing the rendered score
  *
  * @example
- * // Responsive mode (default) - fills container width
- * const svg = jm.score(composition, { ABCJS });
+ * // Basic usage
+ * const svg = await jm.score(composition, { verovio });
  *
  * @example
  * // Fixed width mode
