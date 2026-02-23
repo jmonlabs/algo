@@ -12,7 +12,7 @@
   },
   "nodeModulesDir": true,
   "imports": {
-    "@tangent.to/ds": "npm:@tangent.to/ds",
+    "@tangent.to/ds": "npm:@tangent.to/ds@0.4.5",
     "plotly.js": "npm:plotly.js@2.26.0",
     "esbuild": "npm:esbuild@0.20.2"
   },
