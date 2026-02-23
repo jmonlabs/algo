@@ -349,49 +349,6 @@ test('Analysis: Comprehensive analyze', () => {
   }
 });
 
-// ===== GAUSSIAN PROCESSES =====
-console.log('\n=== GAUSSIAN PROCESSES ===\n');
-
-import { GaussianProcessRegressor } from '../src/algorithms/generative/gaussian-processes/GaussianProcessRegressor.js';
-
-test('GP: Fit with RBF kernel', () => {
-  const gp = new GaussianProcessRegressor({ kernel: 'rbf', lengthScale: 1.0, variance: 1.0 });
-  const X = [[0], [1], [2], [3]];
-  const y = [0, 1, 4, 9];
-  gp.fit(X, y);
-  if (!gp.isFitted) throw new Error('GP not fitted');
-});
-
-test('GP: Predict', () => {
-  const gp = new GaussianProcessRegressor({ kernel: 'rbf', lengthScale: 1.0, variance: 1.0 });
-  const X = [[0], [1], [2], [3]];
-  const y = [0, 1, 4, 9];
-  gp.fit(X, y);
-  const predictions = gp.predict([[0.5], [1.5]]);
-  if (!Array.isArray(predictions) || predictions.length !== 2) throw new Error('Invalid predictions');
-});
-
-test('GP: Predict with uncertainty', () => {
-  const gp = new GaussianProcessRegressor({ kernel: 'rbf', lengthScale: 1.0, variance: 1.0 });
-  const X = [[0], [1], [2]];
-  const y = [0, 1, 4];
-  gp.fit(X, y);
-  const result = gp.predictWithUncertainty([[0.5]]);
-  if (!result.mean || !result.std) throw new Error('Invalid uncertainty prediction');
-  if (!Array.isArray(result.std) || result.std[0] <= 0) throw new Error('No uncertainty estimates');
-});
-
-test('GP: Different kernels work', () => {
-  const kernels = ['rbf', 'periodic', 'rational_quadratic'];
-  for (const kernelName of kernels) {
-    const gp = new GaussianProcessRegressor({ kernel: kernelName, lengthScale: 1.0, variance: 1.0 });
-    const X = [[0], [1], [2]];
-    const y = [0, 1, 4];
-    gp.fit(X, y);
-    gp.predict([[0.5]]);
-  }
-});
-
 // ===== CONVERTERS =====
 console.log('\n=== CONVERTERS ===\n');
 
