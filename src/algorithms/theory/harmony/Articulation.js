@@ -9,13 +9,22 @@ export class Articulation {
   /**
    * Apply articulation to notes array (returns new array, immutable)
    * This API matches the Ornament pattern for consistency
-   * @param {Array} notes - The notes array
-   * @param {number|Array} noteIndex - Index of note to articulate, or array of indices
-   * @param {string} articulationType - Type of articulation
+   *
+   * Overloaded signatures:
+   * - apply(notes[], noteIndex, articulationType, params) - array API (immutable)
+   * - apply(note, articulationType) - single note API (mutates in place, returns {success})
+   *
+   * @param {Array|Object} notes - The notes array or single note object
+   * @param {number|Array|string} noteIndex - Index of note to articulate, array of indices, or articulation type
+   * @param {string} articulationType - Type of articulation (when using array API)
    * @param {Object} params - Parameters for complex articulations
-   * @returns {Array} New notes array with articulation applied
+   * @returns {Array|Object} New notes array with articulation applied, or {success: boolean}
    */
   static apply(notes, noteIndex, articulationType, params = {}) {
+    // Detect single-note API: apply(note, articulationType)
+    if (!Array.isArray(notes) && typeof notes === 'object' && typeof noteIndex === 'string') {
+      return this._applySingleNote(notes, noteIndex);
+    }
     if (!Array.isArray(notes) || notes.length === 0) {
       return notes;
     }
@@ -84,6 +93,63 @@ export class Articulation {
       default:
         return notes;
     }
+  }
+
+  /**
+   * Apply articulation to a single note (mutates in place)
+   * Legacy API for backward compatibility
+   * @param {Object} note - The note object to modify
+   * @param {string} articulationType - Type of articulation
+   * @returns {{success: boolean}} Result object
+   */
+  static _applySingleNote(note, articulationType) {
+    if (!note || typeof note !== 'object') {
+      return { success: false };
+    }
+
+    const articulationDef = ARTICULATION_TYPES[articulationType];
+    if (!articulationDef) {
+      console.warn(`Unknown articulation type: ${articulationType}`);
+      return { success: false };
+    }
+
+    // Apply articulation directly to the note object
+    switch (articulationType) {
+      case 'staccato':
+        note.duration = note.duration * 0.5;
+        break;
+
+      case 'staccatissimo':
+        note.duration = note.duration * 0.25;
+        break;
+
+      case 'accent':
+      case 'marcato': {
+        const multiplier = articulationType === 'marcato' ? 1.3 : 1.2;
+        const velocity = note.velocity !== undefined ? note.velocity : 0.8;
+        note.velocity = Math.min(1.0, velocity * multiplier);
+        break;
+      }
+
+      case 'tenuto':
+        // Mark for full duration (no duration change)
+        break;
+
+      case 'legato':
+        note.duration = note.duration * 1.05;
+        break;
+
+      default:
+        return { success: false };
+    }
+
+    // Add articulation to articulations array
+    if (!Array.isArray(note.articulations)) {
+      note.articulations = [];
+    }
+    note.articulations.push(articulationType);
+
+    return { success: true };
   }
 
   /**
