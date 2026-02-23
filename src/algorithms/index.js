@@ -13,7 +13,9 @@ import { Darwin } from './generative/genetic/index.js';
 import { RandomWalk, Chain, Phasor, PhasorSystem } from './generative/walks/index.js';
 import { Mandelbrot, LogisticMap } from './generative/fractals/index.js';
 import { MinimalismProcess, Tintinnabuli } from './generative/minimalism/index.js';
-import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
+// GaussianProcessRegressor is NOT imported here to avoid @tangent.to/ds dependency
+// Users who need it must import it directly:
+// import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
 
 // Processor imports
 import { Corruptor, corruptJmon } from './processors/Corruptor.js';
@@ -78,10 +80,9 @@ export const generative = {
     minimalism: {
         Process: MinimalismProcess,
         Tintinnabuli
-    },
-    gp: {
-        GaussianProcessRegressor
     }
+    // Note: GaussianProcessRegressor removed to avoid @tangent.to/ds dependency
+    // Import it separately if needed: import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
 };
 
 export const processors = {

@@ -17,7 +17,7 @@ This chapter covers the Loop class and techniques for creating repeating musical
   <script type="module" pinned>
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
-import * as ABCJS from "npm:abcjs";
+import verovio from "npm:verovio@4.3.1/wasm";
   </script>
 
   <script type="text/markdown">
@@ -48,7 +48,7 @@ const simplePiece = {
   tracks: simpleSequences
 };
 
-display(jm.score(simplePiece, { ABCJS }));
+display(jm.score(simplePiece, { verovio }));
 display(await jm.play(simplePiece, { Tone }));
   </script>
 

@@ -27,7 +27,7 @@ To use the live player, you'll embed it in an iframe and communicate with it usi
   <script type="module" pinned>
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
-import * as ABCJS from "npm:abcjs";
+import verovio from "npm:verovio@4.3.1/wasm";
 
 // Create the live player iframe
 const livePlayerUrl = "https://jmonlabs.github.io/live/";
@@ -69,7 +69,7 @@ const pattern1 = {
 sendToLive(pattern1);
 
 // Also display the score
-display(jm.score(pattern1, { ABCJS }));
+display(jm.score(pattern1, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -97,7 +97,7 @@ const pattern2 = {
 };
 
 sendToLive(pattern2);
-display(jm.score(pattern2, { ABCJS }));
+display(jm.score(pattern2, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -129,7 +129,7 @@ const pattern3 = {
 };
 
 sendToLive(pattern3);
-display(jm.score(pattern3, { ABCJS }));
+display(jm.score(pattern3, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -173,7 +173,7 @@ const pattern4 = {
 };
 
 sendToLive(pattern4);
-display(jm.score(pattern4, { ABCJS }));
+display(jm.score(pattern4, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -216,7 +216,7 @@ const pattern5 = {
 };
 
 sendToLive(pattern5);
-display(jm.score(pattern5, { ABCJS }));
+display(jm.score(pattern5, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -267,7 +267,7 @@ const composition = {
 };
 
 sendToLive(composition);
-display(jm.score(composition, { ABCJS }));
+display(jm.score(composition, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -309,7 +309,7 @@ const pattern6 = {
 };
 
 sendToLive(pattern6);
-display(jm.score(pattern6, { ABCJS }));
+display(jm.score(pattern6, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -370,7 +370,7 @@ const complexComposition = {
 };
 
 sendToLive(complexComposition);
-display(jm.score(complexComposition, { ABCJS }));
+display(jm.score(complexComposition, { verovio }));
   </script>
 
   <script type="text/markdown">

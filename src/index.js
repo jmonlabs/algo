@@ -144,11 +144,11 @@ function play(jmonObj, options = {}) {
  *
  * @example
  * // Fixed width mode
- * const svg = jm.score(composition, { ABCJS, width: 938 });
+ * const svg = await jm.score(composition, { verovio, width: 2100 });
  *
  * @example
  * // With custom dimensions and scale
- * const svg = jm.score(composition, { ABCJS, width: 938, scale: 0.6 });
+ * const svg = await jm.score(composition, { verovio, scale: 40 });
  */
 function score(jmonObj, options = {}) {
   // Check for browser environment

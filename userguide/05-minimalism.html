@@ -11,7 +11,7 @@ The `jmon/algo` package includes well-known minimalistic mathematical operations
   <script type="module" pinned>
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
-import * as ABCJS from "npm:abcjs";
+import verovio from "npm:verovio@4.3.1/wasm";
   </script>
 
   <script type="text/markdown">
@@ -29,7 +29,7 @@ const pitchesCmajor = new jm.theory.harmony.Scale({tonic: "C", mode: "major"}).g
 const durationsSolfege = [1, 1, 1, 1, 1, 1, 1, 1];
 const solfege_track = jm.theory.rhythm.isorhythm(pitchesCmajor, durationsSolfege);
 const solfege_piece = { title:"Solfege", tempo: 120, tracks: [{ notes: solfege_track }] };
-display(jm.score(solfege_piece, { ABCJS }));
+display(jm.score(solfege_piece, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -40,7 +40,7 @@ If the lengths are not factors to each other, the score will expand with interes
 const durationsIso = [2, 1, 1, 2, 1, 1, 2, 1];
 const isorhythm_track = jm.theory.rhythm.isorhythm(pitchesCmajor, durationsIso);
 const isorhythm_piece = { title:"Isorhythm", tempo: 120, tracks: [{ notes: isorhythm_track }] };
-display(jm.score(isorhythm_piece, { ABCJS }));
+display(jm.score(isorhythm_piece, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -53,7 +53,7 @@ I use to name my tracks as `track1a_` for the first (`a`) part of track `1`, the
 const track1a_pitches = [68, 64, 71, 69, 75, 73]; // pitches, 6 items in E major
 const track1a_durations = [1, 0.5, 0.25, 0.5, 1, 0.75, 0.5, 0.5, 1, 2]; // durations, 10 items
 const track1a = jm.theory.rhythm.isorhythm(track1a_pitches, track1a_durations);
-display(jm.score({ title:"track1a", tempo: 120, tracks: [{ notes: track1a }] }, { ABCJS }));
+display(jm.score({ title:"track1a", tempo: 120, tracks: [{ notes: track1a }] }, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -85,7 +85,7 @@ const afProcess = new jm.generative.minimalism.Process({
   direction: "forward",
   repetition: 0
 }).generate(solfege_track);
-display(jm.score({title: "Additive forward", tracks: [{ notes: afProcess }] }, { ABCJS }));
+display(jm.score({title: "Additive forward", tracks: [{ notes: afProcess }] }, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -109,7 +109,7 @@ const abProcess = new jm.generative.minimalism.Process({
   direction: "backward",
   repetition: 0
 }).generate(solfege_track);
-display(jm.score({title: "Additive backward", tracks: [{ notes: abProcess }] }, { ABCJS }));
+display(jm.score({title: "Additive backward", tracks: [{ notes: abProcess }] }, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -133,7 +133,7 @@ const sfProcess = new jm.generative.minimalism.Process({
   direction: "forward",
   repetition: 0
 }).generate(solfege_track);
-display(jm.score({title: "Subtractive forward", tracks: [{ notes: sfProcess }] }, { ABCJS }));
+display(jm.score({title: "Subtractive forward", tracks: [{ notes: sfProcess }] }, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -157,7 +157,7 @@ const sbProcess = new jm.generative.minimalism.Process({
   direction: "backward",
   repetition: 0
 }).generate(solfege_track);
-display(jm.score({title: "Subtractive backward", tracks: [{ notes: sbProcess }] }, { ABCJS }));
+display(jm.score({title: "Subtractive backward", tracks: [{ notes: sbProcess }] }, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -175,7 +175,7 @@ display(new jm.theory.harmony.Scale({tonic: "E", mode: "major"}).generate({start
 const basePitches = [71, 64, 80, 73, 85, 83, 78, 63]; // 8 notes in E major
 const baseDurations = [1.5, 0.25, 2.25, 1, 0.25, 0.25, 0.5, 2];
 const track1b_a = jm.theory.rhythm.isorhythm(basePitches, baseDurations);
-display(jm.score({ title:"track1b_a", tempo: 120, tracks: [{ notes: track1b_a }] }, { ABCJS }));
+display(jm.score({ title:"track1b_a", tempo: 120, tracks: [{ notes: track1b_a }] }, { verovio }));
   </script>
 
   <script type="text/markdown">
@@ -234,7 +234,7 @@ const shuffleWithSeed = (arr, seed) => {
 const solfegeShuffled = jm.utils.recalculateTiming(
   shuffleWithSeed(solfege_track, 4698801)
 );
-display(jm.score({ title:"Shuffled solfege", tempo: 120, tracks: [{ notes: solfegeShuffled }] }, { ABCJS }));
+display(jm.score({ title:"Shuffled solfege", tempo: 120, tracks: [{ notes: solfegeShuffled }] }, { verovio }));
   </script>
 
   <script type="text/markdown">
