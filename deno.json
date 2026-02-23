@@ -10,7 +10,7 @@
     "fmt": "deno fmt",
     "doc": "deno run --allow-read --allow-write scripts/build-docs.js"
   },
-  "nodeModulesDir": "auto",
+  "nodeModulesDir": true,
   "imports": {
     "@tangent.to/ds": "npm:@tangent.to/ds",
     "plotly.js": "npm:plotly.js@2.26.0",
