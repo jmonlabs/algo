@@ -122,7 +122,7 @@ describe("MidiToJmon", () => {
       expect(Array.isArray(result.tracks)).toBe(true);
     });
 
-    test("should handle conversion errors gracefully", async () => {
+    test("should handle conversion errors gracefully", () => {
       const badConverter = new MidiToJmon({
         Tone: {
           Midi: class {
