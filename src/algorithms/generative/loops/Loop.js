@@ -12,18 +12,18 @@
  *   {pitch: 64, duration: 1, time: 1}
  * ]
  *
- * loop = new jm.generative.loops({ loops: melody })
+ * loop = new jm.generative.loops.Loop({ loops: melody })
  * sequences = loop.toJMonSequences()
  *
  * // Or use the static Euclidean rhythm helper
- * euclidean = jm.generative.loops.euclidean({ beats: 16, pulses: 5 })
+ * euclidean = jm.generative.loops.Loop.euclidean({ beats: 16, pulses: 5 })
  * ```
  *
  * @example Node.js
  * ```js
  * import { jm } from '@jmon/algo'
  *
- * const loop = jm.generative.loops.fromTrack({
+ * const loop = jm.generative.loops.Loop.fromTrack({
  *   notes: [{pitch: 60, duration: 1, time: 0}]
  * })
  * const result = loop.toJMonSequences()
@@ -178,7 +178,7 @@ export class Loop {
       throw new Error('Track must have notes to create loop');
     }
 
-    return new Loop({ [track.label || 'Track']: track }, measureLength);
+    return new Loop({ loops: { [track.label || 'Track']: track }, measureLength });
   }
 
   /**
@@ -228,26 +228,20 @@ export class Loop {
 
     // Create the loop with proper JMON format
     return new Loop({
-      [label]: { notes }
-    }, options.measureLength || 4);
+      loops: { [label]: { notes } },
+      measureLength: options.measureLength || 4
+    });
   }
 
   /**
    * Create loop from Euclidean rhythm (JMON format)
-   * @param {Object} options - Configuration options
-   * @param {number} options.beats - Total number of beats
-   * @param {number} options.pulses - Number of active pulses to distribute
-   * @param {Array} [options.pitches=[60]] - Array of MIDI pitches to cycle through
-   * @param {string} [options.label] - Label for the loop
+   * @param {number} beats - Total number of beats
+   * @param {number} pulses - Number of active pulses to distribute
+   * @param {Array} [pitches=[60]] - Array of MIDI pitches to cycle through
+   * @param {string} [label] - Label for the loop
    * @returns {Loop} A new Loop instance
    */
-  static euclidean(options = {}) {
-    const {
-      beats,
-      pulses,
-      pitches = [60],
-      label
-    } = options;
+  static euclidean(beats, pulses, pitches = [60], label) {
     
     // Input validation
     if (typeof beats !== 'number' || beats <= 0 || !Number.isInteger(beats)) {

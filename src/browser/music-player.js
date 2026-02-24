@@ -1,6 +1,8 @@
 import { tonejs } from "../converters/tonejs.js";
 import { compileEvents } from "../algorithms/audio/index.js";
 import { generateSamplerUrls } from "../utils/gm-instruments.js";
+import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
+import { normalizeAudioGraph } from "../utils/normalize.js";
 
 /**
  * Simplified Music Player - Just playback with articulations
@@ -31,16 +33,22 @@ export function createPlayer(composition, options = {}) {
 
   // Audio state
   let isPlaying = false;
+  let isBusy = false; // re-entry guard for async operations
   let currentTime = 0;
   let animationId = null;
-  let scheduledEvents = []; // Track all scheduled events for cleanup
-  let activeSynths = []; // Track synths and effects that need disposal
+  let scheduledEvents = [];
+
+  // Persistent audio objects — created once, reused across seek/play cycles
+  let ToneLib = null;
+  let masterGain = null;
+  let trackConfigs = []; // [{synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN}]
+  let activeSynths = []; // all disposable audio nodes
 
   // Create UI container
   const container = document.createElement("div");
   container.style.cssText = `
     font-family: Arial, sans-serif;
-    background: #434F43;
+    background: #464646;
     color: #fff;
     padding: 12px;
     border-radius: 8px;
@@ -57,7 +65,7 @@ export function createPlayer(composition, options = {}) {
   `;
 
   const buttonStyle = `
-    background: #2D3931;
+    background: #000000;
     border: none;
     color: white;
     padding: 8px 16px;
@@ -89,7 +97,7 @@ export function createPlayer(composition, options = {}) {
   timeline.style.cssText = `
     flex: 1;
     height: 8px;
-    background: #F0C0C0;
+    background: #efefef;
     border-radius: 4px;
     cursor: pointer;
     position: relative;
@@ -98,7 +106,7 @@ export function createPlayer(composition, options = {}) {
   const timelineProgress = document.createElement("div");
   timelineProgress.style.cssText = `
     height: 100%;
-    background: #AD8B8B;
+    background: #959595;
     border-radius: 4px;
     width: 0%;
     transition: width 0.1s linear;
@@ -133,9 +141,9 @@ export function createPlayer(composition, options = {}) {
 
   // Update timeline display
   function updateTimeline() {
-    if (!window.Tone?.Transport) return;
+    if (!ToneLib?.Transport) return;
 
-    currentTime = window.Tone.Transport.seconds;
+    currentTime = ToneLib.Transport.seconds;
     const progress = (currentTime / totalDuration) * 100;
     timelineProgress.style.width = `${Math.min(progress, 100)}%`;
     currentTimeDisplay.textContent = formatTime(currentTime);
@@ -147,166 +155,157 @@ export function createPlayer(composition, options = {}) {
     }
   }
 
-  // Setup audio
-  async function setupAudio() {
-    let ToneLib = externalTone || window.Tone;
+  // ── Build synths and effects (expensive — done once) ─────────────
+  async function buildSynths() {
+    ToneLib = externalTone || window.Tone;
 
     if (!ToneLib) {
-      // Load Tone.js from CDN
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js";
-        script.onload = () => {
-          ToneLib = window.Tone;
-          resolve();
-        };
+        script.onload = () => { ToneLib = window.Tone; resolve(); };
         script.onerror = reject;
         document.head.appendChild(script);
       });
     }
 
-    if (!ToneLib) {
-      throw new Error("Failed to load Tone.js");
-    }
-
+    if (!ToneLib) throw new Error("Failed to load Tone.js");
     window.Tone = ToneLib;
 
-    // Start audio context
     await ToneLib.start();
     ToneLib.Transport.bpm.value = tempo;
 
-    // Clean up previous synths and effects
-    activeSynths.forEach(s => {
-      try {
-        s.dispose();
-      } catch (e) {
-        console.warn('Error disposing synth/effect:', e);
-      }
-    });
-    activeSynths = [];
-    scheduledEvents = [];
+    // Dispose previous audio objects
+    disposeAudio();
 
-    // Create a master limiter to prevent clipping when multiple tracks play
+    // Master chain
     const masterLimiter = new ToneLib.Limiter(-3).toDestination();
-    const masterGain = new ToneLib.Gain(0.7).connect(masterLimiter); // Reduce overall volume
-    activeSynths.push(masterLimiter);
-    activeSynths.push(masterGain);
+    const numTracks = tracks.length || 1;
+    const gainLevel = 0.7 / Math.sqrt(numTracks);
+    masterGain = new ToneLib.Gain(gainLevel).connect(masterLimiter);
+    activeSynths.push(masterLimiter, masterGain);
 
-    // Helper to connect synth to master chain
-    const connectToMaster = (node) => {
-      node.disconnect();
-      node.connect(masterGain);
-    };
+    // Normalize audioGraph format
+    normalizeAudioGraph(composition);
 
-    // Create synths and schedule notes
-    convertedTracks.forEach((trackConfig) => {
+    // Build audioGraph nodes if present
+    const graphNodes = {};
+    if (composition.audioGraph && Array.isArray(composition.audioGraph)) {
+      composition.audioGraph.forEach(({ id, type, options: opts = {} }) => {
+        if (!id || !type) return;
+        if (type === 'Destination') { graphNodes[id] = masterGain; return; }
+        try {
+          if (SYNTHESIZER_TYPES.includes(type) || ALL_EFFECTS.includes(type)) {
+            graphNodes[id] = new ToneLib[type](opts);
+            activeSynths.push(graphNodes[id]);
+          }
+        } catch (e) {
+          console.warn(`[AUDIOGRAPH] Failed to create ${type}:`, e);
+        }
+      });
+
+      composition.audioGraph.forEach(({ id, target }) => {
+        if (!id || !graphNodes[id] || graphNodes[id] === masterGain) return;
+        const node = graphNodes[id];
+        if (target && graphNodes[target]) {
+          node.connect(graphNodes[target] === masterGain ? masterGain : graphNodes[target]);
+        } else {
+          node.connect(masterGain);
+        }
+      });
+    }
+
+    const secondsPerQN = 60 / tempo;
+
+    // Build per-track configs
+    trackConfigs = convertedTracks.map((trackConfig) => {
       const { originalTrackIndex, partEvents } = trackConfig;
       const originalTrack = originalTracksSource[originalTrackIndex] || {};
 
-      // Compile articulations to modulations FIRST (to check for glissando)
+      // Compile articulations
       let modulations = [];
       try {
         const compiled = compileEvents(originalTrack);
         modulations = compiled.modulations || [];
-        console.log(`[ARTICULATIONS] Track ${originalTrackIndex}: Found ${modulations.length} modulations`, modulations);
       } catch (e) {
         console.warn("Failed to compile articulations:", e);
       }
 
-      // Create synth or sampler based on track configuration
+      // Create synth
       let synth;
       const synthSpec = originalTrack.synth;
+      const synthRef = originalTrack.synthRef;
 
-      if (typeof synthSpec === 'number') {
-        // GM instrument number (0-127)
-        const urls = generateSamplerUrls(synthSpec);
-        synth = new ToneLib.Sampler({
-          urls,
-          baseUrl: "", // URLs are already complete
-          onload: () => console.log(`Loaded GM instrument ${synthSpec}`)
-        });
-        synth.connect(masterGain);
-        console.log(`Creating Sampler for GM instrument ${synthSpec}`);
-      } else if (typeof synthSpec === 'string') {
-        // Synth type name or audioGraph reference
-        try {
-          synth = new ToneLib[synthSpec]();
-          synth.connect(masterGain);
-        } catch {
-          synth = new ToneLib.PolySynth();
-          synth.connect(masterGain);
+      const graphSynthId = synthRef || (composition.audioGraph || []).find(
+        n => SYNTHESIZER_TYPES.includes(n.type)
+      )?.id;
+      const graphSynth = graphSynthId && graphNodes[graphSynthId];
+
+      let connectTarget = masterGain;
+      if (composition.audioGraph && !graphSynth) {
+        const targetedIds = new Set((composition.audioGraph || []).map(n => n.target).filter(Boolean));
+        const effectEntry = composition.audioGraph.find(
+          n => ALL_EFFECTS.includes(n.type) && !targetedIds.has(n.id)
+        );
+        if (effectEntry && graphNodes[effectEntry.id]) {
+          connectTarget = graphNodes[effectEntry.id];
         }
+      }
+
+      if (graphSynth && !synthSpec) {
+        synth = graphSynth;
+      } else if (typeof synthSpec === 'number') {
+        const urls = generateSamplerUrls(synthSpec);
+        synth = new ToneLib.Sampler({ urls, baseUrl: "" });
+        synth.connect(connectTarget);
+      } else if (typeof synthSpec === 'string') {
+        try { synth = new ToneLib[synthSpec](); synth.connect(connectTarget); }
+        catch { synth = new ToneLib.PolySynth(); synth.connect(connectTarget); }
       } else if (typeof synthSpec === 'object' && synthSpec !== null) {
-        // Inline synth definition { type, options }
         const synthType = synthSpec.type || 'PolySynth';
         try {
-          const options = synthSpec.options || {};
+          const opts = synthSpec.options || {};
           if (synthType === 'Sampler') {
-            // Sampler needs special handling for loading
-            synth = new ToneLib.Sampler({
-              ...options,
-              onload: () => console.log(`[SAMPLER] Loaded custom sampler for track ${originalTrackIndex}`),
-              onerror: (error) => console.error(`[SAMPLER] Failed to load sample:`, error)
-            });
-            synth.connect(masterGain);
-            console.log(`[SAMPLER] Creating custom Sampler with URLs:`, options.urls);
+            synth = new ToneLib.Sampler(opts);
           } else {
-            synth = new ToneLib[synthType](options);
-            synth.connect(masterGain);
-            console.log(`[SYNTH] Creating ${synthType} for track ${originalTrackIndex}`);
+            synth = new ToneLib[synthType](opts);
           }
+          synth.connect(connectTarget);
         } catch (e) {
-          console.error(`[SYNTH] Failed to create ${synthType}:`, e);
           synth = new ToneLib.PolySynth();
-          synth.connect(masterGain);
+          synth.connect(connectTarget);
         }
       } else {
-        // Default to PolySynth
         synth = new ToneLib.PolySynth();
-        synth.connect(masterGain);
+        synth.connect(connectTarget);
       }
 
       activeSynths.push(synth);
 
-      // Check for vibrato/tremolo modulations (track-level effects)
-      const vibratoMods = modulations.filter(
-        (m) => m.type === "pitch" && m.subtype === "vibrato"
-      );
-      const tremoloMods = modulations.filter(
-        (m) => m.type === "amplitude" && m.subtype === "tremolo"
-      );
-      console.log(`[EFFECTS] Track ${originalTrackIndex}: ${vibratoMods.length} vibrato, ${tremoloMods.length} tremolo`);
+      // Vibrato / tremolo effects
+      const vibratoMods = modulations.filter(m => m.type === "pitch" && m.subtype === "vibrato");
+      const tremoloMods = modulations.filter(m => m.type === "amplitude" && m.subtype === "tremolo");
 
-      // Create effect chain if needed
       let vibratoEffect = null;
       let tremoloEffect = null;
 
       if (vibratoMods.length > 0 || tremoloMods.length > 0) {
-        // Disconnect synth from destination first
         synth.disconnect();
 
-        // Create effects
         if (vibratoMods.length > 0) {
-          const defaultVibrato = vibratoMods[0];
-          vibratoEffect = new ToneLib.Vibrato({
-            frequency: defaultVibrato.rate || 5,
-            depth: (defaultVibrato.depth || 50) / 100,
-          });
-          vibratoEffect.wet.value = 0; // Start disabled
+          const dv = vibratoMods[0];
+          vibratoEffect = new ToneLib.Vibrato({ frequency: dv.rate || 5, depth: (dv.depth || 50) / 100 });
+          vibratoEffect.wet.value = 0;
           activeSynths.push(vibratoEffect);
         }
 
         if (tremoloMods.length > 0) {
-          const defaultTremolo = tremoloMods[0];
-          tremoloEffect = new ToneLib.Tremolo({
-            frequency: defaultTremolo.rate || 8,
-            depth: defaultTremolo.depth || 0.3,
-          }).start();
-          tremoloEffect.wet.value = 0; // Start disabled
+          const dt = tremoloMods[0];
+          tremoloEffect = new ToneLib.Tremolo({ frequency: dt.rate || 8, depth: dt.depth || 0.3 }).start();
+          tremoloEffect.wet.value = 0;
           activeSynths.push(tremoloEffect);
         }
 
-        // Connect effect chain to master
         if (vibratoEffect && tremoloEffect) {
           synth.connect(vibratoEffect);
           vibratoEffect.connect(tremoloEffect);
@@ -318,85 +317,77 @@ export function createPlayer(composition, options = {}) {
           synth.connect(tremoloEffect);
           tremoloEffect.connect(masterGain);
         }
-
-        // Schedule effect enable/disable based on modulations
-        const secondsPerQuarterNote = 60 / tempo;
-        modulations.forEach((mod) => {
-          const startTime = mod.start * secondsPerQuarterNote;
-          const endTime = mod.end * secondsPerQuarterNote;
-
-          if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
-            const vibratoFreq = mod.rate || 5;
-            const vibratoDepth = (mod.depth || 50) / 100;
-
-            // Schedule enable
-            const enableId = ToneLib.Transport.schedule((time) => {
-              vibratoEffect.frequency.value = vibratoFreq;
-              vibratoEffect.depth.value = vibratoDepth;
-              vibratoEffect.wet.value = 1;
-            }, startTime);
-            scheduledEvents.push(enableId);
-
-            // Schedule disable
-            const disableId = ToneLib.Transport.schedule((time) => {
-              vibratoEffect.wet.value = 0;
-            }, endTime);
-            scheduledEvents.push(disableId);
-          }
-
-          if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
-            const tremoloFreq = mod.rate || 8;
-            const tremoloDepth = mod.depth || 0.3;
-
-            // Schedule enable
-            const enableId = ToneLib.Transport.schedule((time) => {
-              tremoloEffect.frequency.value = tremoloFreq;
-              tremoloEffect.depth.value = tremoloDepth;
-              tremoloEffect.wet.value = 1;
-            }, startTime);
-            scheduledEvents.push(enableId);
-
-            // Schedule disable
-            const disableId = ToneLib.Transport.schedule((time) => {
-              tremoloEffect.wet.value = 0;
-            }, endTime);
-            scheduledEvents.push(disableId);
-          }
-        });
       }
 
-      // Create modulation lookup by note index for glissando
+      return { synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN };
+    });
+
+    // Wait for all samplers to finish loading
+    await ToneLib.loaded();
+  }
+
+  // ── Schedule events on the transport (cheap — redo on seek) ──────
+  function scheduleNotes() {
+    clearScheduledEvents();
+
+    trackConfigs.forEach(({ synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN }) => {
+      // Schedule vibrato/tremolo enable/disable
+      modulations.forEach((mod) => {
+        const startTime = mod.start * secondsPerQN;
+        const endTime = mod.end * secondsPerQN;
+
+        if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            vibratoEffect.frequency.value = mod.rate || 5;
+            vibratoEffect.depth.value = (mod.depth || 50) / 100;
+            vibratoEffect.wet.value = 1;
+          }, startTime));
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            vibratoEffect.wet.value = 0;
+          }, endTime));
+        }
+
+        if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            tremoloEffect.frequency.value = mod.rate || 8;
+            tremoloEffect.depth.value = mod.depth || 0.3;
+            tremoloEffect.wet.value = 1;
+          }, startTime));
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            tremoloEffect.wet.value = 0;
+          }, endTime));
+        }
+      });
+
+      // Build modulation lookup by note index
       const modsByNote = {};
       modulations.forEach((mod) => {
         if (!modsByNote[mod.index]) modsByNote[mod.index] = [];
         modsByNote[mod.index].push(mod);
       });
 
-      // Schedule all notes
+      // Schedule notes
       partEvents.forEach((note, noteIndex) => {
-        const time = typeof note.time === "number"
-          ? note.time * (60 / tempo)
-          : note.time;
-        const duration = typeof note.duration === "number"
-          ? note.duration * (60 / tempo)
-          : note.duration;
+        const time = typeof note.time === "number" ? note.time * secondsPerQN : note.time;
+        const duration = typeof note.duration === "number" ? note.duration * secondsPerQN : note.duration;
         const velocity = note.velocity || 0.8;
         const mods = modsByNote[noteIndex] || [];
 
-        // Check for glissando
         const glissando = mods.find(
           (m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
         );
 
         // Handle chords
         if (Array.isArray(note.pitch)) {
-          const noteNames = note.pitch.map((p) =>
-            typeof p === "number" ? ToneLib.Frequency(p, "midi").toNote() : p
+          const mt = note.microtuning || 0;
+          const chordNotes = note.pitch.map((p) =>
+            typeof p === "number"
+              ? (mt ? ToneLib.Frequency(p + mt, "midi").toFrequency() : ToneLib.Frequency(p, "midi").toNote())
+              : p
           );
-          const eventId = ToneLib.Transport.schedule((schedTime) => {
-            synth.triggerAttackRelease(noteNames, duration, schedTime, velocity);
-          }, time);
-          scheduledEvents.push(eventId);
+          scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+            synth.triggerAttackRelease(chordNotes, duration, t, velocity);
+          }, time));
           return;
         }
 
@@ -405,7 +396,7 @@ export function createPlayer(composition, options = {}) {
           ? ToneLib.Frequency(note.pitch, "midi").toNote()
           : note.pitch;
 
-        // Handle glissando using detune parameter
+        // Handle glissando
         if (glissando && glissando.to !== undefined) {
           const toNote = typeof glissando.to === "number"
             ? ToneLib.Frequency(glissando.to, "midi").toNote()
@@ -414,122 +405,111 @@ export function createPlayer(composition, options = {}) {
           const startFreq = ToneLib.Frequency(noteName).toFrequency();
           const endFreq = ToneLib.Frequency(toNote).toFrequency();
           const cents = 1200 * Math.log2(endFreq / startFreq);
-
-          // Account for microtuning offset if present
           const microtuningCents = (note.microtuning || 0) * 100;
           const startDetune = microtuningCents;
           const endDetune = microtuningCents + cents;
 
-          // Check if main synth supports detune
           if (synth.detune) {
-            // Main synth supports detune (e.g., MonoSynth, Synth)
-            console.log(`[GLISSANDO] Using main synth detune: ${noteName} -> ${toNote} (${cents} cents)`);
-
-            const eventId = ToneLib.Transport.schedule((schedTime) => {
-              synth.triggerAttack(noteName, schedTime, velocity);
-              synth.detune.setValueAtTime(startDetune, schedTime);
-              synth.detune.linearRampToValueAtTime(endDetune, schedTime + duration);
-              synth.triggerRelease(schedTime + duration);
-            }, time);
-            scheduledEvents.push(eventId);
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              synth.triggerAttack(noteName, t, velocity);
+              synth.detune.setValueAtTime(startDetune, t);
+              synth.detune.linearRampToValueAtTime(endDetune, t + duration);
+              synth.triggerRelease(t + duration);
+            }, time));
           } else {
-            // Create temporary MonoSynth for this glissando note
-            // (PolySynth and Sampler don't expose detune for automation)
-            console.log(`[GLISSANDO] Creating temporary MonoSynth: ${noteName} -> ${toNote} (${cents} cents)`);
-
             const glissSynth = new ToneLib.MonoSynth();
             glissSynth.connect(masterGain);
             activeSynths.push(glissSynth);
 
-            const eventId = ToneLib.Transport.schedule((schedTime) => {
-              glissSynth.triggerAttack(noteName, schedTime, velocity);
-              glissSynth.detune.setValueAtTime(startDetune, schedTime);
-              glissSynth.detune.linearRampToValueAtTime(endDetune, schedTime + duration);
-              glissSynth.triggerRelease(schedTime + duration);
-            }, time);
-            scheduledEvents.push(eventId);
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              glissSynth.triggerAttack(noteName, t, velocity);
+              glissSynth.detune.setValueAtTime(startDetune, t);
+              glissSynth.detune.linearRampToValueAtTime(endDetune, t + duration);
+              glissSynth.triggerRelease(t + duration);
+            }, time));
           }
         } else {
-          // Normal note
-          const eventId = ToneLib.Transport.schedule((schedTime) => {
-            // Apply microtuning if present (microtuning is in semitones, detune expects cents)
-            if (note.microtuning && synth.detune) {
-              const cents = note.microtuning * 100; // Convert semitones to cents
-              synth.triggerAttack(noteName, schedTime, velocity);
-              synth.detune.setValueAtTime(cents, schedTime);
-              synth.triggerRelease(schedTime + duration);
-            } else {
-              synth.triggerAttackRelease(noteName, duration, schedTime, velocity);
-            }
-          }, time);
-          scheduledEvents.push(eventId);
+          // Normal note — apply microtuning by converting to frequency
+          const playNote = note.microtuning
+            ? ToneLib.Frequency(note.pitch + note.microtuning, "midi").toFrequency()
+            : noteName;
+
+          scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+            synth.triggerAttackRelease(playNote, duration, t, velocity);
+          }, time));
         }
       });
     });
   }
 
-  // Play/Pause
+  // ── Clear scheduled transport events ─────────────────────────────
+  function clearScheduledEvents() {
+    if (ToneLib) {
+      ToneLib.Transport.cancel(0);
+    }
+    scheduledEvents = [];
+  }
+
+  // ── Dispose all audio objects ────────────────────────────────────
+  function disposeAudio() {
+    clearScheduledEvents();
+    activeSynths.forEach(s => {
+      try { if (!s.disposed) s.dispose(); } catch (e) { /* already gone */ }
+    });
+    activeSynths = [];
+    trackConfigs = [];
+    masterGain = null;
+  }
+
+  // ── Play / Pause ─────────────────────────────────────────────────
   async function play() {
+    if (isBusy) return;
+
     if (isPlaying) {
       // Pause
-      window.Tone.Transport.pause();
+      ToneLib.Transport.pause();
       isPlaying = false;
       playButton.textContent = "▶ Play";
       cancelAnimationFrame(animationId);
-    } else {
-      // Ensure audio is setup
-      if (!window.Tone || scheduledEvents.length === 0) {
-        await setupAudio();
+      return;
+    }
 
-        // Wait for all samplers to load
-        console.log("Waiting for samples to load...");
-        await window.Tone.loaded();
-        console.log("Samples loaded, starting playback");
+    isBusy = true;
+    playButton.textContent = "... Wait";
+    playButton.disabled = true;
+
+    try {
+      // Build synths if needed (first play or after stop)
+      if (trackConfigs.length === 0) {
+        await buildSynths();
       }
 
-      // Resume or start
-      if (window.Tone.Transport.state === "paused") {
-        window.Tone.Transport.start();
-      } else {
-        window.Tone.Transport.start("+0", currentTime);
-      }
+      // Schedule notes fresh (handles seek position)
+      scheduleNotes();
+
+      // Start transport from current position
+      ToneLib.Transport.stop();
+      ToneLib.Transport.start("+0.05", currentTime);
 
       isPlaying = true;
       playButton.textContent = "⏸ Pause";
       stopButton.disabled = false;
       updateTimeline();
+    } catch (e) {
+      console.error("[PLAYER] Play failed:", e);
+      playButton.textContent = "▶ Play";
+    } finally {
+      isBusy = false;
+      playButton.disabled = false;
     }
   }
 
-  // Stop
+  // ── Stop ─────────────────────────────────────────────────────────
   function stop() {
-    if (window.Tone) {
-      // Stop and cancel all transport events FIRST
-      window.Tone.Transport.stop();
-      window.Tone.Transport.cancel(0);
-
-      // Clean up all scheduled events
-      scheduledEvents.forEach(eventId => {
-        try {
-          window.Tone.Transport.clear(eventId);
-        } catch (e) {
-          // Event may already be cleared
-        }
-      });
-      scheduledEvents = [];
-
-      // Clear synths only (don't recreate yet - wait for next play)
-      activeSynths.forEach(s => {
-        try {
-          if (!s.disposed) {
-            s.dispose();
-          }
-        } catch (e) {
-          console.warn('Error disposing synth/effect:', e);
-        }
-      });
-      activeSynths = [];
+    if (ToneLib) {
+      ToneLib.Transport.stop();
     }
+    disposeAudio();
 
     isPlaying = false;
     currentTime = 0;
@@ -540,23 +520,29 @@ export function createPlayer(composition, options = {}) {
     cancelAnimationFrame(animationId);
   }
 
-  // Timeline seek
-  timeline.addEventListener("click", (e) => {
+  // ── Timeline seek ────────────────────────────────────────────────
+  timeline.addEventListener("click", async (e) => {
+    if (isBusy) return;
+
     const rect = timeline.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percent = x / rect.width;
-    const newTime = percent * totalDuration;
+    const percent = (e.clientX - rect.left) / rect.width;
+    const newTime = Math.max(0, Math.min(percent * totalDuration, totalDuration));
 
-    if (window.Tone) {
-      const wasPlaying = isPlaying;
-      stop();
-      currentTime = newTime;
+    // Update UI immediately
+    timelineProgress.style.width = `${percent * 100}%`;
+    currentTimeDisplay.textContent = formatTime(newTime);
+    currentTime = newTime;
 
-      if (wasPlaying) {
-        play();
-      } else {
-        timelineProgress.style.width = `${percent * 100}%`;
-        currentTimeDisplay.textContent = formatTime(newTime);
+    if (isPlaying && ToneLib) {
+      // Reschedule and restart from new position — no teardown needed
+      isBusy = true;
+      try {
+        ToneLib.Transport.pause();
+        scheduleNotes();
+        ToneLib.Transport.start("+0.05", newTime);
+        updateTimeline();
+      } finally {
+        isBusy = false;
       }
     }
   });

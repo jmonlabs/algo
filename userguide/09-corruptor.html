@@ -2,674 +2,379 @@
 <notebook theme="air">
   <title>9. Corruptor</title>
 
-  <script type="text/markdown">
-# 9. Corruptor
+  <script id="0" type="text/markdown">
+    # 9. Corruptor
 
-The Corruptor is a post-processing module that transforms "perfect" algorithmic compositions into something more organic, unstable, and haunting. Inspired by the sonic aesthetics of Nine Inch Nails, Hildur Guðnadóttir, Jóhann Jóhannsson, and late-stage Nirvana, the Corruptor applies non-linear degradation layers to introduce the beautiful imperfections that make music feel alive and human.
+    Algorithmic music tends to sound sterile. Every note lands exactly on the grid, every pitch is perfectly in tune, every velocity is uniform. Real music isn't like that — players rush and drag, instruments go out of tune, energy fades over a long take.
 
-While generative algorithms create mathematically precise patterns, the Corruptor adds the chaos and entropy found in analog systems, mechanical failures, and emotional decay. It's the difference between a perfectly quantized MIDI grid and a worn cassette tape slowly deteriorating in a forgotten drawer.
+    The Corruptor is a post-processing module that degrades "perfect" compositions to make them sound more organic. It works on any JMON piece and applies five independent techniques, each controlled by a global `entropy` parameter (0 to 1):
 
-## Concept and Philosophy
+    - **Temporal jitter** — breaks the rigid time grid
+    - **Microtonal drift** — detunes pitches slightly
+    - **Note attrition** — randomly drops notes
+    - **Velocity sag** — reduces energy over time
+    - **Ghost tracks** — adds deep, slow shadow layers
 
-The Corruptor operates on the principle that perfection is inhuman. Real instruments drift out of tune, players rush and drag the tempo, energy fades over long takes, and recording equipment introduces artifacts and noise. These imperfections are not bugs—they're features that give music character, soul, and emotional resonance.
-
-The module implements several distinct corruption techniques, each controllable through an entropy parameter (0.0 to 1.0):
-- **Temporal Instability**: Breaking the rigid time grid
-- **Harmonic Erosion**: Introducing microtonal drift and detuning
-- **Structural Decay**: Simulating loss of energy and memory
-- **Spectral Corruption**: Degrading the sonic quality itself
-- **Semantic Ghosting**: Creating atmospheric shadow layers
-
-At low entropy levels (0.0-0.3), the corruption is subtle—a gentle humanization. At medium entropy (0.4-0.7), the music begins to feel unstable and organic. At high entropy (0.8-1.0), the composition enters the realm of controlled chaos and decay.
+    At low entropy (0–0.3), you get subtle humanization. At medium (0.4–0.7), things start to wobble. At high entropy (0.8–1.0), controlled destruction.
   </script>
 
-  <script type="module" pinned>
-import jm from "../src/index.js";
-import * as Tone from "npm:tone";
-import verovio from "npm:verovio@4.3.1/wasm";
-import * as Plot from "npm:@observablehq/plot@0.6";
+  <script id="1" type="module" pinned="">
+    import jm from "../src/index.js";
+    import * as Tone from "npm:tone";
+    import verovio from "npm:verovio@4.3.1/wasm";
+    import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
+    import * as Plot from "npm:@observablehq/plot@0.6";
   </script>
 
-  <script type="text/markdown">
-## Basic Usage
+  <script id="2" type="text/markdown">
+    ## A simple scale to corrupt
 
-The Corruptor can be used in two ways: as a class instance or through a convenience function.
-
-### Method 1: Using the Corruptor class
+    We'll use a C major scale as source material — boring enough that any corruption is easy to hear.
   </script>
 
-  <script type="module" pinned>
-// Create a simple composition to corrupt
-const originalComposition = {
-  format: "jmon",
-  version: "1.0",
-  tempo: 120,
-  timeSignature: "4/4",
-  tracks: [{
-    label: "Melody",
-    notes: [
-      { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
-      { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
-      { pitch: 64, duration: 1, time: 2, velocity: 0.8 },
-      { pitch: 65, duration: 1, time: 3, velocity: 0.8 },
-      { pitch: 67, duration: 1, time: 4, velocity: 0.8 },
-      { pitch: 69, duration: 1, time: 5, velocity: 0.8 },
-      { pitch: 71, duration: 1, time: 6, velocity: 0.8 },
-      { pitch: 72, duration: 1, time: 7, velocity: 0.8 }
-    ]
-  }]
-};
+  <script id="3" type="module" pinned="">
+    const original = {
+      title: "Clean scale",
+      tempo: 120,
+      tracks: [{
+        label: "Melody",
+        synth: 0,
+        notes: [
+          { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
+          { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
+          { pitch: 64, duration: 1, time: 2, velocity: 0.8 },
+          { pitch: 65, duration: 1, time: 3, velocity: 0.8 },
+          { pitch: 67, duration: 1, time: 4, velocity: 0.8 },
+          { pitch: 69, duration: 1, time: 5, velocity: 0.8 },
+          { pitch: 71, duration: 1, time: 6, velocity: 0.8 },
+          { pitch: 72, duration: 1, time: 7, velocity: 0.8 }
+        ]
+      }]
+    };
 
-display("Original composition created with " + originalComposition.tracks[0].notes.length + " notes");
+    display(await jm.score(original, { verovio, VerovioToolkit }));
+    display(await jm.play(original, { Tone }));
   </script>
 
-  <script type="text/markdown">
-### Method 2: Using the convenience function
+  <script id="4" type="text/markdown">
+    ## Quick usage
+
+    The simplest way to corrupt a piece is with the `corruptJmon` function with a value of entropy (0–1).
   </script>
 
-  <script type="module">
-// Corrupt with medium entropy using the convenience function
-const corrupted = jm.processors.corruptJmon(originalComposition, 0.5);
-
-display("Corrupted composition has " + corrupted.tracks[0].notes.length + " notes");
-display("Original first note time: " + originalComposition.tracks[0].notes[0].time);
-display("Corrupted first note time: " + corrupted.tracks[0].notes[0].time.toFixed(4));
-display("Corrupted first note microtuning: " + (corrupted.tracks[0].notes[0].microtuning || 0).toFixed(4) + " semitones");
+  <script id="5" type="module" pinned="">
+    const corrupted = jm.processors.corruptJmon(original, 0.8);
+    display(await jm.score({ ...corrupted, title: "Corrupted (entropy 0.8)" }, { verovio, VerovioToolkit }));
+    display(await jm.play(corrupted, { Tone }));
   </script>
 
-  <script type="text/markdown">
-## Temporal Instability (Jitter Engine)
+  <script id="6" type="text/markdown">
+    Entropy can be applied on pitch, timing, missing notes, velocity.
+    
+    ## Temporal jitter
 
-Algorithmic music often suffers from a "grid" feeling—every note falls perfectly on beat subdivisions. The Temporal Instability engine breaks this grid by applying stochastic time displacement.
-
-### How it works
-
-The module uses either **Perlin Noise** or **Brownian Bridge** algorithms to generate smooth, organic time variations:
-
-- **Perlin Noise**: Creates smooth, continuous randomness—like waves in the ocean
-- **Brownian Bridge**: Generates a random path that starts and ends at specific values—like a drunk person walking from home to the bar
-
-The amount of jitter scales with entropy. At high entropy, the rhythm feels "broken" or "limping," reminiscent of a failing mechanical clock or the rushed/dragged feel in J Dilla's production.
+    Every note in algorithmic music falls exactly on a grid subdivision. Temporal jitter displaces notes in time using either Perlin noise (smooth, continuous drift) or a Brownian bridge (random walk that returns to zero). The amount scales with entropy.
   </script>
 
-  <script type="module">
-// Demonstrate temporal instability at different entropy levels
-const entropies = [0.0, 0.3, 0.6, 0.9];
+  <script id="7" type="module">
+    const entropies = [0.0, 0.3, 0.6, 0.9];
 
-const jitterComparison = entropies.map(entropy => {
-  const corruptor = new jm.processors.Corruptor({
-    entropy: entropy,
-    temporalJitter: true,
-    microtonalDrift: false,
-    noteAttrition: false,
-    velocitySag: false,
-    seed: 42
-  });
+    const jitterData = entropies.flatMap(entropy => {
+      const corruptor = new jm.processors.Corruptor({
+        entropy,
+        temporalJitter: true,
+        microtonalDrift: false,
+        noteAttrition: false,
+        velocitySag: false,
+        seed: 42
+      });
+      const result = corruptor.corrupt(original);
+      return result.tracks[0].notes.map((note, i) => ({
+        note: i,
+        deviation: note.time - original.tracks[0].notes[i].time,
+        entropy: `${entropy}`
+      }));
+    });
 
-  const result = corruptor.corrupt(originalComposition);
-
-  // Extract timing data for visualization
-  const timingData = result.tracks[0].notes.map((note, i) => ({
-    noteIndex: i,
-    expectedTime: originalComposition.tracks[0].notes[i].time,
-    actualTime: note.time,
-    deviation: note.time - originalComposition.tracks[0].notes[i].time,
-    entropy: entropy
-  }));
-
-  return timingData;
-}).flat();
-
-display(Plot.plot({
-  title: "Temporal Jitter at Different Entropy Levels",
-  height: 300,
-  width: 800,
-  color: { legend: true },
-  x: { label: "Note Index" },
-  y: { label: "Time Deviation (beats)" },
-  marks: [
-    Plot.ruleY([0], { stroke: "gray", strokeDasharray: "2,2" }),
-    Plot.line(jitterComparison, {
-      x: "noteIndex",
-      y: "deviation",
-      stroke: d => `Entropy ${d.entropy}`,
-      curve: "linear"
-    })
-  ]
-}));
+    display(jitterData)
+    display(Plot.plot({
+      title: "Time deviation by entropy level",
+      height: 250, width: 700,
+      color: { legend: true },
+      x: { label: "Note" },
+      y: { label: "Deviation (beats)" },
+      marks: [
+        Plot.ruleY([0], { stroke: "#ccc", strokeDasharray: "2,2" }),
+        Plot.line(jitterData, { x: "note", y: "deviation", stroke: "entropy" })
+      ]
+    }));
   </script>
 
-  <script type="text/markdown">
-## Harmonic Erosion (Microtonal Drift)
+  <script id="8" type="text/markdown">
+    At entropy 0.0, no deviation. At 0.9, notes shift by up to half a beat — the rhythm starts limping.
 
-Perfect intonation is rare in the real world. Acoustic instruments drift out of tune, analog synthesizers have temperature-dependent oscillators, and tape machines introduce wow and flutter. Harmonic Erosion captures this by manipulating JMON's microtuning property.
+    ## Microtonal drift
 
-### Implementation
-
-The module applies a **Gaussian distribution** (bell curve) to the pitch of each note:
-- Mean: 0 (centered on the original pitch)
-- Standard Deviation: controlled by entropy level
-
-This creates a natural-sounding detuning where most notes stay close to their intended pitch, but some drift significantly. The result is haunting and unsettling—the sound of memory fading or systems failing.
+    Acoustic instruments drift out of tune, analog oscillators wander with temperature, tape machines introduce wow and flutter. Microtonal drift applies Gaussian-distributed pitch deviations to JMON's `microtuning` property (in semitones). Most notes stay close to pitch; a few drift noticeably.
   </script>
 
-  <script type="module">
-// Demonstrate harmonic erosion
-const harmonicCorruptor = new jm.processors.Corruptor({
-  entropy: 0.6,
-  temporalJitter: false,
-  microtonalDrift: true,
-  noteAttrition: false,
-  velocitySag: false,
-  seed: 123
-});
+  <script id="9" type="module">
+    const driftCorruptor = new jm.processors.Corruptor({
+      entropy: 0.6,
+      temporalJitter: false,
+      microtonalDrift: true,
+      noteAttrition: false,
+      velocitySag: false,
+      seed: 123
+    });
 
-const harmonicallyCorrupted = harmonicCorruptor.corrupt(originalComposition);
+    const drifted = driftCorruptor.corrupt(original);
+    const driftData = drifted.tracks[0].notes.map((n, i) => ({
+      note: i,
+      microtuning: n.microtuning || 0
+    }));
 
-// Visualize the microtuning
-const microtuningData = harmonicallyCorrupted.tracks[0].notes.map((note, i) => ({
-  noteIndex: i,
-  pitch: note.pitch,
-  microtuning: note.microtuning || 0,
-  actualPitch: note.pitch + (note.microtuning || 0)
-}));
+    display(Plot.plot({
+      title: "Microtonal drift (entropy 0.6)",
+      height: 200, width: 700,
+      x: { label: "Note" },
+      y: { label: "Drift (semitones)" },
+      marks: [
+        Plot.ruleY([0], { stroke: "#ccc", strokeDasharray: "2,2" }),
+        Plot.line(driftData, { x: "note", y: "microtuning", stroke: "#e74c3c" })
+      ]
+    }));
 
-display(Plot.plot({
-  title: "Microtonal Drift (Entropy 0.6)",
-  height: 300,
-  width: 800,
-  y: { label: "Microtuning (semitones)" },
-  x: { label: "Note Index" },
-  marks: [
-    Plot.ruleY([0], { stroke: "gray", strokeDasharray: "2,2" }),
-    Plot.line(microtuningData, { x: "noteIndex", y: "microtuning", stroke: "#e74c3c", strokeWidth: 2 }),
-    Plot.dot(microtuningData, { x: "noteIndex", y: "microtuning", fill: "#c0392b", r: 3 })
-  ]
-}));
-
-display("Microtuning range: " +
-  Math.min(...microtuningData.map(d => d.microtuning)).toFixed(3) + " to " +
-  Math.max(...microtuningData.map(d => d.microtuning)).toFixed(3) + " semitones");
+    display(await jm.score({ ...drifted, title: "Drifted (entropy 0.6)" }, { verovio, VerovioToolkit }));
+    display(await jm.play(drifted, { Tone }));
   </script>
 
-  <script type="text/markdown">
-## Structural Decay (Probability Corrosion)
+  <script id="10" type="text/markdown">
+    ## Note attrition and velocity sag
 
-Living systems forget. Machines break down. Energy dissipates. Structural Decay simulates these processes through two mechanisms:
+    Two forms of structural decay:
 
-### Note Attrition
-At high entropy levels (> 0.7), notes begin to randomly disappear, creating gaps in the musical fabric. This simulates:
-- Digital glitches and dropouts
-- A musician forgetting parts of the melody
-- A degraded recording with missing sections
+    - **Note attrition** randomly drops notes at high entropy (> 0.7), creating gaps — like a degraded recording with dropouts.
+    - **Velocity sag** gradually reduces velocity over time, simulating a player getting tired or a battery running low.
 
-### Velocity Sag
-Energy decreases over time. A drummer gets tired. A battery runs low. Velocity Sag gradually reduces note velocity as the piece progresses, creating a sense of exhaustion or decay.
+    We'll use a longer phrase to make the effect visible.
   </script>
 
-  <script type="module">
-// Create a longer composition to demonstrate decay
-const longComposition = {
-  format: "jmon",
-  version: "1.0",
-  tempo: 120,
-  timeSignature: "4/4",
-  tracks: [{
-    label: "Long Melody",
-    notes: Array.from({ length: 32 }, (_, i) => ({
-      pitch: 60 + (i % 8),
-      duration: 0.5,
-      time: i * 0.5,
-      velocity: 0.8
-    }))
-  }]
-};
+  <script id="11" type="module">
+    const longPhrase = {
+      tempo: 120,
+      tracks: [{
+        label: "Loop",
+        synth: 0,
+        notes: Array.from({ length: 32 }, (_, i) => ({
+          pitch: 60 + (i % 8),
+          duration: 0.5,
+          time: i * 0.5,
+          velocity: 0.8
+        }))
+      }]
+    };
 
-// Apply structural decay
-const decayCorruptor = new jm.processors.Corruptor({
-  entropy: 0.75,
-  temporalJitter: false,
-  microtonalDrift: false,
-  noteAttrition: true,
-  velocitySag: true,
-  seed: 456
-});
+    const decayed = new jm.processors.Corruptor({
+      entropy: 0.85,
+      temporalJitter: false,
+      microtonalDrift: false,
+      noteAttrition: true,
+      velocitySag: true,
+      seed: 347
+    }).corrupt(longPhrase);
 
-const decayed = decayCorruptor.corrupt(longComposition);
+    const originalVel = longPhrase.tracks[0].notes.map((n, i) => ({
+      time: n.time, velocity: n.velocity, type: "Original"
+    }));
+    const decayedVel = decayed.tracks[0].notes.map(n => ({
+      time: n.time, velocity: n.velocity, type: "Corrupted"
+    }));
 
-// Visualize velocity sag and note attrition
-const originalVelocities = longComposition.tracks[0].notes.map((note, i) => ({
-  noteIndex: i,
-  velocity: note.velocity,
-  type: "original"
-}));
+    display(Plot.plot({
+      title: `Velocity sag and attrition (${longPhrase.tracks[0].notes.length} to ${decayed.tracks[0].notes.length} notes)`,
+      height: 200, width: 700,
+      color: { legend: true },
+      x: { label: "Time (beats)" },
+      y: { label: "Velocity", domain: [0, 1] },
+      marks: [
+        Plot.line(originalVel, { x: "time", y: "velocity", stroke: "type", strokeDasharray: "4,2" }),
+        Plot.dot(decayedVel, { x: "time", y: "velocity", fill: "type", r: 3 })
+      ]
+    }));
 
-const decayedVelocities = decayed.tracks[0].notes.map((note, i) => ({
-  noteIndex: note.time * 2, // Convert back to approximate index
-  velocity: note.velocity,
-  type: "corrupted"
-}));
-
-display(Plot.plot({
-  title: "Structural Decay: Velocity Sag and Note Attrition",
-  height: 300,
-  width: 800,
-  color: { legend: true },
-  y: { label: "Velocity", domain: [0, 1] },
-  x: { label: "Note Index" },
-  marks: [
-    Plot.line(originalVelocities, { x: "noteIndex", y: "velocity", stroke: "#95a5a6", strokeWidth: 2, strokeDasharray: "4,2" }),
-    Plot.dot(decayedVelocities, { x: "noteIndex", y: "velocity", fill: "#e67e22", r: 4 })
-  ]
-}));
-
-display("Original note count: " + longComposition.tracks[0].notes.length);
-display("After corruption: " + decayed.tracks[0].notes.length + " notes");
-display("Notes dropped: " + (longComposition.tracks[0].notes.length - decayed.tracks[0].notes.length));
+    display(await jm.play(decayed, { Tone }));
   </script>
 
-  <script type="text/markdown">
-## Semantic Ghosting (Shadow Tracks)
+  <script id="12" type="text/markdown">
+    The gaps from attrition and the fading velocity are both clearly visible. Notes that survived still lose energy toward the end of the phrase.
 
-Inspired by the massive atmospheric drones in Jóhann Jóhannsson's scores (particularly "Arrival"), Semantic Ghosting creates shadow versions of melodic tracks.
+    ## Ghost tracks
 
-### Ghost Track Properties
-For each melodic track (tracks with significant pitch variation), the Corruptor generates a "ghost":
-- **Pitch**: Transposed down (default: -2 octaves / -24 semitones)
-- **Duration**: Extended (default: 4× longer)
-- **Velocity**: Reduced (default: 30% of original)
-
-The result is a deep, atmospheric under-drone that supports the melody—like a shadow walking behind you, or the reverberant memory of notes already played.
+    For each melodic track, the Corruptor can generate a "ghost" — a delayed shadow that enters after the melody, transposed down, stretched, and quieted. Unlike simple voicing (which doubles notes at the same time), ghost notes are offset by a configurable delay (default: 1 beat) and drift in time with Perlin noise, so they feel like an echo trailing behind the melody rather than a parallel layer.
   </script>
 
-  <script type="module">
-// Create a melodic composition
-const melodicComposition = {
-  format: "jmon",
-  version: "1.0",
-  tempo: 90,
-  timeSignature: "4/4",
-  tracks: [{
-    label: "Lead",
-    notes: [
-      { pitch: 72, duration: 1, time: 0, velocity: 0.9 },
-      { pitch: 74, duration: 1, time: 1, velocity: 0.85 },
-      { pitch: 76, duration: 0.5, time: 2, velocity: 0.8 },
-      { pitch: 77, duration: 0.5, time: 2.5, velocity: 0.8 },
-      { pitch: 79, duration: 2, time: 3, velocity: 0.9 },
-      { pitch: 77, duration: 1, time: 5, velocity: 0.7 },
-      { pitch: 76, duration: 1, time: 6, velocity: 0.6 },
-      { pitch: 74, duration: 2, time: 7, velocity: 0.8 }
-    ]
-  }]
-};
+  <script id="13" type="module" pinned="">
+    const ghosted = new jm.processors.Corruptor({
+      entropy: 0.3,
+      temporalJitter: false,
+      microtonalDrift: false,
+      noteAttrition: false,
+      velocitySag: false,
+      ghostTrack: true,
+      ghostOctaveShift: -1,
+      ghostDurationMultiplier: 4,
+      ghostVelocityMultiplier: 0.3
+    }).corrupt(original);
 
-// Apply ghost track
-const ghostCorruptor = new jm.processors.Corruptor({
-  entropy: 0.3,
-  temporalJitter: false,
-  microtonalDrift: false,
-  noteAttrition: false,
-  velocitySag: false,
-  ghostTrack: true,
-  ghostOctaveShift: -2,
-  ghostDurationMultiplier: 4,
-  ghostVelocityMultiplier: 0.3
-});
+    display("Tracks: " + ghosted.tracks.length + " (" + ghosted.tracks.map(t => t.label).join(", ") + ")");
 
-const ghosted = ghostCorruptor.corrupt(melodicComposition);
-
-display("Original tracks: " + melodicComposition.tracks.length);
-display("After ghosting: " + ghosted.tracks.length + " tracks");
-display("Ghost track label: " + ghosted.tracks[1].label);
-
-// Compare lead and ghost
-const leadNotes = ghosted.tracks[0].notes;
-const ghostNotes = ghosted.tracks[1].notes;
-
-display("\nFirst note comparison:");
-display("Lead: pitch=" + leadNotes[0].pitch + ", duration=" + leadNotes[0].duration + ", velocity=" + leadNotes[0].velocity);
-display("Ghost: pitch=" + ghostNotes[0].pitch + ", duration=" + ghostNotes[0].duration + ", velocity=" + ghostNotes[0].velocity);
+    display(await jm.score({ ...ghosted, title: "Melody + Ghost" }, { verovio, VerovioToolkit }));
+    display(await jm.play(ghosted, { Tone }));
   </script>
 
-  <script type="text/markdown">
-## Combined Effects
+  <script id="14" type="text/markdown">
+    ## Everything at once
 
-The real power of the Corruptor emerges when combining multiple corruption techniques. Each layer of degradation interacts with the others, creating complex, organic results.
-
-### Example: Full Corruption
+    The interesting results come from combining all techniques. Here's a two-track piece (pad + arpeggio) with full corruption at entropy 0.65.
   </script>
 
-  <script type="module" pinned>
-// Create a more complex composition
-const complexComposition = {
-  format: "jmon",
-  version: "1.0",
-  tempo: 110,
-  timeSignature: "4/4",
-  tracks: [{
-    label: "Synth Pad",
-    notes: Array.from({ length: 16 }, (_, i) => ({
-      pitch: 48 + [0, 4, 7, 11, 12, 11, 7, 4][i % 8],
-      duration: 2,
-      time: i * 2,
-      velocity: 0.7
-    }))
-  }, {
-    label: "Arpeggio",
-    notes: Array.from({ length: 64 }, (_, i) => ({
-      pitch: 60 + [0, 4, 7, 12, 7, 4][i % 6],
+  <script id="15" type="module" pinned="">
+    const piece = {
+      tempo: 110,
+      tracks: [{
+        label: "Pad",
+        synth: 89,
+        notes: Array.from({ length: 16 }, (_, i) => ({
+          pitch: 48 + [0, 4, 7, 11, 12, 11, 7, 4][i % 8],
+          duration: 2,
+          time: i * 2,
+          velocity: 0.7
+        }))
+      }, {
+        label: "Arpeggio",
+        synth: 0,
+        notes: Array.from({ length: 64 }, (_, i) => ({
+          pitch: 60 + [0, 4, 7, 12, 7, 4][i % 6],
+          duration: 0.25,
+          time: i * 0.25,
+          velocity: 0.6
+        }))
+      }]
+    };
+
+    const fullCorrupt = new jm.processors.Corruptor({
+      entropy: 0.65,
+      temporalJitter: true,
+      jitterMethod: 'perlin',
+      microtonalDrift: true,
+      noteAttrition: true,
+      velocitySag: true,
+      ghostTrack: true,
+      seed: 789
+    }).corrupt(piece);
+
+    display("Original: " + piece.tracks.map(t => t.notes.length + " notes").join(", "));
+    display("Corrupted: " + fullCorrupt.tracks.map(t => t.notes.length + " notes").join(", "));
+
+    display(await jm.score({ ...fullCorrupt, title: "Full corruption (entropy 0.65)" }, { verovio, VerovioToolkit }));
+    display(await jm.play(fullCorrupt, { Tone }));
+  </script>
+
+  <script id="16" type="text/markdown">
+    ## Entropy spectrum
+
+    How does each corruption metric scale with entropy? We'll run the same 20-note phrase through all entropy levels and measure the average effect:
+  </script>
+
+  <script id="17" type="module">
+    const testPhrase = {
+      tempo: 120,
+      tracks: [{
+        label: "Test",
+        notes: Array.from({ length: 20 }, (_, i) => ({
+          pitch: 60, duration: 0.5, time: i * 0.5, velocity: 0.8
+        }))
+      }]
+    };
+
+    const levels = Array.from({ length: 11 }, (_, i) => i / 10);
+
+    const spectrum = levels.map(entropy => {
+      const result = new jm.processors.Corruptor({
+        entropy,
+        temporalJitter: true,
+        microtonalDrift: true,
+        noteAttrition: true,
+        velocitySag: true,
+        seed: 999
+      }).corrupt(testPhrase);
+
+      const notes = result.tracks[0].notes;
+      return {
+        entropy,
+        drift: notes.reduce((s, n) => s + Math.abs(n.microtuning || 0), 0) / notes.length,
+        jitter: notes.reduce((s, n, i) => s + Math.abs(n.time - i * 0.5), 0) / notes.length,
+        lost: testPhrase.tracks[0].notes.length - notes.length
+      };
+    });
+
+    const spectrumData = spectrum.flatMap(d => [
+      { entropy: d.entropy, value: d.drift, metric: "Avg drift (semitones)" },
+      { entropy: d.entropy, value: d.jitter, metric: "Avg jitter (beats)" },
+      { entropy: d.entropy, value: d.lost / 20, metric: "Notes lost (fraction)" }
+    ]);
+
+    display(Plot.plot({
+      title: "Corruption metrics vs. entropy",
+      height: 250, width: 700,
+      color: { legend: true },
+      x: { label: "Entropy", domain: [0, 1] },
+      y: { label: "Value" },
+      marks: [
+        Plot.line(spectrumData, { x: "entropy", y: "value", stroke: "metric" }),
+        Plot.dot(spectrumData, { x: "entropy", y: "value", fill: "metric", r: 2 })
+      ]
+    }));
+  </script>
+
+  <script id="18" type="text/markdown">
+    All three metrics are near zero at low entropy and ramp up non-linearly. Note attrition only kicks in above ~0.7 — at lower levels, every note survives but timing and pitch wobble.
+
+    ## Integration with other modules
+
+    The Corruptor works on any JMON piece, so you can chain it after a cellular automaton, a Mandelbrot extraction, a genetic algorithm, or anything else that produces notes. Here's a quick example with a Rule 30 cellular automaton:
+  </script>
+
+  <script id="19" type="module">
+    const ca = new jm.generative.automata.Cellular({
+      ruleNumber: 30,
+      width: [60, 72],
+      initialState: Array(13).fill(0).map((_, i) => i === 6 ? 1 : 0)
+    });
+    ca.generate(16);
+
+    // toPlotData returns {time, pitch} for every active cell
+    const plotData = ca.toPlotData();
+    const notes = plotData.map(d => ({
+      pitch: d.pitch,
+      time: d.time * 0.25,
       duration: 0.25,
-      time: i * 0.25,
-      velocity: 0.6
-    }))
-  }]
-};
+      velocity: 0.7
+    }));
 
-// Apply all corruption techniques
-const fullCorruptor = new jm.processors.Corruptor({
-  entropy: 0.65,
-  temporalJitter: true,
-  jitterMethod: 'perlin',
-  microtonalDrift: true,
-  driftAmount: 1.0,
-  noteAttrition: true,
-  velocitySag: true,
-  ghostTrack: true,
-  seed: 789
-});
+    const caPiece = { tempo: 140, tracks: [{ label: "Rule 30", notes }] };
+    const caCorrupted = jm.processors.corruptJmon(caPiece, 0.5, {
+      temporalJitter: true,
+      microtonalDrift: true,
+      ghostTrack: true,
+      seed: 4645
+    });
 
-const fullyCorrupted = fullCorruptor.corrupt(complexComposition);
+    display("CA original: " + caPiece.tracks[0].notes.length + " notes, 1 track");
+    display("CA corrupted: " + caCorrupted.tracks[0].notes.length + " notes, " + caCorrupted.tracks.length + " tracks");
 
-display("Fully corrupted composition:");
-display("- Tracks: " + fullyCorrupted.tracks.length);
-display("- Original Synth Pad notes: " + complexComposition.tracks[0].notes.length);
-display("- Corrupted Synth Pad notes: " + fullyCorrupted.tracks[0].notes.length);
-display("- Original Arpeggio notes: " + complexComposition.tracks[1].notes.length);
-display("- Corrupted Arpeggio notes: " + fullyCorrupted.tracks[1].notes.length);
-display("- Ghost tracks added: " + (fullyCorrupted.tracks.length - complexComposition.tracks.length));
-  </script>
-
-  <script type="text/markdown">
-## Entropy Levels: A Guide
-
-Choosing the right entropy level is crucial for achieving the desired aesthetic:
-
-### 0.0 - 0.2: Subtle Humanization
-- Barely perceptible timing variations
-- Minimal detuning
-- No note loss
-- Perfect for adding organic feel without obvious corruption
-
-### 0.3 - 0.5: Organic Warmth
-- Noticeable timing drift
-- Gentle pitch instability
-- Slight velocity variation
-- The "analog" sweet spot—cassette tapes and vintage synths
-
-### 0.6 - 0.7: Controlled Instability
-- Significant temporal drift
-- Clear pitch warbling
-- Occasional note dropouts begin
-- The "degraded recording" zone
-
-### 0.8 - 1.0: Beautiful Destruction
-- Chaotic timing
-- Extreme detuning
-- Heavy note attrition
-- Dramatic energy decay
-- The "Nine Inch Nails / Aphex Twin" aesthetic
-  </script>
-
-  <script type="module">
-// Visualize entropy spectrum
-const entropyLevels = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-
-const spectrumComposition = {
-  format: "jmon",
-  version: "1.0",
-  tempo: 120,
-  timeSignature: "4/4",
-  tracks: [{
-    label: "Test",
-    notes: Array.from({ length: 20 }, (_, i) => ({
-      pitch: 60,
-      duration: 0.5,
-      time: i * 0.5,
-      velocity: 0.8
-    }))
-  }]
-};
-
-const entropyResults = entropyLevels.map(entropy => {
-  const corruptor = new jm.processors.Corruptor({
-    entropy: entropy,
-    temporalJitter: true,
-    microtonalDrift: true,
-    noteAttrition: true,
-    velocitySag: true,
-    seed: 999
-  });
-
-  const result = corruptor.corrupt(spectrumComposition);
-
-  // Calculate metrics
-  const avgMicrotuning = result.tracks[0].notes.reduce((sum, n) =>
-    sum + Math.abs(n.microtuning || 0), 0) / result.tracks[0].notes.length;
-
-  const avgTimeDeviation = result.tracks[0].notes.reduce((sum, n, i) =>
-    sum + Math.abs(n.time - (i * 0.5)), 0) / result.tracks[0].notes.length;
-
-  const notesLost = spectrumComposition.tracks[0].notes.length - result.tracks[0].notes.length;
-
-  return {
-    entropy: entropy,
-    microtuning: avgMicrotuning,
-    timeDeviation: avgTimeDeviation,
-    notesLost: notesLost
-  };
-});
-
-// Create comparison plots
-const microtuningPlot = Plot.plot({
-  title: "Avg Microtuning vs Entropy",
-  height: 200,
-  width: 350,
-  x: { label: "Entropy", domain: [0, 1] },
-  y: { label: "Microtuning (semitones)" },
-  marks: [
-    Plot.line(entropyResults, { x: "entropy", y: "microtuning", stroke: "#e74c3c", strokeWidth: 2 }),
-    Plot.dot(entropyResults, { x: "entropy", y: "microtuning", fill: "#c0392b", r: 3 })
-  ]
-});
-
-const timeDeviationPlot = Plot.plot({
-  title: "Avg Time Deviation vs Entropy",
-  height: 200,
-  width: 350,
-  x: { label: "Entropy", domain: [0, 1] },
-  y: { label: "Time Deviation (beats)" },
-  marks: [
-    Plot.line(entropyResults, { x: "entropy", y: "timeDeviation", stroke: "#3498db", strokeWidth: 2 }),
-    Plot.dot(entropyResults, { x: "entropy", y: "timeDeviation", fill: "#2980b9", r: 3 })
-  ]
-});
-
-const notesLostPlot = Plot.plot({
-  title: "Notes Lost vs Entropy",
-  height: 200,
-  width: 350,
-  x: { label: "Entropy", domain: [0, 1] },
-  y: { label: "Notes Lost" },
-  marks: [
-    Plot.line(entropyResults, { x: "entropy", y: "notesLost", stroke: "#e67e22", strokeWidth: 2 }),
-    Plot.dot(entropyResults, { x: "entropy", y: "notesLost", fill: "#d35400", r: 3 })
-  ]
-});
-
-display(html`<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-  <div>${microtuningPlot}</div>
-  <div>${timeDeviationPlot}</div>
-</div>
-<div style="margin-top: 20px;">${notesLostPlot}</div>`);
-  </script>
-
-  <script type="text/markdown">
-## Advanced Configuration
-
-The Corruptor offers fine-grained control over each corruption technique:
-  </script>
-
-  <script type="module">
-// Example: Custom configuration
-const customCorruptor = new jm.processors.Corruptor({
-  entropy: 0.5,                      // Global entropy level
-  seed: 42,                          // Reproducible randomness
-
-  // Temporal settings
-  temporalJitter: true,              // Enable time jitter
-  jitterMethod: 'brownian',          // 'perlin' or 'brownian'
-
-  // Harmonic settings
-  microtonalDrift: true,             // Enable pitch drift
-  driftAmount: 1.5,                  // Increase drift intensity
-
-  // Structural settings
-  noteAttrition: true,               // Enable note dropout
-  velocitySag: true,                 // Enable velocity decay
-
-  // Ghost track settings
-  ghostTrack: true,                  // Enable shadow tracks
-  ghostOctaveShift: -3,              // Drop 3 octaves (deeper)
-  ghostDurationMultiplier: 6,        // 6x longer notes
-  ghostVelocityMultiplier: 0.2,      // Quieter (20% volume)
-
-  // Spectral corruption (for audioGraph)
-  spectralCorruption: false          // Disabled in this example
-});
-
-const configured = customCorruptor.corrupt(melodicComposition);
-
-display("Custom configuration applied");
-display("Configuration entropy: " + customCorruptor.getEntropy());
-display("Result tracks: " + configured.tracks.length);
-  </script>
-
-  <script type="text/markdown">
-## Practical Applications
-
-### 1. Humanizing Algorithmic Compositions
-Subtle corruption (entropy 0.1-0.3) can make perfectly quantized algorithmic music feel more human and natural.
-
-### 2. Creating Ambient Soundscapes
-Medium corruption with ghost tracks (entropy 0.4-0.6) excels at creating atmospheric, cinematic textures.
-
-### 3. Generative Glitch Art
-High corruption (entropy 0.7-1.0) produces experimental, glitchy results perfect for electronic and experimental music.
-
-### 4. Evolutionary Composition
-Use the Corruptor in a feedback loop: corrupt a composition, evaluate the results, and feed them back into the algorithm.
-
-### 5. Live Coding and Performance
-Modulate entropy in real-time to add dynamic variation and drama to live-coded performances.
-  </script>
-
-  <script type="text/markdown">
-## Integration with Other Modules
-
-The Corruptor is designed to work seamlessly with other jmon/algo modules:
-  </script>
-
-  <script type="module">
-// Example: Corrupt a cellular automaton composition
-const ca = new jm.generative.automata.Cellular({
-  ruleNumber: 30,
-  width: 20,
-  initialState: Array(20).fill(0).map((_, i) => i === 10 ? 1 : 0)
-});
-
-ca.generate(16);
-
-// Convert to JMON track
-const caTrack = ca.toTrack({
-  stripIndices: [8, 12],
-  pitches: [60, 62, 64, 65, 67, 69, 71, 72],
-  durations: [0.25],
-  startTime: 0
-});
-
-const caComposition = {
-  format: "jmon",
-  version: "1.0",
-  tempo: 140,
-  timeSignature: "4/4",
-  tracks: [caTrack]
-};
-
-// Corrupt the CA composition
-const corruptedCA = jm.processors.corruptJmon(caComposition, 0.5, {
-  temporalJitter: true,
-  microtonalDrift: true,
-  ghostTrack: true,
-  seed: 2024
-});
-
-display("Cellular Automaton + Corruptor:");
-display("- Original tracks: " + caComposition.tracks.length);
-display("- Corrupted tracks: " + corruptedCA.tracks.length);
-display("- Original notes: " + caComposition.tracks[0].notes.length);
-display("- Corrupted notes: " + corruptedCA.tracks[0].notes.length);
-  </script>
-
-  <script type="text/markdown">
-## Technical Details
-
-### Perlin Noise Implementation
-The Perlin noise generator creates smooth, continuous randomness using:
-- Permutation table for pseudo-random gradients
-- Fade function: `6t⁵ - 15t⁴ + 10t³` for smooth interpolation
-- Linear interpolation between gradient values
-
-### Brownian Bridge
-The Brownian Bridge generates a constrained random walk that:
-- Starts at a specified value (typically 0)
-- Ends at a specified value (typically 0)
-- Uses Gaussian randomness for each step
-- Creates a path that "knows" where it's going
-
-### Gaussian Distribution
-Microtuning uses a Gaussian (Normal) distribution:
-- Mean: 0 (no detuning on average)
-- Standard deviation: entropy × 0.5
-- Box-Muller transform for random number generation
-
-### Seeded Randomness
-All randomness is seeded for:
-- Reproducibility—same seed produces same corruption
-- Controlled experimentation
-- Deterministic live performances
-  </script>
-
-  <script type="text/markdown">
-## Conclusion
-
-The Corruptor bridges the gap between algorithmic precision and organic imperfection. It acknowledges that the most emotionally resonant music often emerges from systems in decay, from instability, from the spaces between intention and accident.
-
-Use it to:
-- Add soul to mechanical compositions
-- Create unsettling, haunting atmospheres
-- Explore the aesthetics of failure and degradation
-- Build dynamic, evolving soundscapes
-
-The Corruptor doesn't just add randomness—it adds *meaning* through carefully designed chaos. It's the sound of time passing, systems breaking down, and memories fading. It's the beautiful corruption of perfection.
-
-## Further Reading
-
-- [Nine Inch Nails - "The Downward Spiral"](https://en.wikipedia.org/wiki/The_Downward_Spiral) (1994) - Industrial aesthetics and sonic degradation
-- [Jóhann Jóhannsson - "Arrival" soundtrack](https://www.youtube.com/watch?v=oLGJH337xaI) - Atmospheric drones and sub-bass layers
-- [Hildur Guðnadóttir - "Chernobyl" soundtrack](https://www.youtube.com/watch?v=HZJ3RHMoLNc) - Detuned, decaying textures
-- [William Basinski - "The Disintegration Loops"](https://www.youtube.com/watch?v=mjnAE5go9dI) - The beauty of tape degradation
-- [Aphex Twin - Selected Ambient Works](https://www.youtube.com/watch?v=Xw5AiRVqfqk) - Controlled chaos and glitch aesthetics
+    display(await jm.play(caCorrupted, { Tone }));
   </script>
 
 </notebook>

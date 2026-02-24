@@ -61,7 +61,7 @@ export const generative = {
     automata: {
         Cellular: CellularAutomata
     },
-    loops: Loop,
+    loops: { Loop },
     genetic: {
         Darwin: Darwin
     },

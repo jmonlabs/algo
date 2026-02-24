@@ -278,6 +278,91 @@ export class Mandelbrot {
   }
 
   /**
+   * Treat the 2D iteration grid as a piano roll.
+   * x-axis = time, y-axis = pitch. Boundary pixels (iteration counts
+   * between thresholdMin and thresholdMax fractions of maxIterations)
+   * become active notes. Velocity is derived from the local iteration
+   * gradient magnitude. Consecutive same-pitch notes are merged into
+   * single longer notes.
+   *
+   * @param {Object} options
+   * @param {number[][]} options.grid - 2D iteration-count array (from generate())
+   * @param {number[]} options.pitches - MIDI pitch values, one per grid row (length must equal grid height)
+   * @param {number} [options.thresholdMin=0.1] - Lower boundary fraction of maxIterations
+   * @param {number} [options.thresholdMax=0.95] - Upper boundary fraction of maxIterations
+   * @param {number} [options.duration=1] - Duration of each time step in quarter notes
+   * @param {number} [options.maxDuration=Infinity] - Maximum merged note duration in quarter notes
+   * @returns {{ pitch: number, time: number, duration: number, velocity: number }[]} JMON note array
+   */
+  gridToNotes({ grid, pitches, thresholdMin = 0.1, thresholdMax = 0.95, duration = 1, maxDuration = Infinity }) {
+    const height = grid.length;
+    const width = grid[0]?.length || 0;
+    if (height === 0 || width === 0 || !pitches || pitches.length === 0) return [];
+
+    const lo = thresholdMin * this.maxIterations;
+    const hi = thresholdMax * this.maxIterations;
+
+    // Compute gradient magnitude for velocity
+    const gradient = [];
+    for (let y = 0; y < height; y++) {
+      gradient[y] = [];
+      for (let x = 0; x < width; x++) {
+        const dx = (grid[y][Math.min(x + 1, width - 1)] - grid[y][Math.max(x - 1, 0)]) / 2;
+        const dy = ((grid[Math.min(y + 1, height - 1)] || grid[y])[x] - (grid[Math.max(y - 1, 0)])[x]) / 2;
+        gradient[y][x] = Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+
+    // Find max gradient for normalization
+    let maxGrad = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (gradient[y][x] > maxGrad) maxGrad = gradient[y][x];
+      }
+    }
+    if (maxGrad === 0) maxGrad = 1;
+
+    // Build raw note events — row 0 maps to the highest pitch (top of piano roll)
+    const raw = [];
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        const v = grid[y][x];
+        if (v >= lo && v <= hi) {
+          const pitchIndex = height - 1 - y; // flip: top row = high pitch
+          const pitch = pitches[Math.min(pitchIndex, pitches.length - 1)];
+          const vel = 0.2 + 0.8 * (gradient[y][x] / maxGrad);
+          raw.push({ pitch, time: x * duration, duration, velocity: vel });
+        }
+      }
+    }
+
+    // Merge consecutive same-pitch notes
+    if (raw.length === 0) return [];
+
+    // Sort by pitch then time
+    raw.sort((a, b) => a.pitch - b.pitch || a.time - b.time);
+
+    const merged = [raw[0]];
+    for (let i = 1; i < raw.length; i++) {
+      const prev = merged[merged.length - 1];
+      const curr = raw[i];
+      if (curr.pitch === prev.pitch && Math.abs(curr.time - (prev.time + prev.duration)) < 0.001 && prev.duration < maxDuration) {
+        // Merge: extend duration, average velocity
+        const totalDur = prev.duration + curr.duration;
+        prev.velocity = (prev.velocity * prev.duration + curr.velocity * curr.duration) / totalDur;
+        prev.duration = totalDur;
+      } else {
+        merged.push({ ...curr });
+      }
+    }
+
+    // Sort final output by time then pitch
+    merged.sort((a, b) => a.time - b.time || a.pitch - b.pitch);
+
+    return merged;
+  }
+
+  /**
    * Generate rhythmic pattern from fractal data
    * @param {Object} options - Mapping options
    * @param {number[]} options.sequence - Fractal sequence

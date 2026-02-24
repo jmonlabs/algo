@@ -18,10 +18,11 @@ This chapter covers the Loop class and techniques for creating repeating musical
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
 import verovio from "npm:verovio@4.3.1/wasm";
+import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
   </script>
 
   <script type="text/markdown">
-## 1. Basic Loop
+## 1. Basic loop
 
 A Loop in algo creates repeating musical patterns. The easiest way is to use `Loop.fromPattern()` which converts simple pitch/duration arrays to JMON format automatically.
   </script>
@@ -33,7 +34,7 @@ const simpleLoop = jm.generative.loops.Loop.fromPattern(
   [0.5, 0.5, 0.5, 0.5],
   {
     iterations: 4,
-    label: 'Simple Melody'
+    label: 'Simple melody'
   }
 );
 
@@ -43,17 +44,17 @@ display(`Total notes: ${simpleSequences[0].notes.length}`);
 display("First few notes:", simpleSequences[0].notes.slice(0, 4));
 
 const simplePiece = {
-  title: "Simple Loop",
+  title: "Simple loop",
   tempo: 120,
   tracks: simpleSequences
 };
 
-display(jm.score(simplePiece, { verovio }));
+display(await jm.score(simplePiece, { verovio, VerovioToolkit }));
 display(await jm.play(simplePiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 2. Loop with Transformations
+## 2. Loop with transformations
 
 Loops can transform on each iteration using the `transpose` option, creating ascending or descending patterns.
   </script>
@@ -90,7 +91,7 @@ display(await jm.play(ascendingPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 3. Polyloops (Multiple Independent Loops)
+## 3. Polyloops (multiple independent loops)
 
 Polyloops are multiple independent loops playing simultaneously. In algo, you create separate Loop instances for each voice and combine them in a composition.
   </script>
@@ -133,7 +134,7 @@ display(await jm.play(polyloopPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 4. Euclidean Rhythms
+## 4. Euclidean rhythms
 
 Euclidean rhythms distribute beats evenly across a time span using the Euclidean algorithm. `Loop.euclidean(steps, pulses, pitches)` creates these mathematically perfect patterns.
   </script>
@@ -232,40 +233,40 @@ display(await jm.play(beatPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 7. Phase Shifting (Steve Reich style)
+## 7. Phase shifting (Steve Reich style)
 
 Phase shifting creates multiple copies of the same pattern starting at different times, creating complex polyrhythms. This technique was famously used by minimalist composer Steve Reich.
   </script>
 
   <script type="module" pinned>
-const basePattern = [60, 62, 64, 62];
-const baseDuration = 0.25;
+const basePattern = [60, 62, 64, 67];
+const baseDuration = 0.5;
 
-// Create three loops with increasing offsets
+// Create three loops — each offset by half a beat, creating a canon effect
 const phaseLoop1 = jm.generative.loops.Loop.fromPattern(
   basePattern,
   Array(4).fill(baseDuration),
-  { iterations: 16, offset: 0, label: 'Phase 1' }
+  { iterations: 4, offset: 0, label: 'Phase 1' }
 );
 
 const phaseLoop2 = jm.generative.loops.Loop.fromPattern(
   basePattern,
   Array(4).fill(baseDuration),
-  { iterations: 16, offset: 0.05, label: 'Phase 2' }
+  { iterations: 4, offset: 0.5, label: 'Phase 2' }
 );
 
 const phaseLoop3 = jm.generative.loops.Loop.fromPattern(
   basePattern,
   Array(4).fill(baseDuration),
-  { iterations: 16, offset: 0.10, label: 'Phase 3' }
+  { iterations: 4, offset: 1.0, label: 'Phase 3' }
 );
 
 display("Phase shifting (Steve Reich technique):");
 display(`  Base pattern: ${basePattern}`);
-display("  Loop 1 offset: 0.00 beats");
-display("  Loop 2 offset: 0.05 beats");
-display("  Loop 3 offset: 0.10 beats");
-display("  Each loop: 16 iterations");
+display("  Loop 1 offset: 0.0 beats");
+display("  Loop 2 offset: 0.5 beats");
+display("  Loop 3 offset: 1.0 beats");
+display("  Each loop: 4 iterations");
 
 const phase1Notes = phaseLoop1.toJMonSequences()[0].notes;
 const phase2Notes = phaseLoop2.toJMonSequences()[0].notes;
@@ -285,7 +286,7 @@ display(await jm.play(phasePiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 8. Prime Number Cycles
+## 8. Prime number cycles
 
 Using prime numbers for loop lengths creates interesting polyrhythmic patterns that take time to align, producing evolving textures.
   </script>
@@ -329,7 +330,7 @@ display(await jm.play(primePiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 9. Complex Polyloop Example
+## 9. Complex polyloop example
 
 Combining everything: sustained notes, arpeggios, bass, and rhythm to create a rich polyrhythmic texture.
   </script>
@@ -380,20 +381,22 @@ display(await jm.play(complexPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 10. Direct JMON Format
+## 10. Direct JMON format
 
 You can also create loops directly in JMON format for maximum control over individual note properties like velocity and timing.
   </script>
 
   <script type="module" pinned>
 const directLoop = new jm.generative.loops.Loop({
-  'Direct Pattern': {
-    notes: [
-      { pitch: 60, duration: 0.5, time: 0, velocity: 0.8 },
-      { pitch: 62, duration: 0.5, time: 0.5, velocity: 0.7 },
-      { pitch: 64, duration: 0.5, time: 1.0, velocity: 0.9 },
-      { pitch: 65, duration: 0.5, time: 1.5, velocity: 0.8 }
-    ]
+  loops: {
+    'Direct Pattern': {
+      notes: [
+        { pitch: 60, duration: 0.5, time: 0, velocity: 0.8 },
+        { pitch: 62, duration: 0.5, time: 0.5, velocity: 0.7 },
+        { pitch: 64, duration: 0.5, time: 1.0, velocity: 0.9 },
+        { pitch: 65, duration: 0.5, time: 1.5, velocity: 0.8 }
+      ]
+    }
   }
 });
 
@@ -402,24 +405,6 @@ display("  Created with explicit note objects");
 display("  Full control over time, velocity, and duration");
 display(`  Notes: ${directLoop.toJMonSequences()[0].notes.length}`);
 display(directLoop.toJMonSequences()[0].notes);
-  </script>
-
-  <script type="text/markdown">
-## Summary
-
-You've learned how to create complex rhythmic and melodic patterns using loops:
-
-✓ **Basic loops** with `Loop.fromPattern()`
-✓ **Transformations** with transpose option
-✓ **Polyloops** for multi-layered textures
-✓ **Euclidean rhythms** for mathematically perfect patterns
-✓ **Isorhythm** for cyclic pitch/duration mapping
-✓ **Beatcycle** for rhythm generation
-✓ **Phase shifting** for Steve Reich-style minimalism
-✓ **Prime number cycles** for complex polyrhythms
-✓ **Direct JMON format** for maximum control
-
-Next: **Chapter 4 - Minimalism** where you'll learn about additive/subtractive processes and tintinnabuli!
   </script>
 
 </notebook>
