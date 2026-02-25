@@ -5,6 +5,9 @@
 
 import { CellularAutomata } from '../src/algorithms/generative/cellular-automata/CellularAutomata.js';
 import { Mandelbrot } from '../src/algorithms/generative/fractals/Mandelbrot.js';
+import { Julia } from '../src/algorithms/generative/fractals/Julia.js';
+import { BurningShip } from '../src/algorithms/generative/fractals/BurningShip.js';
+import { Fractal } from '../src/algorithms/generative/fractals/Fractal.js';
 import { LogisticMap } from '../src/algorithms/generative/fractals/LogisticMap.js';
 import { Darwin } from '../src/algorithms/generative/genetic/Darwin.js';
 import { Loop } from '../src/algorithms/generative/loops/Loop.js';
@@ -48,6 +51,115 @@ try {
   const sequence = mandelbrot.extractSequence('spiral');
   console.log('  ✓ Extracted spiral sequence, length:', sequence.length);
   console.log('  ✓ Sequence values are numbers:', sequence.every(v => typeof v === 'number'));
+} catch (error) {
+  console.error('  ✗ Error:', error.message);
+}
+console.log('');
+
+// Test 2b: Mandelbrot backward compat (mandelbrotIterations alias)
+console.log('2b. Testing Mandelbrot backward compatibility');
+try {
+  const mb = new Mandelbrot({ width: 10, height: 10, maxIterations: 50 });
+  const iter = mb.mandelbrotIterations({ real: 0, imaginary: 0 });
+  console.log('  ✓ mandelbrotIterations alias works, result:', iter);
+  console.log('  ✓ Type is mandelbrot:', mb.type === 'mandelbrot');
+} catch (error) {
+  console.error('  ✗ Error:', error.message);
+}
+console.log('');
+
+// Test 2c: Center+Size coordinates
+console.log('2c. Testing Center+Size coordinates');
+try {
+  const mbBounds = new Mandelbrot({
+    width: 20, height: 20, maxIterations: 50,
+    xMin: -2.0, xMax: 1.0, yMin: -1.5, yMax: 1.5
+  });
+  const mbCenter = new Mandelbrot({
+    width: 20, height: 20, maxIterations: 50,
+    center: { x: -0.5, y: 0 },
+    size: { w: 3.0, h: 3.0 }
+  });
+
+  const dataBounds = mbBounds.generate();
+  const dataCenter = mbCenter.generate();
+
+  // They should produce identical output
+  let identical = true;
+  for (let y = 0; y < 20; y++) {
+    for (let x = 0; x < 20; x++) {
+      if (dataBounds[y][x] !== dataCenter[y][x]) { identical = false; break; }
+    }
+  }
+  console.log('  ✓ Center+size produces identical output to bounds:', identical);
+  console.log('  ✓ Center getter:', JSON.stringify(mbCenter.center));
+  console.log('  ✓ Size getter:', JSON.stringify(mbCenter.size));
+} catch (error) {
+  console.error('  ✗ Error:', error.message);
+}
+console.log('');
+
+// Test 2d: Julia Set
+console.log('2d. Testing Julia Set');
+try {
+  const julia = new Julia({
+    c: { real: -0.7, imaginary: 0.27015 },
+    width: 20, height: 20, maxIterations: 50
+  });
+
+  const juliaData = julia.generate();
+  console.log('  ✓ Generated Julia data, rows:', juliaData.length);
+  console.log('  ✓ Type is julia:', julia.type === 'julia');
+
+  const juliaSeq = julia.extractSequence('diagonal');
+  console.log('  ✓ Extracted diagonal sequence, length:', juliaSeq.length);
+  console.log('  ✓ Sequence values are numbers:', juliaSeq.every(v => typeof v === 'number'));
+
+  const mapped = julia.mapToScale({ sequence: juliaSeq, pitches: [60, 62, 64, 65, 67, 69, 71] });
+  console.log('  ✓ mapToScale works, length:', mapped.length);
+} catch (error) {
+  console.error('  ✗ Error:', error.message);
+}
+console.log('');
+
+// Test 2e: Burning Ship
+console.log('2e. Testing Burning Ship');
+try {
+  const ship = new BurningShip({
+    width: 20, height: 20, maxIterations: 50
+  });
+
+  const shipData = ship.generate();
+  console.log('  ✓ Generated BurningShip data, rows:', shipData.length);
+  console.log('  ✓ Type is burningship:', ship.type === 'burningship');
+
+  const shipSeq = ship.extractSequence('spiral');
+  console.log('  ✓ Extracted spiral sequence, length:', shipSeq.length);
+} catch (error) {
+  console.error('  ✗ Error:', error.message);
+}
+console.log('');
+
+// Test 2f: Fractal factory
+console.log('2f. Testing Fractal factory');
+try {
+  const mb = Fractal('mandelbrot', { width: 10, height: 10 });
+  console.log('  ✓ Fractal("mandelbrot") type:', mb.type);
+
+  const julia = Fractal('julia', { c: { real: -0.4, imaginary: 0.6 }, width: 10, height: 10 });
+  console.log('  ✓ Fractal("julia") type:', julia.type);
+
+  const ship = Fractal('burningship', { width: 10, height: 10 });
+  console.log('  ✓ Fractal("burningship") type:', ship.type);
+
+  console.log('  ✓ Available types:', Fractal.types().join(', '));
+
+  try {
+    Fractal('unknown', {});
+    console.error('  ✗ Should have thrown for unknown type');
+  } catch (e) {
+    console.log('  ✓ Unknown type throws:', e.message);
+  }
 } catch (error) {
   console.error('  ✗ Error:', error.message);
 }

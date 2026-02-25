@@ -100,9 +100,76 @@ export class FractalVisualizer {
   }
 
   /**
-   * Generate Mandelbrot set visualization
+   * Visualize any complex plane fractal (Mandelbrot, Julia, BurningShip, etc.)
+   * @param {import('../../generative/fractals/ComplexPlaneFractal.js').ComplexPlaneFractal} fractal - Fractal instance
+   * @param {FractalVisualizationOptions} [options={}] - Visualization options
+   * @returns {Object} Plot data object or canvas
+   */
+  static plotFractal(fractal, options = {}) {
+    const {
+      title = `${fractal.type.charAt(0).toUpperCase() + fractal.type.slice(1)} Set`,
+      width = 600,
+      height = 600,
+      colorScheme = 'plasma',
+      canvas = null,
+      resolution = fractal.width
+    } = options;
+
+    if (canvas) {
+      return this.renderFractalCanvas(canvas, fractal, resolution, colorScheme);
+    }
+
+    const data = fractal.generate();
+    const matrix = data.map(row =>
+      row.map(val => val / fractal.maxIterations)
+    );
+
+    return PlotRenderer.heatmap(matrix, { title, width, height, showAxis: false });
+  }
+
+  /**
+   * Render any complex plane fractal directly to Canvas
+   * @param {HTMLCanvasElement} canvas - Canvas element
+   * @param {import('../../generative/fractals/ComplexPlaneFractal.js').ComplexPlaneFractal} fractal - Fractal instance
+   * @param {number} resolution - Grid resolution
+   * @param {string} [colorScheme='plasma'] - Color scheme
+   * @returns {HTMLCanvasElement} The canvas element
+   */
+  static renderFractalCanvas(canvas, fractal, resolution, colorScheme = 'plasma') {
+    const ctx = canvas.getContext('2d');
+    canvas.width = resolution;
+    canvas.height = resolution;
+
+    const imageData = ctx.createImageData(resolution, resolution);
+    const pixels = imageData.data;
+
+    const dx = (fractal.xMax - fractal.xMin) / resolution;
+    const dy = (fractal.yMax - fractal.yMin) / resolution;
+
+    for (let py = 0; py < resolution; py++) {
+      const imag = fractal.yMin + py * dy;
+      for (let px = 0; px < resolution; px++) {
+        const real = fractal.xMin + px * dx;
+        const iterations = fractal.iterate({ real, imaginary: imag });
+        const normalized = iterations / fractal.maxIterations;
+
+        const color = this.getColorComponents(normalized, colorScheme);
+        const idx = (py * resolution + px) * 4;
+        pixels[idx] = color.r;
+        pixels[idx + 1] = color.g;
+        pixels[idx + 2] = color.b;
+        pixels[idx + 3] = 255;
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+  }
+
+  /**
+   * Generate Mandelbrot set visualization (backward-compatible wrapper)
    * @param {number} [xMin=-2.5] - Minimum x coordinate
-   * @param {number} [xMax=1.0] - Maximum x coordinate  
+   * @param {number} [xMax=1.0] - Maximum x coordinate
    * @param {number} [yMin=-1.25] - Minimum y coordinate
    * @param {number} [yMax=1.25] - Maximum y coordinate
    * @param {number} [resolution=400] - Grid resolution
@@ -119,7 +186,7 @@ export class FractalVisualizer {
     maxIterations = 100,
     options = {}
   ) {
-    const { 
+    const {
       title = 'Mandelbrot Set',
       width = 600,
       height = 600,
@@ -140,7 +207,7 @@ export class FractalVisualizer {
     for (let py = 0; py < resolution; py++) {
       const row = [];
       const y = yMin + py * dy;
-      
+
       for (let px = 0; px < resolution; px++) {
         const x = xMin + px * dx;
         const iterations = this.mandelbrotIterations(x, y, maxIterations);
@@ -158,51 +225,42 @@ export class FractalVisualizer {
   }
 
   /**
-   * Render Mandelbrot set directly to Canvas for better performance
-   * @param {HTMLCanvasElement} canvas - Canvas element
-   * @param {number} xMin - Minimum x coordinate
-   * @param {number} xMax - Maximum x coordinate
-   * @param {number} yMin - Minimum y coordinate
-   * @param {number} yMax - Maximum y coordinate
-   * @param {number} resolution - Grid resolution
-   * @param {number} maxIterations - Maximum iterations
-   * @param {string} colorScheme - Color scheme
-   * @returns {HTMLCanvasElement} The canvas element
+   * Render Mandelbrot set directly to Canvas (backward-compatible wrapper)
    */
   static renderMandelbrotCanvas(
-    canvas, 
-    xMin, xMax, yMin, yMax, 
-    resolution, maxIterations, 
+    canvas,
+    xMin, xMax, yMin, yMax,
+    resolution, maxIterations,
     colorScheme
   ) {
     const ctx = canvas.getContext('2d');
     canvas.width = resolution;
     canvas.height = resolution;
-    
+
     const imageData = ctx.createImageData(resolution, resolution);
     const data = imageData.data;
-    
+
     const dx = (xMax - xMin) / resolution;
     const dy = (yMax - yMin) / resolution;
-    
+
     for (let py = 0; py < resolution; py++) {
       const y = yMin + py * dy;
-      
+
       for (let px = 0; px < resolution; px++) {
         const x = xMin + px * dx;
         const iterations = this.mandelbrotIterations(x, y, maxIterations);
         const normalized = iterations / maxIterations;
-        
+
         const color = this.getColorComponents(normalized, colorScheme);
         const index = (py * resolution + px) * 4;
-        
+
         data[index] = color.r;     // Red
         data[index + 1] = color.g; // Green
         data[index + 2] = color.b; // Blue
         data[index + 3] = 255;     // Alpha
       }
     }
-    
+
     ctx.putImageData(imageData, 0, 0);
     return canvas;
   }
