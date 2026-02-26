@@ -5,35 +5,30 @@
   <script type="text/markdown">
 # 6. Walks
 
-Random and kernel walks represent fascinating techniques that have found applications in various fields. Each step of a walk is a consequence of the previous state, creating coherent yet unpredictable progressions. Walks have been embraced by composers and sound artists to wander through new territories of algorithmic music. Iannis Xenakis, a composer and architect, is perhaps one of the most renowned composers to integrate random processes, including random walks, into his compositions. Works like [Mikka](https://www.youtube.com/watch?v=Ifxs3TBSSAs) and [Epeï](https://www.youtube.com/watch?v=8ZP3TbLtfq4) are seminal examples where randomized methods contribute to the structural foundation of the music. Karlheinz Stockhausen and his work with controlled randomness and serial techniques also touch upon concepts akin to random walks. His compositions, such as [Klavierstück XI](https://www.youtube.com/watch?v=mMDdihXI98A), employ a form of controlled chance that dictates the sequence of musical events, offering a multitude of possible paths through the piece.
-
-The application of random walks in music composition involves generating sequences of musical elements, usually pitches and sequences, where each element is selected based on a combination of random choice and a set of rules or conditions influenced by previous elements. This approach allows composers to explore new forms of musical structure and texture, creating pieces that can vary greatly with each performance or realization while maintaining an underlying coherence.
+Random and kernel walks represent fascinating techniques that have found applications in various fields. Each step of a walk is a consequence of the previous state, creating coherent, but unpredictable progressions. Walks have been embraced by composers and sound artists to wander through new territories of algorithmic music. Iannis Xenakis integrated random processes, including random walks, into his compositions. Works like [Mikka](https://www.youtube.com/watch?v=Ifxs3TBSSAs) and [Epeï](https://www.youtube.com/watch?v=8ZP3TbLtfq4) are seminal examples where randomized methods contribute to the structural foundation of the music. Karlheinz Stockhausen and his work with controlled randomness and serial techniques also touch upon concepts akin to random walks. His compositions, such as [Klavierstück XI](https://www.youtube.com/watch?v=mMDdihXI98A), employ a form of controlled chance that dictates the sequence of musical events, offering a multitude of possible paths through the piece.
   </script>
 
   <script type="module" pinned>
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
 import verovio from "npm:verovio@4.3.1/wasm";
+import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
 import * as Plot from "npm:@observablehq/plot";
-import ds from "@tangent.to/ds"; // for Gaussian processes
+import ds from "npm:@tangent.to/ds"; // for Gaussian processes
   </script>
 
   <script type="text/markdown">
-In this section, we will also cover *kernel walks*, an innovative technique akin to random walks. This approach digs into well-known statistical objects named Gaussian processes to generate randomly oscillating paths. Most interestingly, kernel walks can be forced to pass through predefined points, and create melodies wandering around predefined progressions.
-
-Some walks can offer perfectly predictable, although intricate patterns. An example is the movements of planets in solar systems. Imagine a planet orbiting the sun with a circular orbit. The distance from the sun is steady, and the angle grows linearly from 0 to 360, then goes back to zero to create a saw wave. Then a moon orbits the planet, then a moon orbits the moon, and so on. The movements are predictable, but the periodic shape can create interesting patterns. *Celestial walks* are also part of jmon/algo.
-
-Finally, walks are additive and multiplicative. You can, at will, add up a random walk to a celestial walk.
+In this section, we will cover *random walks*, also known as Markov chains, *kernel walks* based on Gaussian processes, and *phasor walks* that intricates oscillating patterns.
 
 ## Random walks
 
-A random walk is a mathematical process where each step is a random choice relative to the one preceding it. Mathematicians call them Markov chains, named after mathematician Andrey Markov. The random choice can be as simple as a coin flip: if it goes tail, you take a diagonal step left. Heads, a diagonal step on right. Repeat the process over and over and you obtain a random walk. On average, you should walk ahead, but in fact, you'll probably derive from a straight path.
+A random walk is a mathematical process where each step is a random choice relative to the one(s) preceding it. Mathematicians call them Markov chains, named after mathematician Andrey Markov. The random choice can be as simple as a coin flip: if it goes tail, you take a diagonal step left. Heads, a diagonal step on right. Repeat the process over and over and you obtain a random walk.
 
 ### Understanding randomness
 
-A mathematical function using a probability distribution is named a *stochastic* function. The concept of randomness is often misunderstood. It's not about everything being possible without constraints. When we talk about selecting a random number, the process is not as open-ended as it might seem. When you flip a coin, it's either heads or tails (or, rarely, the edge...).
+A mathematical function using a probability distribution is named a *stochastic* function. The concept of randomness is often misunderstood. It's not about everything being possible without constraints. When you flip a coin, it's either heads or tails (mostly). When we talk about selecting a random number, the process is not as open-ended as it might seem.
 
-Randomness is structured by probability distributions, a collection of mathematical functions structuring randomness and approximate processes underlying a reality too complex to be perfectly predictable. The coin toss is a binomial distribution: it's either true or false. Another familiar example is the Normal distribution, known for its bell-shaped curve. When we sample from this distribution, values near the mean (centre of the curve) are more likely to occur than those far from it, say, more than 4 units away or less than -4 units from the mean. The Normal distribution is characterized by two parameters: the mean, which locates the centre of the curve, and the standard deviation, which determines the width of the curve.
+Randomness is structured by probability distributions, a large collection of mathematical functions structuring randomness and approximating processes underlying a reality too complex to be perfectly predictable. The coin toss is a binomial distribution: it's either true or false. Another familiar example is the Normal distribution, known for its bell-shaped curve. When we sample from this distribution, values near the mean (centre of the curve) are more likely to occur than those far from it, say, more than 4 units away or less than -4 units from the mean. The Normal distribution is characterized by two parameters: the mean, which locates the centre of the bell curve, and the standard deviation, which determines the width of the curve.
 
 There are numerous probability distributions, catering to different types of data:
 - **Continuous values**: Normal distribution or uniform distribution (flat probability across a range)
@@ -112,7 +107,7 @@ Random walks in jmon/algo are generated through the `Chain` class. The random wa
 - `walkProbability`: Can take a list of numbers like `[-1, 0, 1]` for steps of -1, 0, and 1. It can also take a distribution function.
 - `walkStart`: The starting point of the walk.
 - `length`: The number of steps.
-- `roundTo`: Rounds stepping to a given decimal (default: null).
+- `roundTo`: Rounds stepping to a given decimal (default: null), useful for midi pitches.
 - `branchingProbability`: Probability (0 to 1) to create a new branch.
 - `mergingProbability`: Probability to merge random walks when they collide.
 
@@ -166,9 +161,6 @@ display(Plot.plot({
   ]
 }));
   </script>
-
-
-
   <script type="text/markdown">
 The `rwSequences` contains multiple branches. If you examine the object, you will see lists beginning with `null` values, which are generated when a new branch is created to make sure all branches are generated with the same length. Each branch then has its own random walk, and can branch out. If two or more branches collide to the same values, and if merging is true according to `mergingProbability`, lists are closed with `null` values to the following notes.
 
@@ -253,15 +245,15 @@ display(await jm.play(rwTunedPiece, { Tone }));
 
 A normal distribution is a mathematically elegant way of describing the average and variance among a population. We can stack as many normal distributions as the amount of variables describing a population. When we think that our variables are linked to one another, we can merge normal distributions together in a single multivariate normal distribution.
 
-To go even further, since time is continuous, our multivariate normal can contain an infinity of dimensions. A multivariate normal distribution with infinite number of dimensions is called a **Gaussian process**.
+To go even further, since time is continuous, our multivariate normal can contain an infinity of dimensions. A multivariate normal distribution with infinite number of dimensions is called a Gaussian process.
 
 ### Why use Gaussian processes?
 
-These functions can be used just as we used random walks. So why bother with abstract mathematical concepts if you could just use a random walk function? Because Gaussian processes carry very interesting properties. Most importantly, they can be *fitted* to data, allowing melodies to pass through predefined points.
+These functions can be used just as we used random walks. So why bother with abstract mathematical concepts if you could just use a random walk function? Because Gaussian processes carry very interesting properties. Most importantly, they can be *fitted* to data, allowing melodies to pass through predefined points. Gaussian processes are included in an external library, [`@tangent.to/ds`](https://tangent-to.github.io/ds/), which is a collection of data science tools courtesy of, well, myself. The `GaussianProcessRegressor` class allows us to create Gaussian processes and sample from them.
 
 ### Unfitted Gaussian processes
 
-Unfitted Gaussian processes are only described by their kernel. Random samples from a kernel will create a pattern for music to follow. The kernel has two key properties:
+Unfitted Gaussian processes are only described by their kernel. Random samples from a kernel will create a pattern for music to follow. The kernel we use, the radial basis function, has two key properties:
 
 - `lengthScale`: Describes the inertia of the covariance. Larger lengths create longer waves.
 - `amplitude`: Describes the amplitude of the wave.
@@ -281,7 +273,7 @@ const kernelParams = [
 ];
 
 // Create x values: [[0], [1], [2], ..., [49]]
-const xTest = Array.from({ length: 50 }, (_, i) => [i]);
+const xTest = Array.from({ length: 200 }, (_, i) => [i]);
 
 // Generate samples for each parameter set
 const kernelPlotData = kernelParams.flatMap(({ ls, amp }) => {
@@ -464,7 +456,7 @@ const bluesPiece = {
   ]
 };
 
-display(await jm.score(bluesPiece, { verovio }));
+display(await jm.score(bluesPiece, { verovio, VerovioToolkit }));
 display(await jm.play(bluesPiece, { Tone }));
   </script>
 
@@ -506,7 +498,7 @@ display(
     title: "Pachelbel Progression",
     tracks: [{ notes: pachelbelProgressionTrack , clef: "trebble"}] 
   },
-  { verovio }
+  { verovio, VerovioToolkit }
   )
 );
 
@@ -675,7 +667,7 @@ const gaussCanon = {
       synth: 0
     }))
 };
-display(await jm.score(gaussCanon, { verovio }));
+display(await jm.score(gaussCanon, { verovio, VerovioToolkit }));
 display(await jm.play(gaussCanon, { Tone }));
   </script>
 
@@ -855,7 +847,7 @@ const fibonacciPiece = {
   tempo: 120,
   tracks: [{ name: "Fibonacci", notes: fibonacciNotes }]
 };
-display(await jm.score(fibonacciPiece, { verovio }));
+display(await jm.score(fibonacciPiece, { verovio, VerovioToolkit }));
 display(await jm.play(fibonacciPiece, { Tone }));
   </script>
 

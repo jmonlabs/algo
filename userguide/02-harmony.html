@@ -8,15 +8,16 @@
 This chapter covers the harmonic capabilities of jmon/algo:
 - Scales and modes
 - Chords and voicing
-- Ornaments (grace notes, trills, mordents, turns, arpeggios)
+- Ornaments
+- Voice leading
 - Chord progressions
-- Rhythm generation
   </script>
 
   <script type="module" pinned>
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
 import verovio from "npm:verovio@4.3.1/wasm";
+import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
   </script>
 
   <script type="text/markdown">
@@ -76,7 +77,7 @@ const cMajorPiece = {
   tracks: [{ notes: cMajorTrack }]
 };
 
-display(jm.score(cMajorPiece, { verovio }));
+display(await jm.score(cMajorPiece, { verovio, VerovioToolkit }));
 display(await jm.play(cMajorPiece, { Tone }));
   </script>
 
@@ -102,7 +103,7 @@ const chordPiece = {
 };
 
 display(cMajorChord);
-display(jm.score(chordPiece, { verovio }));
+display(await jm.score(chordPiece, { verovio, VerovioToolkit }));
 display(await jm.play(chordPiece, { Tone }));
   </script>
 
@@ -126,7 +127,7 @@ display(testNotes);
   </script>
 
   <script type="text/markdown">
-### 3.1 Grace Note (Acciaccatura)
+### 3.1 Grace note (acciaccatura)
 
 A grace note is a quick ornamental note played just before the main note.
   </script>
@@ -143,7 +144,7 @@ const withGraceNote = graceNoteOrnament.apply([...testNotes], 0);
 
 display(`Original: ${testNotes.length} notes`);
 display(`With grace note: ${withGraceNote.length} notes`);
-display(withGraceNote.slice(0, 3));
+display(withGraceNote);
 
 const graceNotePiece = {
   title: "Grace Note Example",
@@ -173,7 +174,7 @@ const withTrill = trillOrnament.apply([...testNotes], 0);
 
 display(`Original: 1 note (duration 2)`);
 display(`With trill: ${withTrill.length} notes (alternating)`);
-display(`Trill pitches: ${withTrill.slice(0, 4).map(n => n.pitch)}`);
+display(`Trill pitches: ${withTrill.map(n => n.pitch)}`);
 
 const trillPiece = {
   title: "Trill Example",
@@ -201,7 +202,7 @@ const mordentOrnament = new jm.theory.harmony.Ornament({
 const withMordent = mordentOrnament.apply([...testNotes], 0);
 
 display(`With mordent: ${withMordent.length} notes (quick alternation)`);
-display(`Pattern: ${withMordent.slice(0, 3).map(n => n.pitch)}`);
+display(`Pattern: ${withMordent.map(n => n.pitch)}`);
 
 const mordentPiece = {
   title: "Mordent Example",
@@ -226,7 +227,7 @@ const turnOrnament = new jm.theory.harmony.Ornament({
 const withTurn = turnOrnament.apply([...testNotes], 0);
 
 display(`With turn: ${withTurn.length} notes (4-note pattern)`);
-display(`Turn pattern: ${withTurn.slice(0, 4).map(n => n.pitch)}`);
+display(`Turn pattern: ${withTurn.map(n => n.pitch)}`);
 
 const turnPiece = {
   title: "Turn Example",
@@ -266,7 +267,7 @@ display(await jm.play(arpeggioPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 4. Voice Leading
+## 4. Voice leading
 
 The `Voice` class helps create harmonic accompaniment from melodies by generating chords at measure boundaries.
   </script>
@@ -303,12 +304,12 @@ const harmonizedPiece = {
   ]
 };
 
-display(jm.score(harmonizedPiece, { verovio }));
+display(await jm.score(harmonizedPiece, { verovio, VerovioToolkit }));
 display(await jm.play(harmonizedPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 5. Chord Progressions
+## 5. Chord progressions
 
 Generate random chord progressions using the circle of fifths or other intervallic relationships.
   </script>
@@ -340,82 +341,12 @@ const progressionPiece = {
   tracks: [{ notes: progressionTrack }]
 };
 
-display(jm.score(progressionPiece, { verovio }));
+display(await jm.score(progressionPiece, { verovio, VerovioToolkit }));
 display(await jm.play(progressionPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 6. Rhythm
-
-The rhythm module provides various techniques for creating rhythmic patterns.
-
-### 6.1 Isorhythm
-
-Isorhythm maps durations to pitches cyclically, continuing until their lengths align (least common multiple).
-  </script>
-
-  <script type="module" pinned>
-const pitches = [60, 62, 64, 65, 67];
-const durations = [1, 0.5, 0.5, 1];
-const isoNotes = jm.theory.rhythm.isorhythm(pitches, durations);
-
-display(`Pitches: ${pitches.length}`);
-display(`Durations: ${durations.length}`);
-display(`Result: ${isoNotes.length} notes (LCM)`);
-display("First notes:", isoNotes.slice(0, 3).map(n => [n.pitch, n.duration]));
-
-const isoPiece = {
-  title: "Isorhythm Example",
-  tempo: 120,
-  tracks: [{ notes: isoNotes }]
-};
-
-display(await jm.play(isoPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-### 6.2 Beatcycle
-
-Beatcycle assigns durations to pitches in order, calculating timing based on cumulative durations.
-  </script>
-
-  <script type="module" pinned>
-const beatPitches = [60, 62, 64, 65, 67, 69, 71, 72];
-const beatDurations = [1, 0.5, 0.5, 1];
-const beatNotes = jm.theory.rhythm.beatcycle(beatPitches, beatDurations);
-
-display(`Result: ${beatNotes.length} notes (matches pitch count)`);
-display("Durations assigned:", beatNotes.slice(0, 4).map(n => n.duration));
-
-const beatPiece = {
-  title: "Beatcycle Example",
-  tempo: 120,
-  tracks: [{ notes: beatNotes }]
-};
-
-display(await jm.play(beatPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-### 6.3 Random Rhythm
-
-Generate random rhythmic patterns with optional rests.
-  </script>
-
-  <script type="module" pinned>
-const rhythm = new jm.theory.rhythm.Rhythm({
-  measureLength: 4,
-  durations: [0.25, 0.5, 1, 2]
-});
-const randomRhythm = rhythm.random({ restProbability: 0.2 });
-
-display(`Generated ${randomRhythm.length} rhythmic events`);
-display(`Total duration: ${randomRhythm.reduce((sum, r) => sum + r.duration, 0)}`);
-display("Sample:", randomRhythm.slice(0, 4).map(r => r.duration));
-  </script>
-
-  <script type="text/markdown">
-## 7. Complete Example: Twinkle with Harmony
+## 6. Complete example: Twinkle with harmony
 
 Let's put it all together by adding harmony and ornaments to "Twinkle Twinkle Little Star".
   </script>
@@ -477,20 +408,9 @@ const twinkleComplete = {
   ]
 };
 
-display(jm.score(twinkleComplete, { verovio }));
+display(await jm.score(twinkleComplete, { verovio, VerovioToolkit }));
 display(await jm.play(twinkleComplete, { Tone }));
   </script>
 
-  <script type="text/markdown">
-That's it for the harmony chapter! You've learned:
-- ✓ Scales and modes
-- ✓ Chords and voicing
-- ✓ Five types of ornaments
-- ✓ Voice leading
-- ✓ Chord progressions
-- ✓ Rhythm generation
-
-Next up: **Chapter 3 - Loops** where you'll learn about polyloops and rhythmic patterns!
-  </script>
 
 </notebook>

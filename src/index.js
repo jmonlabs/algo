@@ -9,16 +9,14 @@
 import { JmonValidator } from "./utils/jmon-validator.browser.js";
 import algorithms from "./algorithms/index.js";
 import {
-  convertToVexFlow,
   midi,
-  downloadMidi,
   midiToJmon,
   supercollider,
   tonejs,
   wav,
   downloadWav,
-  downloadABC,
-  abc,
+  musicxml,
+  downloadMusicXML,
 } from "./converters/index.js";
 import * as jmonUtils from "./utils/jmon-utils.js";
 import * as scoreRenderer from "./browser/score-renderer.js";
@@ -132,22 +130,23 @@ function play(jmonObj, options = {}) {
  *
  * @param {Object} jmonObj - The JMON composition to render
  * @param {Object} options - Rendering options
- * @param {Object} options.verovio - verovio WASM module (import from "npm:verovio@4.3.1/wasm")
+ * @param {Function} options.verovio - verovio WASM module factory (import from "npm:verovio@4.3.1/wasm")
+ * @param {Function} options.VerovioToolkit - VerovioToolkit class (import { VerovioToolkit } from "npm:verovio@4.3.1/esm")
  * @param {number} [options.width] - Staff width in pixels (default: 2100)
  * @param {number} [options.scale] - Scale factor for rendering (default: 40)
  * @returns {Promise<HTMLElement>} DOM element containing the rendered score
  *
  * @example
  * // Basic usage
- * const svg = await jm.score(composition, { verovio });
+ * const svg = await jm.score(composition, { verovio, VerovioToolkit });
  *
  * @example
  * // Fixed width mode
- * const svg = await jm.score(composition, { verovio, width: 2100 });
+ * const svg = await jm.score(composition, { verovio, VerovioToolkit, width: 2100 });
  *
  * @example
  * // With custom dimensions and scale
- * const svg = await jm.score(composition, { verovio, scale: 40 });
+ * const svg = await jm.score(composition, { verovio, VerovioToolkit, scale: 40 });
  */
 function score(jmonObj, options = {}) {
   // Check for browser environment
@@ -170,15 +169,13 @@ const jm = {
   // Converters
   converters: {
     midi,
-    downloadMidi,
     midiToJmon,
     tonejs,
     wav,
     downloadWav,
-    abc,
-    downloadABC,
+    musicxml,
+    downloadMusicXML,
     supercollider,
-    vexflow: convertToVexFlow,
   },
 
   // Namespaces from algorithms

@@ -125,7 +125,9 @@ export class Corruptor {
       ghostTrack: options.ghostTrack !== undefined ? options.ghostTrack : false,
       ghostOctaveShift: options.ghostOctaveShift || -2,
       ghostDurationMultiplier: options.ghostDurationMultiplier || 4,
-      ghostVelocityMultiplier: options.ghostVelocityMultiplier || 0.3
+      ghostVelocityMultiplier: options.ghostVelocityMultiplier || 0.3,
+      ghostDelay: options.ghostDelay !== undefined ? options.ghostDelay : 1.0, // beats of delay before ghost enters
+      ghostDrift: options.ghostDrift !== undefined ? options.ghostDrift : 0.3 // temporal smearing amount
     };
 
     this.perlin = new PerlinNoise(this.options.seed);
@@ -312,43 +314,71 @@ export class Corruptor {
 
   /**
    * Generate ghost tracks (semantic ghosting)
+   *
+   * Ghost tracks are delayed, blurred shadow layers — not parallel voicing.
+   * They enter after the melody, use fewer anchor points, drift in time,
+   * and sustain long notes that follow the melody's contour from a distance.
+   *
    * @param {Array} tracks - Original JMON tracks
    * @param {Number} entropy - Entropy level
    * @returns {Array} Ghost tracks
    */
   generateGhostTracks(tracks, entropy) {
     const ghostTracks = [];
+    const mult = this.options.ghostDurationMultiplier;
+    const delay = this.options.ghostDelay;
+    const drift = this.options.ghostDrift;
 
-    // Create ghost track for melodic tracks (tracks with pitch variation)
     for (const track of tracks) {
       if (!track.notes || track.notes.length === 0) continue;
 
-      // Check if track has significant pitch variation (melodic)
+      // Only ghost melodic tracks (tracks with pitch variation)
       const pitches = track.notes.map(n => typeof n.pitch === 'number' ? n.pitch : 60);
       const uniquePitches = new Set(pitches);
+      if (uniquePitches.size <= 3) continue;
 
-      if (uniquePitches.size > 3) { // Melodic track
-        const ghostNotes = track.notes.map(note => {
-          const originalPitch = typeof note.pitch === 'number' ? note.pitch : 60;
-          const ghostPitch = originalPitch + (this.options.ghostOctaveShift * 12);
+      // Track boundaries
+      const trackEnd = Math.max(...track.notes.map(n => (n.time || 0) + (n.duration || 0)));
 
-          return {
-            pitch: ghostPitch,
-            duration: note.duration * this.options.ghostDurationMultiplier,
-            time: note.time,
-            velocity: (note.velocity || 0.8) * this.options.ghostVelocityMultiplier
-          };
+      // Build sparse, delayed ghost notes
+      const ghostNotes = [];
+      let nextAvailable = -Infinity;
+
+      for (let i = 0; i < track.notes.length; i++) {
+        const note = track.notes[i];
+        const noteTime = note.time || 0;
+
+        // Ghost onset = melody time + fixed delay + Perlin drift
+        const driftOffset = this.perlin.noise(i * 0.15) * drift * entropy;
+        const ghostTime = noteTime + delay + driftOffset;
+
+        if (ghostTime < nextAvailable) continue; // skip overlapping
+        if (ghostTime >= trackEnd) continue; // past end
+
+        const originalPitch = typeof note.pitch === 'number' ? note.pitch : 60;
+        const ghostPitch = originalPitch + (this.options.ghostOctaveShift * 12);
+        const ghostDur = Math.min(note.duration * mult, trackEnd - ghostTime);
+
+        if (ghostDur <= 0) continue;
+
+        ghostNotes.push({
+          pitch: ghostPitch,
+          duration: ghostDur,
+          time: ghostTime,
+          velocity: (note.velocity || 0.8) * this.options.ghostVelocityMultiplier
         });
 
-        const ghostTrack = {
-          label: `${track.label || 'Track'} (Ghost)`,
-          notes: ghostNotes,
-          midiChannel: track.midiChannel || 0,
-          synth: track.synth || { type: 'Synth' }
-        };
-
-        ghostTracks.push(ghostTrack);
+        nextAvailable = ghostTime + ghostDur;
       }
+
+      if (ghostNotes.length === 0) continue;
+
+      ghostTracks.push({
+        label: `${track.label || 'Track'} (Ghost)`,
+        notes: ghostNotes,
+        midiChannel: track.midiChannel || 0,
+        synth: 'Synth' // sustaining oscillator, not the melody's percussive synth
+      });
     }
 
     return ghostTracks;

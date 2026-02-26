@@ -56,7 +56,11 @@ export class Darwin {
     // Set up mutation probabilities
     this.mutationProbabilities = mutationProbabilities || {
       pitch: () => {
-        // Normal distribution centered at middle C with std dev of 5
+        // Pick from scale if available, otherwise Gaussian around middle C
+        if (this.scale && this.scale.length > 0) {
+          const idx = Math.floor(this.randomState.random() * this.scale.length);
+          return Math.max(0, Math.min(127, this.scale[idx]));
+        }
         return Math.max(0, Math.min(127, Math.floor(this.gaussianRandom(60, 5))));
       },
       duration: () => {

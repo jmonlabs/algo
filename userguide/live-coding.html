@@ -3,7 +3,7 @@
   <title>Live Coding with jmon/live and jmon/algo</title>
 
   <script type="text/markdown">
-# Live Coding with jmon/live and jmon/algo
+# Live coding with jmon/live and jmon/algo
 
 This guide demonstrates how to use `jmon/live` together with `jmon/algo` for interactive, real-time music composition. The `jmon/live` player enables seamless pattern updates without interrupting playback, making it perfect for live coding performances and interactive musical exploration.
 
@@ -11,7 +11,7 @@ This guide demonstrates how to use `jmon/live` together with `jmon/algo` for int
 
 `jmon/live` is a web-based audio player that runs in an iframe and receives live updates via `postMessage`. It maintains a persistent Tone.js audio context that continues running while you send new musical patterns, creating a seamless live coding experience.
 
-### Key Features
+### Key features
 
 - **Persistent playback**: Audio continues uninterrupted when patterns update
 - **Live pattern updates**: Uses `postMessage` for cross-iframe communication
@@ -19,7 +19,7 @@ This guide demonstrates how to use `jmon/live` together with `jmon/algo` for int
 - **No build required**: Standalone HTML/JavaScript files
 - **Notebook ready**: Designed for Observable and Jupyter integration
 
-## Setting Up the Live Player
+## Setting up the live player
 
 To use the live player, you'll embed it in an iframe and communicate with it using `postMessage`.
   </script>
@@ -28,6 +28,7 @@ To use the live player, you'll embed it in an iframe and communicate with it usi
 import jm from "../src/index.js";
 import * as Tone from "npm:tone";
 import verovio from "npm:verovio@4.3.1/wasm";
+import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
 
 // Create the live player iframe
 const livePlayerUrl = "https://jmonlabs.github.io/live/";
@@ -44,7 +45,7 @@ display(iframe);
   </script>
 
   <script type="text/markdown">
-## Your First Live Pattern
+## Your first live pattern
 
 Let's start with a simple pattern. Create a basic scale and send it to the live player.
   </script>
@@ -69,13 +70,13 @@ const pattern1 = {
 sendToLive(pattern1);
 
 // Also display the score
-display(jm.score(pattern1, { verovio }));
+display(jm.score(pattern1, { verovio, VerovioToolkit }));
   </script>
 
   <script type="text/markdown">
 The pattern is now playing in the live player above! Try modifying the code and re-running the cell to hear the changes instantly.
 
-## Live Coding with Isorhythms
+## Live coding with isorhythms
 
 One of the powerful features of live coding is the ability to experiment with different rhythmic patterns in real-time. Let's try creating more complex isorhythms.
   </script>
@@ -97,13 +98,13 @@ const pattern2 = {
 };
 
 sendToLive(pattern2);
-display(jm.score(pattern2, { verovio }));
+display(jm.score(pattern2, { verovio, VerovioToolkit }));
   </script>
 
   <script type="text/markdown">
 Try changing the `rhythmPattern` array or the scale mode and re-run the cell to hear different variations!
 
-## Live Minimalism: Additive Processes
+## Live minimalism: additive processes
 
 Let's explore minimalistic composition techniques in real-time. Additive processes are perfect for live coding because they create gradually evolving patterns.
   </script>
@@ -129,7 +130,7 @@ const pattern3 = {
 };
 
 sendToLive(pattern3);
-display(jm.score(pattern3, { verovio }));
+display(jm.score(pattern3, { verovio, VerovioToolkit }));
   </script>
 
   <script type="text/markdown">
@@ -173,13 +174,13 @@ const pattern4 = {
 };
 
 sendToLive(pattern4);
-display(jm.score(pattern4, { verovio }));
+display(jm.score(pattern4, { verovio, VerovioToolkit }));
   </script>
 
   <script type="text/markdown">
 Try changing the `direction` to "up" or "alternate", or modify the `tChord` to create different harmonic textures!
 
-## Live Chord Progressions
+## Live chord progressions
 
 You can also generate chord progressions and send them to the live player.
   </script>
@@ -216,11 +217,11 @@ const pattern5 = {
 };
 
 sendToLive(pattern5);
-display(jm.score(pattern5, { verovio }));
+display(jm.score(pattern5, { verovio, VerovioToolkit }));
   </script>
 
   <script type="text/markdown">
-## Multi-Track Live Composition
+## Multi-track live composition
 
 Let's combine multiple techniques to create a richer composition that updates in real-time.
   </script>
@@ -267,11 +268,11 @@ const composition = {
 };
 
 sendToLive(composition);
-display(jm.score(composition, { verovio }));
+display(jm.score(composition, { verovio, VerovioToolkit }));
   </script>
 
   <script type="text/markdown">
-## Random Walks for Live Exploration
+## Random walks for live exploration
 
 Random walks can create unpredictable but musically coherent patterns. Let's use seeded randomness for reproducible experimentation.
   </script>
@@ -309,13 +310,13 @@ const pattern6 = {
 };
 
 sendToLive(pattern6);
-display(jm.score(pattern6, { verovio }));
+display(jm.score(pattern6, { verovio, VerovioToolkit }));
   </script>
 
   <script type="text/markdown">
 Try changing the seed value (42) to different numbers and re-run the cell to explore different variations!
 
-## Combining Processes
+## Combining processes
 
 The real power of live coding comes from combining multiple generative techniques. Let's create a complex piece that uses additive processes, tintinnabuli, and voicing together.
   </script>
@@ -370,11 +371,11 @@ const complexComposition = {
 };
 
 sendToLive(complexComposition);
-display(jm.score(complexComposition, { verovio }));
+display(jm.score(complexComposition, { verovio, VerovioToolkit }));
   </script>
 
   <script type="text/markdown">
-## Tips for Live Coding
+## Tips for live coding
 
 1. **Start Simple**: Begin with simple patterns and gradually add complexity
 2. **Use Seeds**: Seeded random functions let you reproduce "happy accidents"
@@ -383,7 +384,7 @@ display(jm.score(complexComposition, { verovio }));
 5. **Combine Techniques**: Mix deterministic and stochastic processes
 6. **Trust Your Ears**: If it sounds good, it is good!
 
-## What's Next?
+## What's next?
 
 Now that you understand how to use `jmon/live` for real-time music composition, try:
 
@@ -393,7 +394,7 @@ Now that you understand how to use `jmon/live` for real-time music composition, 
 - Combining with other data sources for data sonification
 - Creating educational demonstrations of music theory concepts
 
-## Additional Resources
+## Additional resources
 
 - [jmon/algo User Guide](index.html) - Complete guide to the jmon/algo library
 - [Minimalism](05-minimalism.html) - Deep dive into minimalistic composition

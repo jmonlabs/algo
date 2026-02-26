@@ -1,5 +1,157 @@
-/* jmon-to-midi.js - Convert jmon format to MIDI using Tone.js Midi */
+/* jmon-to-midi.js - Convert JMON format to Standard MIDI File (no external deps) */
 import { compileEvents } from "../algorithms/audio/index.js";
+
+// --- Built-in MIDI binary encoder ---
+
+function writeVarLen(value) {
+    const bytes = [];
+    bytes.push(value & 0x7f);
+    value >>= 7;
+    while (value > 0) {
+        bytes.push((value & 0x7f) | 0x80);
+        value >>= 7;
+    }
+    return bytes.reverse();
+}
+
+function writeUint16(value) {
+    return [(value >> 8) & 0xff, value & 0xff];
+}
+
+function writeUint32(value) {
+    return [(value >> 24) & 0xff, (value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
+}
+
+function writeString(str) {
+    return Array.from(str, c => c.charCodeAt(0));
+}
+
+function encodeTrack(events) {
+    const data = [];
+    let lastTick = 0;
+
+    // Sort events by tick, then by type (note-off before note-on at same tick)
+    events.sort((a, b) => a.tick - b.tick || a.sortOrder - b.sortOrder);
+
+    for (const evt of events) {
+        const delta = evt.tick - lastTick;
+        data.push(...writeVarLen(delta));
+        data.push(...evt.bytes);
+        lastTick = evt.tick;
+    }
+
+    // End of track
+    data.push(0x00, 0xff, 0x2f, 0x00);
+    return data;
+}
+
+function buildMidiFile(composition) {
+    const bpm = composition.tempo || composition.bpm || 120;
+    const ticksPerBeat = 480;
+    const rawTracks = composition.tracks || [];
+    const tracksArray = Array.isArray(rawTracks)
+        ? rawTracks
+        : (rawTracks && typeof rawTracks === 'object' ? Object.values(rawTracks) : []);
+
+    const trackChunks = [];
+
+    // Track 0: tempo track
+    const tempoEvents = [];
+    const microsecondsPerBeat = Math.round(60000000 / bpm);
+    tempoEvents.push({
+        tick: 0,
+        sortOrder: -1,
+        bytes: [0xff, 0x51, 0x03,
+            (microsecondsPerBeat >> 16) & 0xff,
+            (microsecondsPerBeat >> 8) & 0xff,
+            microsecondsPerBeat & 0xff]
+    });
+
+    // Title
+    const title = composition.title || composition.metadata?.title || '';
+    if (title) {
+        const titleBytes = writeString(title);
+        tempoEvents.push({
+            tick: 0,
+            sortOrder: -2,
+            bytes: [0xff, 0x03, ...writeVarLen(titleBytes.length), ...titleBytes]
+        });
+    }
+
+    trackChunks.push(encodeTrack(tempoEvents));
+
+    // Note tracks
+    for (const track of tracksArray) {
+        const notesSrc = Array.isArray(track.events) ? track.events
+            : (Array.isArray(track.notes) ? track.notes
+                : (Array.isArray(track) ? track : []));
+        const safeNotes = Array.isArray(notesSrc) ? notesSrc : [];
+
+        const events = [];
+        const label = track.label || track.name || '';
+        if (label) {
+            const labelBytes = writeString(label);
+            events.push({
+                tick: 0,
+                sortOrder: -2,
+                bytes: [0xff, 0x03, ...writeVarLen(labelBytes.length), ...labelBytes]
+            });
+        }
+
+        // Add time to notes if missing
+        let currentTime = 0;
+        const notesWithTime = safeNotes.map(note => {
+            const t = note.time !== undefined ? note.time : currentTime;
+            currentTime = t + (note.duration || 1);
+            return { ...note, time: t };
+        });
+
+        for (const note of notesWithTime) {
+            const pitch = typeof note.pitch === 'number' ? note.pitch : 60;
+            if (pitch === null || pitch === undefined) continue; // rest
+            const velocity = Math.round((note.velocity || 0.8) * 127);
+            const startTick = Math.round((note.time || 0) * ticksPerBeat);
+            const endTick = Math.round(((note.time || 0) + (note.duration || 1)) * ticksPerBeat);
+            const channel = 0;
+
+            events.push({
+                tick: startTick,
+                sortOrder: 1,
+                bytes: [0x90 | channel, pitch, velocity]
+            });
+            events.push({
+                tick: endTick,
+                sortOrder: 0, // note-off sorts before note-on at same tick
+                bytes: [0x80 | channel, pitch, 0]
+            });
+        }
+
+        trackChunks.push(encodeTrack(events));
+    }
+
+    // Assemble file
+    const numTracks = trackChunks.length;
+    const fileBytes = [];
+
+    // Header: MThd
+    fileBytes.push(...writeString('MThd'));
+    fileBytes.push(...writeUint32(6)); // header length
+    fileBytes.push(...writeUint16(1)); // format 1 (multi-track)
+    fileBytes.push(...writeUint16(numTracks));
+    fileBytes.push(...writeUint16(ticksPerBeat));
+
+    // Track chunks
+    for (const trackData of trackChunks) {
+        fileBytes.push(...writeString('MTrk'));
+        fileBytes.push(...writeUint32(trackData.length));
+        fileBytes.push(...trackData);
+    }
+
+    return new Uint8Array(fileBytes);
+}
+
+// --- Public API ---
+
 export class Midi {
     static midiToNoteName(midi) {
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -8,7 +160,6 @@ export class Midi {
         return noteNames[noteIndex] + octave;
     }
     static convert(composition) {
-        // Conversion JMON -> MIDI (structure JSON), wired to audio.compileEvents for performance modulations
         const bpm = composition.tempo || composition.bpm || 120;
         const timeSignature = composition.timeSignature || '4/4';
         const rawTracks = composition.tracks || [];
@@ -17,21 +168,15 @@ export class Midi {
             : (rawTracks && typeof rawTracks === 'object' ? Object.values(rawTracks) : []);
 
         return {
-            header: {
-                bpm,
-                timeSignature,
-            },
+            header: { bpm, timeSignature },
             tracks: tracksArray.map(track => {
                 const label = track.label || track.name;
                 const notesSrc = Array.isArray(track.events) ? track.events
                                 : (Array.isArray(track.notes) ? track.notes
                                 : (Array.isArray(track) ? track : []));
                 const safeNotes = Array.isArray(notesSrc) ? notesSrc : [];
-
-                // Compile performance modulations from declarative articulations
                 const perf = compileEvents({ events: safeNotes }, { tempo: bpm, timeSignature });
 
-                // Flatten to MIDI-friendly note objects (no legacy note.articulation)
                 const notes = safeNotes.map(note => ({
                     pitch: note.pitch,
                     noteName: (typeof note.pitch === 'number') ? Midi.midiToNoteName(note.pitch) : note.pitch,
@@ -49,102 +194,28 @@ export class Midi {
         };
     }
 }
-export function midi(composition) {
-    return Midi.convert(composition);
-}
 
 /**
- * Download a MIDI file from a JMON composition
+ * Convert a JMON composition to a MIDI file download link.
+ * No external dependencies required.
  *
  * @param {Object} composition - The JMON composition
- * @param {Object} ToneMidi - The @tonejs/midi library (import from npm:@tonejs/midi)
- * @param {string} filename - Output filename (default: "composition.mid")
- * @returns {Promise<void>}
+ * @param {Object} [options] - Options
+ * @param {string} [options.filename='composition.mid'] - Output filename
+ * @returns {HTMLAnchorElement} A download link element for the MIDI file
  *
  * @example
- * import ToneMidi from "npm:@tonejs/midi@2.0.28";
- * await jm.converters.downloadMidi(composition, ToneMidi, "my-song.mid");
+ * display(jm.converters.midi(composition));
+ * display(jm.converters.midi(composition, { filename: "my-song.mid" }));
  */
-export function downloadMidi(composition, ToneMidi, filename = "composition.mid") {
-    // Convert JMON to MIDI data structure
-    const midiData = Midi.convert(composition);
-
-    // Create MIDI file using @tonejs/midi
-    const midiFile = new ToneMidi.Midi();
-    midiFile.header.setTempo(midiData.header.bpm);
-
-    midiData.tracks.forEach((trackData) => {
-        const track = midiFile.addTrack();
-        track.name = trackData.label || "Track";
-
-        // Add notes
-        trackData.notes.forEach((note) => {
-            track.addNote({
-                midi: typeof note.pitch === "number" ? note.pitch : 60,
-                time: note.time || 0,
-                duration: note.duration || 0.5,
-                velocity: note.velocity || 0.8,
-            });
-        });
-
-        // Add articulation modulations as CC messages
-        if (Array.isArray(trackData.modulations)) {
-            trackData.modulations.forEach((mod) => {
-                // Vibrato: Use CC1 (Modulation Wheel)
-                if (mod.subtype === 'vibrato') {
-                    const rate = mod.rate || 5;  // Hz
-                    const depth = mod.depth || 50;  // cents
-                    const start = mod.start || 0;
-                    const end = mod.end || start + 1;
-
-                    // Map depth (0-100 cents) to CC value (0-127)
-                    const ccValue = Math.min(127, Math.round((depth / 100) * 127));
-
-                    // Add CC message at note start
-                    track.addCC({ number: 1, value: ccValue, time: start });
-                    // Reset at note end
-                    track.addCC({ number: 1, value: 0, time: end });
-                }
-
-                // Tremolo: Use CC11 (Expression)
-                if (mod.subtype === 'tremolo') {
-                    const rate = mod.rate || 8;  // Hz
-                    const depth = mod.depth || 0.3;  // 0-1
-                    const start = mod.start || 0;
-                    const end = mod.end || start + 1;
-
-                    // Map depth (0-1) to CC value (0-127)
-                    const ccValue = Math.min(127, Math.round(depth * 127));
-
-                    // Add CC11 automation
-                    track.addCC({ number: 11, value: 127 - ccValue, time: start });
-                    track.addCC({ number: 11, value: 127, time: end });
-                }
-
-                // Crescendo/Diminuendo: Use CC7 (Volume)
-                if (mod.subtype === 'crescendo' || mod.subtype === 'diminuendo') {
-                    const startV = mod.startVelocity || 0.8;
-                    const endV = mod.endVelocity || 0.8;
-                    const start = mod.start || 0;
-                    const end = mod.end || start + 1;
-
-                    // Convert velocity (0-1) to CC value (0-127)
-                    const startCC = Math.round(startV * 127);
-                    const endCC = Math.round(endV * 127);
-
-                    track.addCC({ number: 7, value: startCC, time: start });
-                    track.addCC({ number: 7, value: endCC, time: end });
-                }
-            });
-        }
-    });
-
-    // Create blob and download
-    const blob = new Blob([midiFile.toArray()], { type: "audio/midi" });
+export function midi(composition, options = {}) {
+    const { filename = 'composition.mid' } = options;
+    const bytes = buildMidiFile(composition);
+    const blob = new Blob([bytes], { type: "audio/midi" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.textContent = `Download ${filename}`;
+    return a;
 }
