@@ -634,6 +634,212 @@
     display(await jm.play(mbPiece, { Tone }));
     display(await jm.converters.downloadWav(mbPiece, Tone, "fractal.wav"));
   </script>
+  <script type="text/markdown">
+    ## Center + Size Coordinates
+
+    Instead of computing `xMin/xMax/yMin/yMax` manually, you can use **center + size** coordinates — the same format used by fractal viewers like [findfractals.com](https://www.findfractals.com/mandelbrot-fractal-viewer.php).
+
+    Browse a fractal viewer, find a visually interesting region, and paste the coordinates:
+  </script>
+  <script type="module">
+    // Same region as Zoom 4 above, but using center+size
+    const mbCenterSize = new jm.generative.fractals.Mandelbrot({
+      width: 300,
+      height: 300,
+      center: { x: -1.1475, y: 0.2775 },
+      size: { w: 0.005, h: 0.005 },
+      maxIterations: 500
+    });
+
+    const csData = mbCenterSize.generate();
+    const csPlotData = [];
+    csData.forEach((row, y) => {
+      row.forEach((value, x) => {
+        csPlotData.push({ x, y, value });
+      });
+    });
+
+    display(Plot.plot({
+      title: "Mandelbrot with center+size coordinates",
+      width: 400,
+      height: 400,
+      x: { axis: null },
+      y: { axis: null },
+      color: { scheme: "viridis" },
+      marks: [
+        Plot.raster(csPlotData, { x: "x", y: "y", fill: "value" })
+      ]
+    }));
+
+    // You can also read back the center and bounds
+    display(`Center: (${mbCenterSize.center.x}, ${mbCenterSize.center.y})`);
+    display(`Size: ${mbCenterSize.size.w} × ${mbCenterSize.size.h}`);
+  </script>
+  <script type="text/markdown">
+    ## Julia Set
+
+    The Julia set is closely related to the Mandelbrot set. While the Mandelbrot iterates `z = z² + c` starting from `z₀ = 0` for each point `c` in the plane, the Julia set starts from `z₀ = point` with a **fixed** `c` parameter.
+
+    Different `c` values produce wildly different Julia sets — some are connected, some are dust-like, some have beautiful dendrite patterns.
+  </script>
+  <script type="module" pinned>
+    // Classic dendrite Julia set
+    const julia1 = new jm.generative.fractals.Julia({
+      c: { real: -0.7, imaginary: 0.27015 },
+      width: 400, height: 400,
+      maxIterations: 200
+    });
+
+    const juliaData1 = julia1.generate();
+
+    // A few famous Julia sets with different c values
+    const juliaVariants = [
+      { c: { real: -0.7, imaginary: 0.27015 }, label: "Dendrite" },
+      { c: { real: -0.8, imaginary: 0.156 }, label: "Spirals" },
+      { c: { real: 0.285, imaginary: 0.01 }, label: "Islands" },
+      { c: { real: -0.4, imaginary: 0.6 }, label: "Rabbit" }
+    ];
+
+    const juliaPlots = juliaVariants.map(({ c, label }) => {
+      const julia = new jm.generative.fractals.Julia({
+        c,
+        width: 250, height: 250,
+        maxIterations: 200
+      });
+
+      const data = julia.generate();
+      const plotData = [];
+      data.forEach((row, y) => {
+        row.forEach((value, x) => {
+          plotData.push({ x, y, value });
+        });
+      });
+
+      return html`<div style="display: inline-block; margin: 10px;">
+        <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${label} (c = ${c.real} + ${c.imaginary}i)</div>
+        ${Plot.plot({
+          width: 250,
+          height: 250,
+          x: { axis: null },
+          y: { axis: null },
+          color: { scheme: "magma" },
+          marks: [
+            Plot.raster(plotData, { x: "x", y: "y", fill: "value" })
+          ]
+        })}
+      </div>`;
+    });
+
+    display(html`<div style="display: flex; flex-wrap: wrap; justify-content: center;">${juliaPlots}</div>`);
+  </script>
+  <script type="text/markdown">
+    ### Julia Set Music
+
+    Let's extract a melody from the dendrite Julia set:
+  </script>
+  <script type="module">
+    // Low-resolution Julia for music
+    const juliaMusic = new jm.generative.fractals.Julia({
+      c: { real: -0.7, imaginary: 0.27015 },
+      width: 20, height: 20,
+      maxIterations: 100
+    });
+
+    const juliaSequence = juliaMusic.extractSequence('diagonal');
+    display("Julia sequence: " + juliaSequence.join(", "));
+
+    // Map to D minor scale
+    const dMinorScale = new jm.theory.harmony.Scale({ tonic: 'D', mode: 'minor' });
+    const dMinorPitches = dMinorScale.generate({ start: 'D3', length: 15 });
+
+    const juliaPitches = juliaMusic.mapToScale({
+      sequence: juliaSequence,
+      pitches: dMinorPitches
+    });
+
+    const juliaNotes = jm.theory.rhythm.beatcycle(
+      juliaPitches,
+      [1, 0.5, 0.5, 1, 2]
+    );
+
+    const juliaPiece = {
+      title: "Julia Set Melody",
+      tempo: 100,
+      tracks: [{ notes: juliaNotes, synth: 0 }]
+    };
+
+    display(await jm.score(juliaPiece, { verovio }));
+    display(await jm.play(juliaPiece, { Tone }));
+  </script>
+  <script type="text/markdown">
+    ## Burning Ship
+
+    The Burning Ship fractal uses the iteration `z = (|Re(z)| + i|Im(z)|)² + c` — the absolute values before squaring create the characteristic "ship" shape.
+  </script>
+  <script type="module">
+    const ship = new jm.generative.fractals.BurningShip({
+      width: 400, height: 400,
+      center: { x: -1.75, y: -0.03 },
+      size: { w: 0.15, h: 0.15 },
+      maxIterations: 300
+    });
+
+    const shipData = ship.generate();
+    const shipPlotData = [];
+    shipData.forEach((row, y) => {
+      row.forEach((value, x) => {
+        shipPlotData.push({ x, y, value });
+      });
+    });
+
+    display(Plot.plot({
+      title: "Burning Ship Fractal",
+      width: 500,
+      height: 500,
+      x: { axis: null },
+      y: { axis: null },
+      color: { scheme: "turbo" },
+      marks: [
+        Plot.raster(shipPlotData, { x: "x", y: "y", fill: "value" })
+      ]
+    }));
+  </script>
+  <script type="text/markdown">
+    ## Fractal Factory
+
+    The `Fractal` factory lets you create any complex plane fractal by type name — useful when the fractal type is a parameter:
+  </script>
+  <script type="module">
+    // Fractal factory — create fractals by type name
+    const types = ['mandelbrot', 'julia', 'burningship'];
+
+    const factoryPlots = types.map(type => {
+      const opts = { width: 200, height: 200, maxIterations: 100 };
+      if (type === 'julia') opts.c = { real: -0.4, imaginary: 0.6 };
+
+      const f = jm.generative.fractals.Fractal(type, opts);
+      const data = f.generate();
+      const plotData = [];
+      data.forEach((row, y) => {
+        row.forEach((value, x) => {
+          plotData.push({ x, y, value });
+        });
+      });
+
+      return html`<div style="display: inline-block; margin: 10px;">
+        <div style="text-align: center; font-weight: bold;">${type}</div>
+        ${Plot.plot({
+          width: 200, height: 200,
+          x: { axis: null }, y: { axis: null },
+          color: { scheme: "viridis" },
+          marks: [Plot.raster(plotData, { x: "x", y: "y", fill: "value" })]
+        })}
+      </div>`;
+    });
+
+    display(html`<div style="display: flex; flex-wrap: wrap; justify-content: center;">${factoryPlots}</div>`);
+    display("Available fractal types: " + jm.generative.fractals.Fractal.types().join(", "));
+  </script>
   <script id="44" type="text/markdown">
     ## Logistic map
 

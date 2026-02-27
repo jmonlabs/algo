@@ -11,7 +11,7 @@ import { CellularAutomata } from './generative/cellular-automata/index.js';
 import { Loop } from './generative/loops/index.js';
 import { Darwin } from './generative/genetic/index.js';
 import { RandomWalk, Chain, Phasor, PhasorSystem } from './generative/walks/index.js';
-import { Mandelbrot, LogisticMap } from './generative/fractals/index.js';
+import { Mandelbrot, Julia, BurningShip, Fractal, LogisticMap } from './generative/fractals/index.js';
 import { MinimalismProcess, Tintinnabuli } from './generative/minimalism/index.js';
 // GaussianProcessRegressor is NOT imported here to avoid @tangent.to/ds dependency
 // Users who need it must import it directly:
@@ -75,6 +75,9 @@ export const generative = {
     },
     fractals: {
         Mandelbrot,
+        Julia,
+        BurningShip,
+        Fractal,
         LogisticMap
     },
     minimalism: {
