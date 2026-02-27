@@ -223,7 +223,6 @@ function timeEqual(a, b, tolerance = 0.0001) {
 function splitIntoMeasures(notes, measureDuration, totalDuration) {
   const measures = [];
   let currentMeasure = [];
-  let currentTime = normalizeTime(0);
 
   // Sort notes by time
   const sortedNotes = [...notes].sort((a, b) => (a.time || 0) - (b.time || 0));
