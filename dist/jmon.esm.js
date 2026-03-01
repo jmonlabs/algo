@@ -1824,14 +1824,18 @@ function createPlayer(composition, options = {}) {
   const totalDuration = metadata.totalDuration;
   const originalTracksSource = tracks;
   let isPlaying = false;
+  let isBusy = false;
   let currentTime = 0;
   let animationId = null;
   let scheduledEvents = [];
+  let ToneLib = null;
+  let masterGain = null;
+  let trackConfigs = [];
   let activeSynths = [];
   const container = document.createElement("div");
   container.style.cssText = `
     font-family: Arial, sans-serif;
-    background: #434F43;
+    background: #464646;
     color: #fff;
     padding: 12px;
     border-radius: 8px;
@@ -1845,7 +1849,7 @@ function createPlayer(composition, options = {}) {
     gap: 12px;
   `;
   const buttonStyle = `
-    background: #2D3931;
+    background: #000000;
     border: none;
     color: white;
     padding: 8px 16px;
@@ -1872,7 +1876,7 @@ function createPlayer(composition, options = {}) {
   timeline.style.cssText = `
     flex: 1;
     height: 8px;
-    background: #F0C0C0;
+    background: #efefef;
     border-radius: 4px;
     cursor: pointer;
     position: relative;
@@ -1880,7 +1884,7 @@ function createPlayer(composition, options = {}) {
   const timelineProgress = document.createElement("div");
   timelineProgress.style.cssText = `
     height: 100%;
-    background: #AD8B8B;
+    background: #959595;
     border-radius: 4px;
     width: 0%;
     transition: width 0.1s linear;
@@ -1907,8 +1911,8 @@ function createPlayer(composition, options = {}) {
   }
   totalTimeDisplay.textContent = formatTime(totalDuration);
   function updateTimeline() {
-    if (!window.Tone?.Transport) return;
-    currentTime = window.Tone.Transport.seconds;
+    if (!ToneLib?.Transport) return;
+    currentTime = ToneLib.Transport.seconds;
     const progress = currentTime / totalDuration * 100;
     timelineProgress.style.width = `${Math.min(progress, 100)}%`;
     currentTimeDisplay.textContent = formatTime(currentTime);
@@ -1918,8 +1922,8 @@ function createPlayer(composition, options = {}) {
       stop();
     }
   }
-  async function setupAudio() {
-    let ToneLib = externalTone || window.Tone;
+  async function buildSynths() {
+    ToneLib = externalTone || window.Tone;
     if (!ToneLib) {
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
@@ -1932,113 +1936,120 @@ function createPlayer(composition, options = {}) {
         document.head.appendChild(script);
       });
     }
-    if (!ToneLib) {
-      throw new Error("Failed to load Tone.js");
-    }
+    if (!ToneLib) throw new Error("Failed to load Tone.js");
     window.Tone = ToneLib;
     await ToneLib.start();
     ToneLib.Transport.bpm.value = tempo;
-    activeSynths.forEach((s) => {
-      try {
-        s.dispose();
-      } catch (e) {
-        console.warn("Error disposing synth/effect:", e);
-      }
-    });
-    activeSynths = [];
-    scheduledEvents = [];
+    disposeAudio();
     const masterLimiter = new ToneLib.Limiter(-3).toDestination();
-    const masterGain = new ToneLib.Gain(0.7).connect(masterLimiter);
-    activeSynths.push(masterLimiter);
-    activeSynths.push(masterGain);
-    const connectToMaster = (node) => {
-      node.disconnect();
-      node.connect(masterGain);
-    };
-    convertedTracks.forEach((trackConfig) => {
+    const numTracks = tracks.length || 1;
+    const gainLevel = 0.7 / Math.sqrt(numTracks);
+    masterGain = new ToneLib.Gain(gainLevel).connect(masterLimiter);
+    activeSynths.push(masterLimiter, masterGain);
+    normalizeAudioGraph(composition);
+    const graphNodes = {};
+    if (composition.audioGraph && Array.isArray(composition.audioGraph)) {
+      composition.audioGraph.forEach(({ id, type, options: opts = {} }) => {
+        if (!id || !type) return;
+        if (type === "Destination") {
+          graphNodes[id] = masterGain;
+          return;
+        }
+        try {
+          if (SYNTHESIZER_TYPES.includes(type) || ALL_EFFECTS.includes(type)) {
+            graphNodes[id] = new ToneLib[type](opts);
+            activeSynths.push(graphNodes[id]);
+          }
+        } catch (e) {
+          console.warn(`[AUDIOGRAPH] Failed to create ${type}:`, e);
+        }
+      });
+      composition.audioGraph.forEach(({ id, target }) => {
+        if (!id || !graphNodes[id] || graphNodes[id] === masterGain) return;
+        const node = graphNodes[id];
+        if (target && graphNodes[target]) {
+          node.connect(graphNodes[target] === masterGain ? masterGain : graphNodes[target]);
+        } else {
+          node.connect(masterGain);
+        }
+      });
+    }
+    const secondsPerQN = 60 / tempo;
+    trackConfigs = convertedTracks.map((trackConfig) => {
       const { originalTrackIndex, partEvents } = trackConfig;
       const originalTrack = originalTracksSource[originalTrackIndex] || {};
       let modulations = [];
       try {
         const compiled = compileEvents(originalTrack);
         modulations = compiled.modulations || [];
-        console.log(`[ARTICULATIONS] Track ${originalTrackIndex}: Found ${modulations.length} modulations`, modulations);
       } catch (e) {
         console.warn("Failed to compile articulations:", e);
       }
       let synth;
       const synthSpec = originalTrack.synth;
-      if (typeof synthSpec === "number") {
+      const synthRef = originalTrack.synthRef;
+      const graphSynthId = synthRef || (composition.audioGraph || []).find(
+        (n) => SYNTHESIZER_TYPES.includes(n.type)
+      )?.id;
+      const graphSynth = graphSynthId && graphNodes[graphSynthId];
+      let connectTarget = masterGain;
+      if (composition.audioGraph && !graphSynth) {
+        const targetedIds = new Set((composition.audioGraph || []).map((n) => n.target).filter(Boolean));
+        const effectEntry = composition.audioGraph.find(
+          (n) => ALL_EFFECTS.includes(n.type) && !targetedIds.has(n.id)
+        );
+        if (effectEntry && graphNodes[effectEntry.id]) {
+          connectTarget = graphNodes[effectEntry.id];
+        }
+      }
+      if (graphSynth && !synthSpec) {
+        synth = graphSynth;
+      } else if (typeof synthSpec === "number") {
         const urls = generateSamplerUrls(synthSpec);
-        synth = new ToneLib.Sampler({
-          urls,
-          baseUrl: "",
-          // URLs are already complete
-          onload: () => console.log(`Loaded GM instrument ${synthSpec}`)
-        });
-        synth.connect(masterGain);
-        console.log(`Creating Sampler for GM instrument ${synthSpec}`);
+        synth = new ToneLib.Sampler({ urls, baseUrl: "" });
+        synth.connect(connectTarget);
       } else if (typeof synthSpec === "string") {
         try {
           synth = new ToneLib[synthSpec]();
-          synth.connect(masterGain);
+          synth.connect(connectTarget);
         } catch {
           synth = new ToneLib.PolySynth();
-          synth.connect(masterGain);
+          synth.connect(connectTarget);
         }
       } else if (typeof synthSpec === "object" && synthSpec !== null) {
         const synthType = synthSpec.type || "PolySynth";
         try {
-          const options2 = synthSpec.options || {};
+          const opts = synthSpec.options || {};
           if (synthType === "Sampler") {
-            synth = new ToneLib.Sampler({
-              ...options2,
-              onload: () => console.log(`[SAMPLER] Loaded custom sampler for track ${originalTrackIndex}`),
-              onerror: (error) => console.error(`[SAMPLER] Failed to load sample:`, error)
-            });
-            synth.connect(masterGain);
-            console.log(`[SAMPLER] Creating custom Sampler with URLs:`, options2.urls);
+            synth = new ToneLib.Sampler(opts);
           } else {
-            synth = new ToneLib[synthType](options2);
-            synth.connect(masterGain);
-            console.log(`[SYNTH] Creating ${synthType} for track ${originalTrackIndex}`);
+            synth = new ToneLib[synthType](opts);
           }
+          synth.connect(connectTarget);
         } catch (e) {
-          console.error(`[SYNTH] Failed to create ${synthType}:`, e);
           synth = new ToneLib.PolySynth();
-          synth.connect(masterGain);
+          synth.connect(connectTarget);
         }
       } else {
         synth = new ToneLib.PolySynth();
-        synth.connect(masterGain);
+        synth.connect(connectTarget);
       }
       activeSynths.push(synth);
-      const vibratoMods = modulations.filter(
-        (m) => m.type === "pitch" && m.subtype === "vibrato"
-      );
-      const tremoloMods = modulations.filter(
-        (m) => m.type === "amplitude" && m.subtype === "tremolo"
-      );
-      console.log(`[EFFECTS] Track ${originalTrackIndex}: ${vibratoMods.length} vibrato, ${tremoloMods.length} tremolo`);
+      const vibratoMods = modulations.filter((m) => m.type === "pitch" && m.subtype === "vibrato");
+      const tremoloMods = modulations.filter((m) => m.type === "amplitude" && m.subtype === "tremolo");
       let vibratoEffect = null;
       let tremoloEffect = null;
       if (vibratoMods.length > 0 || tremoloMods.length > 0) {
         synth.disconnect();
         if (vibratoMods.length > 0) {
-          const defaultVibrato = vibratoMods[0];
-          vibratoEffect = new ToneLib.Vibrato({
-            frequency: defaultVibrato.rate || 5,
-            depth: (defaultVibrato.depth || 50) / 100
-          });
+          const dv = vibratoMods[0];
+          vibratoEffect = new ToneLib.Vibrato({ frequency: dv.rate || 5, depth: (dv.depth || 50) / 100 });
           vibratoEffect.wet.value = 0;
           activeSynths.push(vibratoEffect);
         }
         if (tremoloMods.length > 0) {
-          const defaultTremolo = tremoloMods[0];
-          tremoloEffect = new ToneLib.Tremolo({
-            frequency: defaultTremolo.rate || 8,
-            depth: defaultTremolo.depth || 0.3
-          }).start();
+          const dt = tremoloMods[0];
+          tremoloEffect = new ToneLib.Tremolo({ frequency: dt.rate || 8, depth: dt.depth || 0.3 }).start();
           tremoloEffect.wet.value = 0;
           activeSynths.push(tremoloEffect);
         }
@@ -2053,61 +2064,59 @@ function createPlayer(composition, options = {}) {
           synth.connect(tremoloEffect);
           tremoloEffect.connect(masterGain);
         }
-        const secondsPerQuarterNote = 60 / tempo;
-        modulations.forEach((mod) => {
-          const startTime = mod.start * secondsPerQuarterNote;
-          const endTime = mod.end * secondsPerQuarterNote;
-          if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
-            const vibratoFreq = mod.rate || 5;
-            const vibratoDepth = (mod.depth || 50) / 100;
-            const enableId = ToneLib.Transport.schedule((time) => {
-              vibratoEffect.frequency.value = vibratoFreq;
-              vibratoEffect.depth.value = vibratoDepth;
-              vibratoEffect.wet.value = 1;
-            }, startTime);
-            scheduledEvents.push(enableId);
-            const disableId = ToneLib.Transport.schedule((time) => {
-              vibratoEffect.wet.value = 0;
-            }, endTime);
-            scheduledEvents.push(disableId);
-          }
-          if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
-            const tremoloFreq = mod.rate || 8;
-            const tremoloDepth = mod.depth || 0.3;
-            const enableId = ToneLib.Transport.schedule((time) => {
-              tremoloEffect.frequency.value = tremoloFreq;
-              tremoloEffect.depth.value = tremoloDepth;
-              tremoloEffect.wet.value = 1;
-            }, startTime);
-            scheduledEvents.push(enableId);
-            const disableId = ToneLib.Transport.schedule((time) => {
-              tremoloEffect.wet.value = 0;
-            }, endTime);
-            scheduledEvents.push(disableId);
-          }
-        });
       }
+      return { synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN };
+    });
+    await ToneLib.loaded();
+  }
+  function scheduleNotes() {
+    clearScheduledEvents();
+    trackConfigs.forEach(({ synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN }) => {
+      modulations.forEach((mod) => {
+        const startTime = mod.start * secondsPerQN;
+        const endTime = mod.end * secondsPerQN;
+        if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            vibratoEffect.frequency.value = mod.rate || 5;
+            vibratoEffect.depth.value = (mod.depth || 50) / 100;
+            vibratoEffect.wet.value = 1;
+          }, startTime));
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            vibratoEffect.wet.value = 0;
+          }, endTime));
+        }
+        if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            tremoloEffect.frequency.value = mod.rate || 8;
+            tremoloEffect.depth.value = mod.depth || 0.3;
+            tremoloEffect.wet.value = 1;
+          }, startTime));
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            tremoloEffect.wet.value = 0;
+          }, endTime));
+        }
+      });
       const modsByNote = {};
       modulations.forEach((mod) => {
         if (!modsByNote[mod.index]) modsByNote[mod.index] = [];
         modsByNote[mod.index].push(mod);
       });
       partEvents.forEach((note, noteIndex) => {
-        const time = typeof note.time === "number" ? note.time * (60 / tempo) : note.time;
-        const duration = typeof note.duration === "number" ? note.duration * (60 / tempo) : note.duration;
+        const time = typeof note.time === "number" ? note.time * secondsPerQN : note.time;
+        const duration = typeof note.duration === "number" ? note.duration * secondsPerQN : note.duration;
         const velocity = note.velocity || 0.8;
         const mods = modsByNote[noteIndex] || [];
         const glissando = mods.find(
           (m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
         );
         if (Array.isArray(note.pitch)) {
-          const noteNames = note.pitch.map(
-            (p) => typeof p === "number" ? ToneLib.Frequency(p, "midi").toNote() : p
+          const mt = note.microtuning || 0;
+          const chordNotes = note.pitch.map(
+            (p) => typeof p === "number" ? mt ? ToneLib.Frequency(p + mt, "midi").toFrequency() : ToneLib.Frequency(p, "midi").toNote() : p
           );
-          const eventId = ToneLib.Transport.schedule((schedTime) => {
-            synth.triggerAttackRelease(noteNames, duration, schedTime, velocity);
-          }, time);
-          scheduledEvents.push(eventId);
+          scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+            synth.triggerAttackRelease(chordNotes, duration, t, velocity);
+          }, time));
           return;
         }
         const noteName = typeof note.pitch === "number" ? ToneLib.Frequency(note.pitch, "midi").toNote() : note.pitch;
@@ -2120,89 +2129,86 @@ function createPlayer(composition, options = {}) {
           const startDetune = microtuningCents;
           const endDetune = microtuningCents + cents;
           if (synth.detune) {
-            console.log(`[GLISSANDO] Using main synth detune: ${noteName} -> ${toNote} (${cents} cents)`);
-            const eventId = ToneLib.Transport.schedule((schedTime) => {
-              synth.triggerAttack(noteName, schedTime, velocity);
-              synth.detune.setValueAtTime(startDetune, schedTime);
-              synth.detune.linearRampToValueAtTime(endDetune, schedTime + duration);
-              synth.triggerRelease(schedTime + duration);
-            }, time);
-            scheduledEvents.push(eventId);
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              synth.triggerAttack(noteName, t, velocity);
+              synth.detune.setValueAtTime(startDetune, t);
+              synth.detune.linearRampToValueAtTime(endDetune, t + duration);
+              synth.triggerRelease(t + duration);
+            }, time));
           } else {
-            console.log(`[GLISSANDO] Creating temporary MonoSynth: ${noteName} -> ${toNote} (${cents} cents)`);
             const glissSynth = new ToneLib.MonoSynth();
             glissSynth.connect(masterGain);
             activeSynths.push(glissSynth);
-            const eventId = ToneLib.Transport.schedule((schedTime) => {
-              glissSynth.triggerAttack(noteName, schedTime, velocity);
-              glissSynth.detune.setValueAtTime(startDetune, schedTime);
-              glissSynth.detune.linearRampToValueAtTime(endDetune, schedTime + duration);
-              glissSynth.triggerRelease(schedTime + duration);
-            }, time);
-            scheduledEvents.push(eventId);
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              glissSynth.triggerAttack(noteName, t, velocity);
+              glissSynth.detune.setValueAtTime(startDetune, t);
+              glissSynth.detune.linearRampToValueAtTime(endDetune, t + duration);
+              glissSynth.triggerRelease(t + duration);
+            }, time));
           }
         } else {
-          const eventId = ToneLib.Transport.schedule((schedTime) => {
-            if (note.microtuning && synth.detune) {
-              const cents = note.microtuning * 100;
-              synth.triggerAttack(noteName, schedTime, velocity);
-              synth.detune.setValueAtTime(cents, schedTime);
-              synth.triggerRelease(schedTime + duration);
-            } else {
-              synth.triggerAttackRelease(noteName, duration, schedTime, velocity);
-            }
-          }, time);
-          scheduledEvents.push(eventId);
+          const playNote = note.microtuning ? ToneLib.Frequency(note.pitch + note.microtuning, "midi").toFrequency() : noteName;
+          scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+            synth.triggerAttackRelease(playNote, duration, t, velocity);
+          }, time));
         }
       });
     });
   }
+  function clearScheduledEvents() {
+    if (ToneLib) {
+      ToneLib.Transport.cancel(0);
+    }
+    scheduledEvents = [];
+  }
+  function disposeAudio() {
+    clearScheduledEvents();
+    activeSynths.forEach((s) => {
+      try {
+        if (!s.disposed) s.dispose();
+      } catch (e) {
+      }
+    });
+    activeSynths = [];
+    trackConfigs = [];
+    masterGain = null;
+  }
   async function play2() {
+    if (isBusy) return;
     if (isPlaying) {
-      window.Tone.Transport.pause();
+      ToneLib.Transport.pause();
       isPlaying = false;
       playButton.textContent = "\u25B6 Play";
       cancelAnimationFrame(animationId);
-    } else {
-      if (!window.Tone || scheduledEvents.length === 0) {
-        await setupAudio();
-        console.log("Waiting for samples to load...");
-        await window.Tone.loaded();
-        console.log("Samples loaded, starting playback");
+      return;
+    }
+    isBusy = true;
+    playButton.textContent = "... Wait";
+    playButton.disabled = true;
+    try {
+      if (trackConfigs.length === 0) {
+        await buildSynths();
       }
-      if (window.Tone.Transport.state === "paused") {
-        window.Tone.Transport.start();
-      } else {
-        window.Tone.Transport.start("+0", currentTime);
-      }
+      scheduleNotes();
+      ToneLib.Transport.stop();
+      ToneLib.Transport.start("+0.05", currentTime);
       isPlaying = true;
       playButton.textContent = "\u23F8 Pause";
       stopButton.disabled = false;
       updateTimeline();
+    } catch (e) {
+      console.error("[PLAYER] Play failed:", e);
+      playButton.textContent = "\u25B6 Play";
+    } finally {
+      isBusy = false;
+      playButton.disabled = false;
     }
   }
   function stop() {
-    if (window.Tone) {
-      window.Tone.Transport.stop();
-      window.Tone.Transport.cancel(0);
-      scheduledEvents.forEach((eventId) => {
-        try {
-          window.Tone.Transport.clear(eventId);
-        } catch (e) {
-        }
-      });
-      scheduledEvents = [];
-      activeSynths.forEach((s) => {
-        try {
-          if (!s.disposed) {
-            s.dispose();
-          }
-        } catch (e) {
-          console.warn("Error disposing synth/effect:", e);
-        }
-      });
-      activeSynths = [];
+    if (ToneLib) {
+      ToneLib.Transport.stop();
     }
+    disposeAudio();
     isPlaying = false;
     currentTime = 0;
     playButton.textContent = "\u25B6 Play";
@@ -2211,20 +2217,23 @@ function createPlayer(composition, options = {}) {
     currentTimeDisplay.textContent = "0:00";
     cancelAnimationFrame(animationId);
   }
-  timeline.addEventListener("click", (e) => {
+  timeline.addEventListener("click", async (e) => {
+    if (isBusy) return;
     const rect = timeline.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percent = x / rect.width;
-    const newTime = percent * totalDuration;
-    if (window.Tone) {
-      const wasPlaying = isPlaying;
-      stop();
-      currentTime = newTime;
-      if (wasPlaying) {
-        play2();
-      } else {
-        timelineProgress.style.width = `${percent * 100}%`;
-        currentTimeDisplay.textContent = formatTime(newTime);
+    const percent = (e.clientX - rect.left) / rect.width;
+    const newTime = Math.max(0, Math.min(percent * totalDuration, totalDuration));
+    timelineProgress.style.width = `${percent * 100}%`;
+    currentTimeDisplay.textContent = formatTime(newTime);
+    currentTime = newTime;
+    if (isPlaying && ToneLib) {
+      isBusy = true;
+      try {
+        ToneLib.Transport.pause();
+        scheduleNotes();
+        ToneLib.Transport.start("+0.05", newTime);
+        updateTimeline();
+      } finally {
+        isBusy = false;
       }
     }
   });
@@ -2240,6 +2249,8 @@ var init_music_player = __esm({
     init_tonejs();
     init_audio();
     init_gm_instruments();
+    init_audio_effects();
+    init_normalize();
   }
 });
 
@@ -5519,7 +5530,7 @@ var Loop = class _Loop {
     if (notes.length === 0) {
       throw new Error("Track must have notes to create loop");
     }
-    return new _Loop({ [track.label || "Track"]: track }, measureLength);
+    return new _Loop({ loops: { [track.label || "Track"]: track }, measureLength });
   }
   /**
    * Create a loop from simple pitch/duration arrays
@@ -5557,25 +5568,19 @@ var Loop = class _Loop {
       }
     }
     return new _Loop({
-      [label]: { notes }
-    }, options.measureLength || 4);
+      loops: { [label]: { notes } },
+      measureLength: options.measureLength || 4
+    });
   }
   /**
    * Create loop from Euclidean rhythm (JMON format)
-   * @param {Object} options - Configuration options
-   * @param {number} options.beats - Total number of beats
-   * @param {number} options.pulses - Number of active pulses to distribute
-   * @param {Array} [options.pitches=[60]] - Array of MIDI pitches to cycle through
-   * @param {string} [options.label] - Label for the loop
+   * @param {number} beats - Total number of beats
+   * @param {number} pulses - Number of active pulses to distribute
+   * @param {Array} [pitches=[60]] - Array of MIDI pitches to cycle through
+   * @param {string} [label] - Label for the loop
    * @returns {Loop} A new Loop instance
    */
-  static euclidean(options = {}) {
-    const {
-      beats,
-      pulses,
-      pitches = [60],
-      label
-    } = options;
+  static euclidean(beats, pulses, pitches = [60], label) {
     if (typeof beats !== "number" || beats <= 0 || !Number.isInteger(beats)) {
       throw new Error("beats must be a positive integer");
     }
@@ -5906,6 +5911,10 @@ var Darwin = class {
     );
     this.mutationProbabilities = mutationProbabilities || {
       pitch: () => {
+        if (this.scale && this.scale.length > 0) {
+          const idx = Math.floor(this.randomState.random() * this.scale.length);
+          return Math.max(0, Math.min(127, this.scale[idx]));
+        }
         return Math.max(0, Math.min(127, Math.floor(this.gaussianRandom(60, 5))));
       },
       duration: () => {
@@ -7119,22 +7128,59 @@ var PhasorSystem = class _PhasorSystem {
   }
 };
 
-// src/algorithms/generative/fractals/Mandelbrot.js
-var Mandelbrot = class {
-  /**
-   * @param {MandelbrotOptions} [options={}] - Configuration options
-   */
+// src/algorithms/generative/fractals/ComplexPlaneFractal.js
+var ComplexPlaneFractal = class {
   constructor(options = {}) {
     this.width = options.width || 100;
     this.height = options.height || 100;
     this.maxIterations = options.maxIterations || 100;
-    this.xMin = options.xMin || -2.5;
-    this.xMax = options.xMax || 1.5;
-    this.yMin = options.yMin || -2;
-    this.yMax = options.yMax || 2;
+    if (options.center && options.size) {
+      this._center = { x: options.center.x, y: options.center.y };
+      this._size = { w: options.size.w, h: options.size.h };
+    } else if (options.xMin !== void 0 || options.xMax !== void 0 || options.yMin !== void 0 || options.yMax !== void 0) {
+      console.warn("[jmon/algo] xMin/xMax/yMin/yMax are deprecated. Use center and size instead.");
+      const xMin = options.xMin ?? -2.5;
+      const xMax = options.xMax ?? 1.5;
+      const yMin = options.yMin ?? -2;
+      const yMax = options.yMax ?? 2;
+      this._center = { x: (xMin + xMax) / 2, y: (yMin + yMax) / 2 };
+      this._size = { w: xMax - xMin, h: yMax - yMin };
+    } else {
+      this._center = { x: -0.5, y: 0 };
+      this._size = { w: 4, h: 4 };
+    }
+    this.xMin = this._center.x - this._size.w / 2;
+    this.xMax = this._center.x + this._size.w / 2;
+    this.yMin = this._center.y - this._size.h / 2;
+    this.yMax = this._center.y + this._size.h / 2;
+  }
+  /** @returns {string} Fractal type identifier */
+  get type() {
+    throw new Error("Subclasses must implement the type getter");
+  }
+  /** @returns {{x: number, y: number}} Center of the viewing window */
+  get center() {
+    return { ...this._center };
+  }
+  /** @returns {{w: number, h: number}} Size of the viewing window */
+  get size() {
+    return { ...this._size };
+  }
+  /** @returns {{xMin: number, xMax: number, yMin: number, yMax: number}} Bounds (computed from center and size) */
+  get bounds() {
+    return { xMin: this.xMin, xMax: this.xMax, yMin: this.yMin, yMax: this.yMax };
   }
   /**
-   * Generate Mandelbrot set data
+   * Calculate iterations for a point in the complex plane.
+   * Subclasses must implement this.
+   * @param {ComplexPoint} point - Point in the complex plane
+   * @returns {number} Number of iterations before escape
+   */
+  iterate(point) {
+    throw new Error("Subclasses must implement iterate()");
+  }
+  /**
+   * Generate fractal data as a 2D grid of iteration counts.
    * @returns {number[][]} 2D array of iteration counts
    */
   generate() {
@@ -7144,16 +7190,15 @@ var Mandelbrot = class {
       for (let x = 0; x < this.width; x++) {
         const real = this.xMin + x / this.width * (this.xMax - this.xMin);
         const imaginary = this.yMin + y / this.height * (this.yMax - this.yMin);
-        const iterations = this.mandelbrotIterations({ real, imaginary });
-        row.push(iterations);
+        row.push(this.iterate({ real, imaginary }));
       }
       data.push(row);
     }
     return data;
   }
   /**
-   * Extract sequence from Mandelbrot data using various methods
-   * @param {'diagonal'|'border'|'spiral'|'column'|'row'} [method='diagonal'] - Extraction method
+   * Extract sequence from fractal data using various methods
+   * @param {'diagonal'|'border'|'spiral'|'column'|'row'} [method='diagonal']
    * @param {number} [index=0] - Index for column/row extraction
    * @returns {number[]} Extracted sequence
    */
@@ -7174,29 +7219,6 @@ var Mandelbrot = class {
         return this.extractDiagonal(data);
     }
   }
-  /**
-   * Calculate Mandelbrot iterations for a complex point
-   * @param {ComplexPoint} c - Complex point to test
-   * @returns {number} Number of iterations before escape
-   */
-  mandelbrotIterations(c) {
-    const z = { real: 0, imaginary: 0 };
-    for (let i = 0; i < this.maxIterations; i++) {
-      const zReal = z.real * z.real - z.imaginary * z.imaginary + c.real;
-      const zImaginary = 2 * z.real * z.imaginary + c.imaginary;
-      z.real = zReal;
-      z.imaginary = zImaginary;
-      if (z.real * z.real + z.imaginary * z.imaginary > 4) {
-        return i;
-      }
-    }
-    return this.maxIterations;
-  }
-  /**
-   * Extract diagonal sequence
-   * @param {number[][]} data - 2D fractal data
-   * @returns {number[]} Diagonal sequence
-   */
   extractDiagonal(data) {
     const sequence = [];
     const minDimension = Math.min(data.length, data[0]?.length || 0);
@@ -7205,39 +7227,21 @@ var Mandelbrot = class {
     }
     return sequence;
   }
-  /**
-   * Extract border sequence (clockwise)
-   * @param {number[][]} data - 2D fractal data
-   * @returns {number[]} Border sequence
-   */
   extractBorder(data) {
     const sequence = [];
     const height = data.length;
     const width = data[0]?.length || 0;
     if (height === 0 || width === 0) return sequence;
-    for (let x = 0; x < width; x++) {
-      sequence.push(data[0][x]);
-    }
-    for (let y = 1; y < height; y++) {
-      sequence.push(data[y][width - 1]);
-    }
+    for (let x = 0; x < width; x++) sequence.push(data[0][x]);
+    for (let y = 1; y < height; y++) sequence.push(data[y][width - 1]);
     if (height > 1) {
-      for (let x = width - 2; x >= 0; x--) {
-        sequence.push(data[height - 1][x]);
-      }
+      for (let x = width - 2; x >= 0; x--) sequence.push(data[height - 1][x]);
     }
     if (width > 1) {
-      for (let y = height - 2; y > 0; y--) {
-        sequence.push(data[y][0]);
-      }
+      for (let y = height - 2; y > 0; y--) sequence.push(data[y][0]);
     }
     return sequence;
   }
-  /**
-   * Extract spiral sequence (from outside to inside)
-   * @param {number[][]} data - 2D fractal data
-   * @returns {number[]} Spiral sequence
-   */
   extractSpiral(data) {
     const sequence = [];
     const height = data.length;
@@ -7246,68 +7250,40 @@ var Mandelbrot = class {
     let top = 0, bottom = height - 1;
     let left = 0, right = width - 1;
     while (top <= bottom && left <= right) {
-      for (let x = left; x <= right; x++) {
-        sequence.push(data[top][x]);
-      }
+      for (let x = left; x <= right; x++) sequence.push(data[top][x]);
       top++;
-      for (let y = top; y <= bottom; y++) {
-        sequence.push(data[y][right]);
-      }
+      for (let y = top; y <= bottom; y++) sequence.push(data[y][right]);
       right--;
       if (top <= bottom) {
-        for (let x = right; x >= left; x--) {
-          sequence.push(data[bottom][x]);
-        }
+        for (let x = right; x >= left; x--) sequence.push(data[bottom][x]);
         bottom--;
       }
       if (left <= right) {
-        for (let y = bottom; y >= top; y--) {
-          sequence.push(data[y][left]);
-        }
+        for (let y = bottom; y >= top; y--) sequence.push(data[y][left]);
         left++;
       }
     }
     return sequence;
   }
-  /**
-   * Extract specific column
-   * @param {number[][]} data - 2D fractal data
-   * @param {number} columnIndex - Column index to extract
-   * @returns {number[]} Column sequence
-   */
   extractColumn(data, columnIndex) {
     const sequence = [];
     const width = data[0]?.length || 0;
     const clampedIndex = Math.max(0, Math.min(columnIndex, width - 1));
     for (const row of data) {
-      if (row[clampedIndex] !== void 0) {
-        sequence.push(row[clampedIndex]);
-      }
+      if (row[clampedIndex] !== void 0) sequence.push(row[clampedIndex]);
     }
     return sequence;
   }
-  /**
-   * Extract specific row
-   * @param {number[][]} data - 2D fractal data
-   * @param {number} rowIndex - Row index to extract
-   * @returns {number[]} Row sequence
-   */
   extractRow(data, rowIndex) {
     const clampedIndex = Math.max(0, Math.min(rowIndex, data.length - 1));
     return data[clampedIndex] ? [...data[clampedIndex]] : [];
   }
   /**
    * Map fractal values to musical scale pitches
-   * @param {Object} options - Mapping options
+   * @param {Object} options
    * @param {number[]} options.sequence - Fractal sequence to map
-   * @param {number[]} options.pitches - Array of MIDI pitch values to map to
+   * @param {number[]} options.pitches - MIDI pitch values to map to
    * @returns {number[]} MIDI note sequence
-   *
-   * @example
-   * const mbSequence = [10, 25, 15, 30, 5];
-   * const gMajorPitches = [55, 57, 59, 60, 62, 64, 66, 67]; // G major scale
-   * const mapped = mb.mapToScale({ sequence: mbSequence, pitches: gMajorPitches });
-   * // Maps each value to a pitch based on normalized position
    */
   mapToScale({ sequence, pitches }) {
     if (sequence.length === 0) return [];
@@ -7325,9 +7301,9 @@ var Mandelbrot = class {
   }
   /**
    * Generate rhythmic pattern from fractal data
-   * @param {Object} options - Mapping options
+   * @param {Object} options
    * @param {number[]} options.sequence - Fractal sequence
-   * @param {number[]} [options.subdivisions=[1, 2, 4, 8, 16]] - Rhythmic subdivisions
+   * @param {number[]} [options.subdivisions=[1, 2, 4, 8, 16]]
    * @returns {number[]} Rhythmic durations
    */
   mapToRhythm({ sequence, subdivisions = [1, 2, 4, 8, 16] }) {
@@ -7342,7 +7318,164 @@ var Mandelbrot = class {
       return 1 / subdivisions[clampedIndex];
     });
   }
+  /**
+   * Treat the 2D iteration grid as a piano roll.
+   * x-axis = time, y-axis = pitch. Boundary pixels (iteration counts
+   * between thresholdMin and thresholdMax fractions of maxIterations)
+   * become active notes. Velocity is derived from the local iteration
+   * gradient magnitude. Consecutive same-pitch notes are merged into
+   * single longer notes.
+   *
+   * @param {Object} options
+   * @param {number[][]} options.grid - 2D iteration-count array (from generate())
+   * @param {number[]} options.pitches - MIDI pitch values, one per grid row (length must equal grid height)
+   * @param {number} [options.thresholdMin=0.1] - Lower boundary fraction of maxIterations
+   * @param {number} [options.thresholdMax=0.95] - Upper boundary fraction of maxIterations
+   * @param {number} [options.duration=1] - Duration of each time step in quarter notes
+   * @param {number} [options.maxDuration=Infinity] - Maximum merged note duration in quarter notes
+   * @returns {{ pitch: number, time: number, duration: number, velocity: number }[]} JMON note array
+   */
+  gridToNotes({ grid, pitches, thresholdMin = 0.1, thresholdMax = 0.95, duration = 1, maxDuration = Infinity }) {
+    const height = grid.length;
+    const width = grid[0]?.length || 0;
+    if (height === 0 || width === 0 || !pitches || pitches.length === 0) return [];
+    const lo = thresholdMin * this.maxIterations;
+    const hi = thresholdMax * this.maxIterations;
+    const gradient = [];
+    for (let y = 0; y < height; y++) {
+      gradient[y] = [];
+      for (let x = 0; x < width; x++) {
+        const dx = (grid[y][Math.min(x + 1, width - 1)] - grid[y][Math.max(x - 1, 0)]) / 2;
+        const dy = ((grid[Math.min(y + 1, height - 1)] || grid[y])[x] - grid[Math.max(y - 1, 0)][x]) / 2;
+        gradient[y][x] = Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+    let maxGrad = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (gradient[y][x] > maxGrad) maxGrad = gradient[y][x];
+      }
+    }
+    if (maxGrad === 0) maxGrad = 1;
+    const raw = [];
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        const v = grid[y][x];
+        if (v >= lo && v <= hi) {
+          const pitchIndex = height - 1 - y;
+          const pitch = pitches[Math.min(pitchIndex, pitches.length - 1)];
+          const vel = 0.2 + 0.8 * (gradient[y][x] / maxGrad);
+          raw.push({ pitch, time: x * duration, duration, velocity: vel });
+        }
+      }
+    }
+    if (raw.length === 0) return [];
+    raw.sort((a, b) => a.pitch - b.pitch || a.time - b.time);
+    const merged = [raw[0]];
+    for (let i = 1; i < raw.length; i++) {
+      const prev = merged[merged.length - 1];
+      const curr = raw[i];
+      if (curr.pitch === prev.pitch && Math.abs(curr.time - (prev.time + prev.duration)) < 1e-3 && prev.duration < maxDuration) {
+        const totalDur = prev.duration + curr.duration;
+        prev.velocity = (prev.velocity * prev.duration + curr.velocity * curr.duration) / totalDur;
+        prev.duration = totalDur;
+      } else {
+        merged.push({ ...curr });
+      }
+    }
+    merged.sort((a, b) => a.time - b.time || a.pitch - b.pitch);
+    return merged;
+  }
 };
+
+// src/algorithms/generative/fractals/Mandelbrot.js
+var Mandelbrot = class extends ComplexPlaneFractal {
+  get type() {
+    return "mandelbrot";
+  }
+  iterate(point) {
+    let zReal = 0, zImag = 0;
+    for (let i = 0; i < this.maxIterations; i++) {
+      const newReal = zReal * zReal - zImag * zImag + point.real;
+      const newImag = 2 * zReal * zImag + point.imaginary;
+      zReal = newReal;
+      zImag = newImag;
+      if (zReal * zReal + zImag * zImag > 4) return i;
+    }
+    return this.maxIterations;
+  }
+};
+
+// src/algorithms/generative/fractals/Julia.js
+var Julia = class extends ComplexPlaneFractal {
+  /**
+   * @param {Object} options
+   * @param {{real: number, imaginary: number}} options.c - The fixed c parameter
+   */
+  constructor(options = {}) {
+    if (!options.c) {
+      throw new Error("Julia set requires a c parameter: { real, imaginary }");
+    }
+    const defaults = { center: { x: 0, y: 0 }, size: { w: 4, h: 4 } };
+    super({ ...defaults, ...options });
+    this.c = { real: options.c.real, imaginary: options.c.imaginary };
+  }
+  get type() {
+    return "julia";
+  }
+  iterate(point) {
+    let zReal = point.real, zImag = point.imaginary;
+    for (let i = 0; i < this.maxIterations; i++) {
+      const newReal = zReal * zReal - zImag * zImag + this.c.real;
+      const newImag = 2 * zReal * zImag + this.c.imaginary;
+      zReal = newReal;
+      zImag = newImag;
+      if (zReal * zReal + zImag * zImag > 4) return i;
+    }
+    return this.maxIterations;
+  }
+};
+
+// src/algorithms/generative/fractals/BurningShip.js
+var BurningShip = class extends ComplexPlaneFractal {
+  constructor(options = {}) {
+    const defaults = { center: { x: -0.5, y: -0.5 }, size: { w: 4, h: 3 } };
+    super({ ...defaults, ...options });
+  }
+  get type() {
+    return "burningship";
+  }
+  iterate(point) {
+    let zReal = 0, zImag = 0;
+    for (let i = 0; i < this.maxIterations; i++) {
+      const absReal = Math.abs(zReal);
+      const absImag = Math.abs(zImag);
+      const newReal = absReal * absReal - absImag * absImag + point.real;
+      const newImag = 2 * absReal * absImag + point.imaginary;
+      zReal = newReal;
+      zImag = newImag;
+      if (zReal * zReal + zImag * zImag > 4) return i;
+    }
+    return this.maxIterations;
+  }
+};
+
+// src/algorithms/generative/fractals/Fractal.js
+var TYPES = {
+  mandelbrot: Mandelbrot,
+  julia: Julia,
+  burningship: BurningShip
+};
+function Fractal(type, options = {}) {
+  const FractalClass = TYPES[type];
+  if (!FractalClass) {
+    throw new Error(
+      `Unknown fractal type: "${type}". Supported: ${Object.keys(TYPES).join(", ")}`
+    );
+  }
+  return new FractalClass(options);
+}
+Fractal.types = () => Object.keys(TYPES);
 
 // src/algorithms/generative/fractals/LogisticMap.js
 var LogisticMap = class {
@@ -8020,7 +8153,11 @@ var Corruptor = class {
       ghostTrack: options.ghostTrack !== void 0 ? options.ghostTrack : false,
       ghostOctaveShift: options.ghostOctaveShift || -2,
       ghostDurationMultiplier: options.ghostDurationMultiplier || 4,
-      ghostVelocityMultiplier: options.ghostVelocityMultiplier || 0.3
+      ghostVelocityMultiplier: options.ghostVelocityMultiplier || 0.3,
+      ghostDelay: options.ghostDelay !== void 0 ? options.ghostDelay : 1,
+      // beats of delay before ghost enters
+      ghostDrift: options.ghostDrift !== void 0 ? options.ghostDrift : 0.3
+      // temporal smearing amount
     };
     this.perlin = new PerlinNoise(this.options.seed);
     this.randomSeed = this.options.seed;
@@ -8163,35 +8300,55 @@ var Corruptor = class {
   }
   /**
    * Generate ghost tracks (semantic ghosting)
+   *
+   * Ghost tracks are delayed, blurred shadow layers — not parallel voicing.
+   * They enter after the melody, use fewer anchor points, drift in time,
+   * and sustain long notes that follow the melody's contour from a distance.
+   *
    * @param {Array} tracks - Original JMON tracks
    * @param {Number} entropy - Entropy level
    * @returns {Array} Ghost tracks
    */
   generateGhostTracks(tracks, entropy) {
     const ghostTracks = [];
+    const mult = this.options.ghostDurationMultiplier;
+    const delay = this.options.ghostDelay;
+    const drift = this.options.ghostDrift;
     for (const track of tracks) {
       if (!track.notes || track.notes.length === 0) continue;
       const pitches = track.notes.map((n) => typeof n.pitch === "number" ? n.pitch : 60);
       const uniquePitches = new Set(pitches);
-      if (uniquePitches.size > 3) {
-        const ghostNotes = track.notes.map((note) => {
-          const originalPitch = typeof note.pitch === "number" ? note.pitch : 60;
-          const ghostPitch = originalPitch + this.options.ghostOctaveShift * 12;
-          return {
-            pitch: ghostPitch,
-            duration: note.duration * this.options.ghostDurationMultiplier,
-            time: note.time,
-            velocity: (note.velocity || 0.8) * this.options.ghostVelocityMultiplier
-          };
+      if (uniquePitches.size <= 3) continue;
+      const trackEnd = Math.max(...track.notes.map((n) => (n.time || 0) + (n.duration || 0)));
+      const ghostNotes = [];
+      let nextAvailable = -Infinity;
+      for (let i = 0; i < track.notes.length; i++) {
+        const note = track.notes[i];
+        const noteTime = note.time || 0;
+        const driftOffset = this.perlin.noise(i * 0.15) * drift * entropy;
+        const ghostTime = noteTime + delay + driftOffset;
+        if (ghostTime < nextAvailable) continue;
+        if (ghostTime >= trackEnd) continue;
+        const originalPitch = typeof note.pitch === "number" ? note.pitch : 60;
+        const ghostPitch = originalPitch + this.options.ghostOctaveShift * 12;
+        const ghostDur = Math.min(note.duration * mult, trackEnd - ghostTime);
+        if (ghostDur <= 0) continue;
+        ghostNotes.push({
+          pitch: ghostPitch,
+          duration: ghostDur,
+          time: ghostTime,
+          velocity: (note.velocity || 0.8) * this.options.ghostVelocityMultiplier
         });
-        const ghostTrack = {
-          label: `${track.label || "Track"} (Ghost)`,
-          notes: ghostNotes,
-          midiChannel: track.midiChannel || 0,
-          synth: track.synth || { type: "Synth" }
-        };
-        ghostTracks.push(ghostTrack);
+        nextAvailable = ghostTime + ghostDur;
       }
+      if (ghostNotes.length === 0) continue;
+      ghostTracks.push({
+        label: `${track.label || "Track"} (Ghost)`,
+        notes: ghostNotes,
+        midiChannel: track.midiChannel || 0,
+        synth: "Synth"
+        // sustaining oscillator, not the melody's percussive synth
+      });
     }
     return ghostTracks;
   }
@@ -8610,9 +8767,66 @@ var FractalVisualizer = class {
     });
   }
   /**
-   * Generate Mandelbrot set visualization
+   * Visualize any complex plane fractal (Mandelbrot, Julia, BurningShip, etc.)
+   * @param {import('../../generative/fractals/ComplexPlaneFractal.js').ComplexPlaneFractal} fractal - Fractal instance
+   * @param {FractalVisualizationOptions} [options={}] - Visualization options
+   * @returns {Object} Plot data object or canvas
+   */
+  static plotFractal(fractal, options = {}) {
+    const {
+      title = `${fractal.type.charAt(0).toUpperCase() + fractal.type.slice(1)} Set`,
+      width = 600,
+      height = 600,
+      colorScheme = "plasma",
+      canvas = null,
+      resolution = fractal.width
+    } = options;
+    if (canvas) {
+      return this.renderFractalCanvas(canvas, fractal, resolution, colorScheme);
+    }
+    const data = fractal.generate();
+    const matrix = data.map(
+      (row) => row.map((val) => val / fractal.maxIterations)
+    );
+    return PlotRenderer.heatmap(matrix, { title, width, height, showAxis: false });
+  }
+  /**
+   * Render any complex plane fractal directly to Canvas
+   * @param {HTMLCanvasElement} canvas - Canvas element
+   * @param {import('../../generative/fractals/ComplexPlaneFractal.js').ComplexPlaneFractal} fractal - Fractal instance
+   * @param {number} resolution - Grid resolution
+   * @param {string} [colorScheme='plasma'] - Color scheme
+   * @returns {HTMLCanvasElement} The canvas element
+   */
+  static renderFractalCanvas(canvas, fractal, resolution, colorScheme = "plasma") {
+    const ctx = canvas.getContext("2d");
+    canvas.width = resolution;
+    canvas.height = resolution;
+    const imageData = ctx.createImageData(resolution, resolution);
+    const pixels = imageData.data;
+    const dx = (fractal.xMax - fractal.xMin) / resolution;
+    const dy = (fractal.yMax - fractal.yMin) / resolution;
+    for (let py = 0; py < resolution; py++) {
+      const imag = fractal.yMin + py * dy;
+      for (let px = 0; px < resolution; px++) {
+        const real = fractal.xMin + px * dx;
+        const iterations = fractal.iterate({ real, imaginary: imag });
+        const normalized = iterations / fractal.maxIterations;
+        const color = this.getColorComponents(normalized, colorScheme);
+        const idx = (py * resolution + px) * 4;
+        pixels[idx] = color.r;
+        pixels[idx + 1] = color.g;
+        pixels[idx + 2] = color.b;
+        pixels[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+  }
+  /**
+   * Generate Mandelbrot set visualization (backward-compatible wrapper)
    * @param {number} [xMin=-2.5] - Minimum x coordinate
-   * @param {number} [xMax=1.0] - Maximum x coordinate  
+   * @param {number} [xMax=1.0] - Maximum x coordinate
    * @param {number} [yMin=-1.25] - Minimum y coordinate
    * @param {number} [yMax=1.25] - Maximum y coordinate
    * @param {number} [resolution=400] - Grid resolution
@@ -8661,16 +8875,7 @@ var FractalVisualizer = class {
     });
   }
   /**
-   * Render Mandelbrot set directly to Canvas for better performance
-   * @param {HTMLCanvasElement} canvas - Canvas element
-   * @param {number} xMin - Minimum x coordinate
-   * @param {number} xMax - Maximum x coordinate
-   * @param {number} yMin - Minimum y coordinate
-   * @param {number} yMax - Maximum y coordinate
-   * @param {number} resolution - Grid resolution
-   * @param {number} maxIterations - Maximum iterations
-   * @param {string} colorScheme - Color scheme
-   * @returns {HTMLCanvasElement} The canvas element
+   * Render Mandelbrot set directly to Canvas (backward-compatible wrapper)
    */
   static renderMandelbrotCanvas(canvas, xMin, xMax, yMin, yMax, resolution, maxIterations, colorScheme) {
     const ctx = canvas.getContext("2d");
@@ -8937,7 +9142,7 @@ var generative = {
   automata: {
     Cellular: CellularAutomata
   },
-  loops: Loop,
+  loops: { Loop },
   genetic: {
     Darwin
   },
@@ -8951,6 +9156,9 @@ var generative = {
   },
   fractals: {
     Mandelbrot,
+    Julia,
+    BurningShip,
+    Fractal,
     LogisticMap
   },
   minimalism: {
@@ -8990,102 +9198,132 @@ var algorithms_default = {
 
 // src/converters/midi.js
 init_audio();
-var Midi = class _Midi {
-  static midiToNoteName(midi2) {
-    const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-    const octave = Math.floor(midi2 / 12) - 1;
-    const noteIndex = midi2 % 12;
-    return noteNames[noteIndex] + octave;
+function writeVarLen(value) {
+  const bytes = [];
+  bytes.push(value & 127);
+  value >>= 7;
+  while (value > 0) {
+    bytes.push(value & 127 | 128);
+    value >>= 7;
   }
-  static convert(composition) {
-    const bpm = composition.tempo || composition.bpm || 120;
-    const timeSignature = composition.timeSignature || "4/4";
-    const rawTracks = composition.tracks || [];
-    const tracksArray = Array.isArray(rawTracks) ? rawTracks : rawTracks && typeof rawTracks === "object" ? Object.values(rawTracks) : [];
-    return {
-      header: {
-        bpm,
-        timeSignature
-      },
-      tracks: tracksArray.map((track) => {
-        const label = track.label || track.name;
-        const notesSrc = Array.isArray(track.events) ? track.events : Array.isArray(track.notes) ? track.notes : Array.isArray(track) ? track : [];
-        const safeNotes = Array.isArray(notesSrc) ? notesSrc : [];
-        const perf = compileEvents({ events: safeNotes }, { tempo: bpm, timeSignature });
-        const notes = safeNotes.map((note) => ({
-          pitch: note.pitch,
-          noteName: typeof note.pitch === "number" ? _Midi.midiToNoteName(note.pitch) : note.pitch,
-          time: note.time,
-          duration: note.duration,
-          velocity: note.velocity || 0.8
-        }));
-        return {
-          label,
-          notes,
-          modulations: perf && Array.isArray(perf.modulations) ? perf.modulations : []
-        };
-      })
-    };
-  }
-};
-function midi(composition) {
-  return Midi.convert(composition);
+  return bytes.reverse();
 }
-function downloadMidi(composition, ToneMidi, filename = "composition.mid") {
-  const midiData = Midi.convert(composition);
-  const midiFile = new ToneMidi.Midi();
-  midiFile.header.setTempo(midiData.header.bpm);
-  midiData.tracks.forEach((trackData) => {
-    const track = midiFile.addTrack();
-    track.name = trackData.label || "Track";
-    trackData.notes.forEach((note) => {
-      track.addNote({
-        midi: typeof note.pitch === "number" ? note.pitch : 60,
-        time: note.time || 0,
-        duration: note.duration || 0.5,
-        velocity: note.velocity || 0.8
-      });
+function writeUint16(value) {
+  return [value >> 8 & 255, value & 255];
+}
+function writeUint32(value) {
+  return [value >> 24 & 255, value >> 16 & 255, value >> 8 & 255, value & 255];
+}
+function writeString(str) {
+  return Array.from(str, (c) => c.charCodeAt(0));
+}
+function encodeTrack(events) {
+  const data = [];
+  let lastTick = 0;
+  events.sort((a, b) => a.tick - b.tick || a.sortOrder - b.sortOrder);
+  for (const evt of events) {
+    const delta = evt.tick - lastTick;
+    data.push(...writeVarLen(delta));
+    data.push(...evt.bytes);
+    lastTick = evt.tick;
+  }
+  data.push(0, 255, 47, 0);
+  return data;
+}
+function buildMidiFile(composition) {
+  const bpm = composition.tempo || composition.bpm || 120;
+  const ticksPerBeat = 480;
+  const rawTracks = composition.tracks || [];
+  const tracksArray = Array.isArray(rawTracks) ? rawTracks : rawTracks && typeof rawTracks === "object" ? Object.values(rawTracks) : [];
+  const trackChunks = [];
+  const tempoEvents = [];
+  const microsecondsPerBeat = Math.round(6e7 / bpm);
+  tempoEvents.push({
+    tick: 0,
+    sortOrder: -1,
+    bytes: [
+      255,
+      81,
+      3,
+      microsecondsPerBeat >> 16 & 255,
+      microsecondsPerBeat >> 8 & 255,
+      microsecondsPerBeat & 255
+    ]
+  });
+  const title = composition.title || composition.metadata?.title || "";
+  if (title) {
+    const titleBytes = writeString(title);
+    tempoEvents.push({
+      tick: 0,
+      sortOrder: -2,
+      bytes: [255, 3, ...writeVarLen(titleBytes.length), ...titleBytes]
     });
-    if (Array.isArray(trackData.modulations)) {
-      trackData.modulations.forEach((mod) => {
-        if (mod.subtype === "vibrato") {
-          const rate = mod.rate || 5;
-          const depth = mod.depth || 50;
-          const start = mod.start || 0;
-          const end = mod.end || start + 1;
-          const ccValue = Math.min(127, Math.round(depth / 100 * 127));
-          track.addCC({ number: 1, value: ccValue, time: start });
-          track.addCC({ number: 1, value: 0, time: end });
-        }
-        if (mod.subtype === "tremolo") {
-          const rate = mod.rate || 8;
-          const depth = mod.depth || 0.3;
-          const start = mod.start || 0;
-          const end = mod.end || start + 1;
-          const ccValue = Math.min(127, Math.round(depth * 127));
-          track.addCC({ number: 11, value: 127 - ccValue, time: start });
-          track.addCC({ number: 11, value: 127, time: end });
-        }
-        if (mod.subtype === "crescendo" || mod.subtype === "diminuendo") {
-          const startV = mod.startVelocity || 0.8;
-          const endV = mod.endVelocity || 0.8;
-          const start = mod.start || 0;
-          const end = mod.end || start + 1;
-          const startCC = Math.round(startV * 127);
-          const endCC = Math.round(endV * 127);
-          track.addCC({ number: 7, value: startCC, time: start });
-          track.addCC({ number: 7, value: endCC, time: end });
-        }
+  }
+  trackChunks.push(encodeTrack(tempoEvents));
+  for (const track of tracksArray) {
+    const notesSrc = Array.isArray(track.events) ? track.events : Array.isArray(track.notes) ? track.notes : Array.isArray(track) ? track : [];
+    const safeNotes = Array.isArray(notesSrc) ? notesSrc : [];
+    const events = [];
+    const label = track.label || track.name || "";
+    if (label) {
+      const labelBytes = writeString(label);
+      events.push({
+        tick: 0,
+        sortOrder: -2,
+        bytes: [255, 3, ...writeVarLen(labelBytes.length), ...labelBytes]
       });
     }
-  });
-  const blob = new Blob([midiFile.toArray()], { type: "audio/midi" });
+    let currentTime = 0;
+    const notesWithTime = safeNotes.map((note) => {
+      const t = note.time !== void 0 ? note.time : currentTime;
+      currentTime = t + (note.duration || 1);
+      return { ...note, time: t };
+    });
+    for (const note of notesWithTime) {
+      const pitch = typeof note.pitch === "number" ? note.pitch : 60;
+      if (pitch === null || pitch === void 0) continue;
+      const velocity = Math.round((note.velocity || 0.8) * 127);
+      const startTick = Math.round((note.time || 0) * ticksPerBeat);
+      const endTick = Math.round(((note.time || 0) + (note.duration || 1)) * ticksPerBeat);
+      const channel = 0;
+      events.push({
+        tick: startTick,
+        sortOrder: 1,
+        bytes: [144 | channel, pitch, velocity]
+      });
+      events.push({
+        tick: endTick,
+        sortOrder: 0,
+        // note-off sorts before note-on at same tick
+        bytes: [128 | channel, pitch, 0]
+      });
+    }
+    trackChunks.push(encodeTrack(events));
+  }
+  const numTracks = trackChunks.length;
+  const fileBytes = [];
+  fileBytes.push(...writeString("MThd"));
+  fileBytes.push(...writeUint32(6));
+  fileBytes.push(...writeUint16(1));
+  fileBytes.push(...writeUint16(numTracks));
+  fileBytes.push(...writeUint16(ticksPerBeat));
+  for (const trackData of trackChunks) {
+    fileBytes.push(...writeString("MTrk"));
+    fileBytes.push(...writeUint32(trackData.length));
+    fileBytes.push(...trackData);
+  }
+  return new Uint8Array(fileBytes);
+}
+function midi(composition, options = {}) {
+  const { filename = "composition.mid" } = options;
+  const bytes = buildMidiFile(composition);
+  const blob = new Blob([bytes], { type: "audio/midi" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  a.textContent = `Download ${filename}`;
+  return a;
 }
 
 // src/converters/midi-to-jmon.js
@@ -9707,21 +9945,23 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
         compiledModulations[index] = [];
       }
     });
+    const trackSynths = [];
+    const samplers = [];
     tracks.forEach((track, trackIndex) => {
-      const notes = track.events || track.notes || [];
       const synthRef = track.synthRef;
       const trackModulations = compiledModulations[trackIndex] || [];
       let synth = null;
+      const gmProgram = typeof track.synth === "number" ? track.synth : track.instrument;
       if (synthRef && graphInstruments && graphInstruments[synthRef]) {
         synth = graphInstruments[synthRef];
-      } else if (track.instrument !== void 0 && !track.synth) {
-        const urls = generateSamplerUrls(track.instrument);
+      } else if (gmProgram !== void 0) {
+        const urls = generateSamplerUrls(gmProgram);
         synth = new Tone.Sampler({
           urls,
           baseUrl: ""
-          // URLs are already complete
         }).toDestination();
-        console.log(`[WAV] Creating Sampler for GM instrument ${track.instrument}`);
+        samplers.push(synth);
+        console.log(`[WAV] Creating Sampler for GM instrument ${gmProgram}`);
       } else {
         const synthType = track.synth || "PolySynth";
         try {
@@ -9739,9 +9979,6 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
       let vibratoEffect = null;
       let tremoloEffect = null;
       if (vibratoMods.length > 0 || tremoloMods.length > 0) {
-        console.log(
-          `[WAV] Creating effect chain for track ${trackIndex} (${vibratoMods.length} vibrato, ${tremoloMods.length} tremolo)`
-        );
         if (!synthRef || !graphInstruments?.[synthRef]) {
           synth.disconnect();
         }
@@ -9772,35 +10009,41 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
           synth.connect(tremoloEffect);
           tremoloEffect.toDestination();
         }
-        trackModulations.forEach((mod) => {
-          const startTime = mod.start * secondsPerQuarterNote;
-          const endTime = mod.end * secondsPerQuarterNote;
-          if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
-            const vibratoFreq = mod.rate || 5;
-            const vibratoDepth = (mod.depth || 50) / 100;
-            transport.schedule((time) => {
-              vibratoEffect.frequency.value = vibratoFreq;
-              vibratoEffect.depth.value = vibratoDepth;
-              vibratoEffect.wet.value = 1;
-            }, startTime);
-            transport.schedule((time) => {
-              vibratoEffect.wet.value = 0;
-            }, endTime);
-          }
-          if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
-            const tremoloFreq = mod.rate || 8;
-            const tremoloDepth = mod.depth || 0.3;
-            transport.schedule((time) => {
-              tremoloEffect.frequency.value = tremoloFreq;
-              tremoloEffect.depth.value = tremoloDepth;
-              tremoloEffect.wet.value = 1;
-            }, startTime);
-            transport.schedule((time) => {
-              tremoloEffect.wet.value = 0;
-            }, endTime);
-          }
-        });
       }
+      trackSynths.push({ synth, vibratoEffect, tremoloEffect });
+    });
+    console.log(`[WAV] Waiting for ${samplers.length} sampler(s) to load...`);
+    await Promise.all(samplers.map((s) => s.loaded));
+    await Tone.loaded();
+    console.log("[WAV] Samples loaded, scheduling notes");
+    tracks.forEach((track, trackIndex) => {
+      const notes = track.events || track.notes || [];
+      const trackModulations = compiledModulations[trackIndex] || [];
+      const { synth, vibratoEffect, tremoloEffect } = trackSynths[trackIndex];
+      trackModulations.forEach((mod) => {
+        const startTime = mod.start * secondsPerQuarterNote;
+        const endTime = mod.end * secondsPerQuarterNote;
+        if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
+          transport.schedule(() => {
+            vibratoEffect.frequency.value = mod.rate || 5;
+            vibratoEffect.depth.value = (mod.depth || 50) / 100;
+            vibratoEffect.wet.value = 1;
+          }, startTime);
+          transport.schedule(() => {
+            vibratoEffect.wet.value = 0;
+          }, endTime);
+        }
+        if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
+          transport.schedule(() => {
+            tremoloEffect.frequency.value = mod.rate || 8;
+            tremoloEffect.depth.value = mod.depth || 0.3;
+            tremoloEffect.wet.value = 1;
+          }, startTime);
+          transport.schedule(() => {
+            tremoloEffect.wet.value = 0;
+          }, endTime);
+        }
+      });
       const modsByNote = {};
       trackModulations.forEach((mod) => {
         if (!modsByNote[mod.index]) modsByNote[mod.index] = [];
@@ -9813,16 +10056,12 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
         const glissando = noteMods.find(
           (m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
         );
+        const mt = note.microtuning || 0;
         if (Array.isArray(note.pitch)) {
-          const noteNames = note.pitch.map(
-            (p) => typeof p === "number" ? Tone.Frequency(p, "midi").toNote() : p
+          const chordNotes = note.pitch.map(
+            (p) => typeof p === "number" ? mt ? Tone.Frequency(p + mt, "midi").toFrequency() : Tone.Frequency(p, "midi").toNote() : p
           );
-          synth.triggerAttackRelease(
-            noteNames,
-            noteDuration,
-            time,
-            note.velocity || 0.8
-          );
+          synth.triggerAttackRelease(chordNotes, noteDuration, time, note.velocity || 0.8);
         } else {
           const noteName = typeof note.pitch === "number" ? Tone.Frequency(note.pitch, "midi").toNote() : note.pitch;
           if (glissando && glissando.to !== void 0) {
@@ -9830,34 +10069,26 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
             const startFreq = Tone.Frequency(noteName).toFrequency();
             const endFreq = Tone.Frequency(toNote).toFrequency();
             const cents = 1200 * Math.log2(endFreq / startFreq);
+            const microtuningCents = mt * 100;
             if (synth.detune) {
-              console.log(`[WAV] Glissando using main synth: ${noteName} -> ${toNote} (${cents} cents)`);
               synth.triggerAttack(noteName, time, note.velocity || 0.8);
-              synth.detune.setValueAtTime(0, time);
-              synth.detune.linearRampToValueAtTime(cents, time + noteDuration);
+              synth.detune.setValueAtTime(microtuningCents, time);
+              synth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
               synth.triggerRelease(time + noteDuration);
             } else {
-              console.log(`[WAV] Glissando using temp MonoSynth: ${noteName} -> ${toNote} (${cents} cents)`);
               const glissSynth = new Tone.MonoSynth().toDestination();
               glissSynth.triggerAttack(noteName, time, note.velocity || 0.8);
-              glissSynth.detune.setValueAtTime(0, time);
-              glissSynth.detune.linearRampToValueAtTime(cents, time + noteDuration);
+              glissSynth.detune.setValueAtTime(microtuningCents, time);
+              glissSynth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
               glissSynth.triggerRelease(time + noteDuration);
             }
           } else {
-            synth.triggerAttackRelease(
-              noteName,
-              noteDuration,
-              time,
-              note.velocity || 0.8
-            );
+            const playNote = mt ? Tone.Frequency(note.pitch + mt, "midi").toFrequency() : noteName;
+            synth.triggerAttackRelease(playNote, noteDuration, time, note.velocity || 0.8);
           }
         }
       });
     });
-    console.log("[WAV] Waiting for all samples to load...");
-    await Tone.loaded();
-    console.log("[WAV] Samples loaded, starting offline rendering");
     transport.start(0);
   }, finalDuration);
   const wavBlob = await audioBufferToWav(buffer);
@@ -9865,8 +10096,8 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  a.textContent = `Download ${filename}`;
+  return a;
 }
 async function buildAudioGraphInstruments(composition, Tone) {
   if (!composition.audioGraph || !Array.isArray(composition.audioGraph)) {
@@ -9926,15 +10157,15 @@ function audioBufferToWav(buffer) {
   const length = buffer.length * numberOfChannels * 2;
   const arrayBuffer = new ArrayBuffer(44 + length);
   const view = new DataView(arrayBuffer);
-  const writeString = (offset2, string) => {
+  const writeString2 = (offset2, string) => {
     for (let i = 0; i < string.length; i++) {
       view.setUint8(offset2 + i, string.charCodeAt(i));
     }
   };
-  writeString(0, "RIFF");
+  writeString2(0, "RIFF");
   view.setUint32(4, 36 + length, true);
-  writeString(8, "WAVE");
-  writeString(12, "fmt ");
+  writeString2(8, "WAVE");
+  writeString2(12, "fmt ");
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, numberOfChannels, true);
@@ -9942,7 +10173,7 @@ function audioBufferToWav(buffer) {
   view.setUint32(28, sampleRate * numberOfChannels * 2, true);
   view.setUint16(32, numberOfChannels * 2, true);
   view.setUint16(34, 16, true);
-  writeString(36, "data");
+  writeString2(36, "data");
   view.setUint32(40, length, true);
   const channels = [];
   for (let i = 0; i < numberOfChannels; i++) {
@@ -10001,13 +10232,22 @@ function musicxml(composition) {
     });
     return { ...track, notes: notesWithTime };
   });
-  const totalDuration = tracksWithTime.reduce((maxDur, track) => {
+  const gridSize = 0.25;
+  const quantizedTracks = tracksWithTime.map((track) => ({
+    ...track,
+    notes: track.notes.map((note) => ({
+      ...note,
+      time: Math.round((note.time || 0) / gridSize) * gridSize,
+      duration: Math.max(gridSize, Math.round((note.duration || 1) / gridSize) * gridSize)
+    }))
+  }));
+  const totalDuration = quantizedTracks.reduce((maxDur, track) => {
     const trackEnd = track.notes.reduce((max, note) => {
       return Math.max(max, (note.time || 0) + (note.duration || 1));
     }, 0);
     return Math.max(maxDur, trackEnd);
   }, 0);
-  const trackMeasures = tracksWithTime.map((track) => {
+  const trackMeasures = quantizedTracks.map((track) => {
     return splitIntoMeasures(track.notes, measureDuration, totalDuration);
   });
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -10077,7 +10317,7 @@ function musicxml(composition) {
         xml += '        <sound tempo="${tempo}"/>\n';
         xml += "      </direction>\n";
       }
-      measure.forEach((note) => {
+      measure.forEach((note, noteIdx) => {
         if (note.isRest) {
           xml += "      <note>\n";
           xml += "        <rest/>\n";
@@ -10087,9 +10327,10 @@ function musicxml(composition) {
 `;
           xml += "      </note>\n";
         } else if (Array.isArray(note.pitch)) {
+          const isChordContinuation = noteIdx > 0 && !measure[noteIdx - 1].isRest && timeEqual(note.time, measure[noteIdx - 1].time);
           note.pitch.forEach((p, i) => {
             xml += "      <note>\n";
-            if (i > 0) {
+            if (i > 0 || isChordContinuation) {
               xml += "        <chord/>\n";
             }
             const { step, alter, octave } = midiToPitch(p);
@@ -10110,7 +10351,11 @@ function musicxml(composition) {
             xml += "      </note>\n";
           });
         } else {
+          const isChordContinuation = noteIdx > 0 && !measure[noteIdx - 1].isRest && timeEqual(note.time, measure[noteIdx - 1].time);
           xml += "      <note>\n";
+          if (isChordContinuation) {
+            xml += "        <chord/>\n";
+          }
           const { step, alter, octave } = midiToPitch(note.pitch);
           xml += "        <pitch>\n";
           xml += `          <step>${step}</step>
@@ -10155,7 +10400,6 @@ function timeEqual(a, b, tolerance = 1e-4) {
 function splitIntoMeasures(notes, measureDuration, totalDuration) {
   const measures = [];
   let currentMeasure = [];
-  let currentTime = normalizeTime(0);
   const sortedNotes = [...notes].sort((a, b) => (a.time || 0) - (b.time || 0));
   const normalizedNotes = sortedNotes.map((note) => ({
     ...note,
@@ -10450,7 +10694,6 @@ var jm = {
   // Converters
   converters: {
     midi,
-    downloadMidi,
     midiToJmon,
     tonejs,
     wav,

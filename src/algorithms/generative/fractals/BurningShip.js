@@ -3,10 +3,17 @@ import { ComplexPlaneFractal } from './ComplexPlaneFractal.js';
 /**
  * Burning Ship fractal generator for musical composition.
  * z₀ = 0, c = point in plane, iterate z = (|Re(z)| + i|Im(z)|)² + c
+ *
+ * @example
+ * new BurningShip({
+ *   center: { x: -0.5, y: -0.5 },
+ *   size: { w: 4, h: 3 },
+ *   width: 400, height: 400
+ * })
  */
 export class BurningShip extends ComplexPlaneFractal {
   constructor(options = {}) {
-    const defaults = { xMin: -2.5, xMax: 1.5, yMin: -2.0, yMax: 1.0 };
+    const defaults = { center: { x: -0.5, y: -0.5 }, size: { w: 4, h: 3 } };
     super({ ...defaults, ...options });
   }
 

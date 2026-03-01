@@ -496,10 +496,8 @@
     const mb = new jm.generative.fractals.Mandelbrot({
       width: 600,
       height: 600,
-      xMin: -2.0,
-      xMax: 1.0,
-      yMin: -1.5,
-      yMax: 1.5,
+      center: { x: -0.5, y: 0 },
+      size: { w: 3.0, h: 3.0 },
       maxIterations: 100
     });
 
@@ -524,7 +522,7 @@
       y: { axis: null },
       color: { scheme: "viridis", legend: true },
       marks: [
-    Plot.raster(mbPlotData, { x: "x", y: "y", fill: "value" })
+    Plot.raster(mbPlotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })
       ]
     }));
   </script>
@@ -533,16 +531,16 @@
   </script>
   <script id="39" type="module">
     const zoomRegions = [
-      { name: "Seahorse", xMin: -0.77, xMax: -0.74, yMin: 0.09, yMax: 0.12, maxIter: 500, synth: 0 },
-      { name: "Period-2", xMin: -1.2, xMax: -1.1, yMin: 0.2, yMax: 0.3, maxIter: 500, synth: 40 },
-      { name: "Deep", xMin: -1.150, xMax: -1.145, yMin: 0.275, yMax: 0.280, maxIter: 1000, synth: 73 }
+      { name: "Seahorse", center: { x: -0.755, y: 0.105 }, size: { w: 0.03, h: 0.03 }, maxIter: 500, synth: 0 },
+      { name: "Period-2", center: { x: -1.15, y: 0.25 }, size: { w: 0.1, h: 0.1 }, maxIter: 500, synth: 40 },
+      { name: "Deep", center: { x: -1.1475, y: 0.2775 }, size: { w: 0.005, h: 0.005 }, maxIter: 1000, synth: 73 }
     ];
 
-    const mbZoomPlots = zoomRegions.map(({ xMin, xMax, yMin, yMax, maxIter }, i) => {
+    const mbZoomPlots = zoomRegions.map(({ center, size, maxIter }, i) => {
       const zoomMb = new jm.generative.fractals.Mandelbrot({
     width: 300,
     height: 300,
-    xMin, xMax, yMin, yMax,
+    center, size,
     maxIterations: maxIter
       });
 
@@ -563,7 +561,7 @@
       y: { axis: null },
       color: { scheme: "viridis" },
       marks: [
-        Plot.raster(zoomPlotData, { x: "x", y: "y", fill: "value" })
+        Plot.raster(zoomPlotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })
       ]
     })}
       </div>`;
@@ -586,10 +584,10 @@
     const pianoRollWidth = 192;
     const pianoRollHeight = 24;
 
-    const zoomTracks = zoomRegions.map(({ name, xMin, xMax, yMin, yMax, maxIter, synth }) => {
+    const zoomTracks = zoomRegions.map(({ name, center, size, maxIter, synth }) => {
       const mb = new jm.generative.fractals.Mandelbrot({
         width: pianoRollWidth, height: pianoRollHeight,
-        xMin, xMax, yMin, yMax, maxIterations: maxIter
+        center, size, maxIterations: maxIter
       });
       const grid = mb.generate();
       const notes = mb.gridToNotes({ grid, pitches: gMajorPitches, duration: 0.5, maxDuration: 8 });
@@ -633,47 +631,6 @@
     //display(await jm.score(mbPiece, { verovio, VerovioToolkit }));
     display(await jm.play(mbPiece, { Tone }));
     display(await jm.converters.downloadWav(mbPiece, Tone, "fractal.wav"));
-  </script>
-  <script type="text/markdown">
-    ## Center + Size Coordinates
-
-    Instead of computing `xMin/xMax/yMin/yMax` manually, you can use **center + size** coordinates — the same format used by fractal viewers like [findfractals.com](https://www.findfractals.com/mandelbrot-fractal-viewer.php).
-
-    Browse a fractal viewer, find a visually interesting region, and paste the coordinates:
-  </script>
-  <script type="module">
-    // Same region as Zoom 4 above, but using center+size
-    const mbCenterSize = new jm.generative.fractals.Mandelbrot({
-      width: 300,
-      height: 300,
-      center: { x: -1.1475, y: 0.2775 },
-      size: { w: 0.005, h: 0.005 },
-      maxIterations: 500
-    });
-
-    const csData = mbCenterSize.generate();
-    const csPlotData = [];
-    csData.forEach((row, y) => {
-      row.forEach((value, x) => {
-        csPlotData.push({ x, y, value });
-      });
-    });
-
-    display(Plot.plot({
-      title: "Mandelbrot with center+size coordinates",
-      width: 400,
-      height: 400,
-      x: { axis: null },
-      y: { axis: null },
-      color: { scheme: "viridis" },
-      marks: [
-        Plot.raster(csPlotData, { x: "x", y: "y", fill: "value" })
-      ]
-    }));
-
-    // You can also read back the center and bounds
-    display(`Center: (${mbCenterSize.center.x}, ${mbCenterSize.center.y})`);
-    display(`Size: ${mbCenterSize.size.w} × ${mbCenterSize.size.h}`);
   </script>
   <script type="text/markdown">
     ## Julia Set
@@ -724,7 +681,7 @@
           y: { axis: null },
           color: { scheme: "magma" },
           marks: [
-            Plot.raster(plotData, { x: "x", y: "y", fill: "value" })
+            Plot.raster(plotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })
           ]
         })}
       </div>`;
@@ -733,42 +690,49 @@
     display(html`<div style="display: flex; flex-wrap: wrap; justify-content: center;">${juliaPlots}</div>`);
   </script>
   <script type="text/markdown">
-    ### Julia Set Music
+    ### Julia Set Piano Roll
 
-    Let's extract a melody from the dendrite Julia set:
+    Just like the Mandelbrot, we use the 2D grid as a piano roll. The dendrite Julia set has intricate, branching boundary patterns that produce rich polyphonic textures:
   </script>
-  <script type="module">
-    // Low-resolution Julia for music
+  <script type="module" pinned>
+    // Julia piano roll — same approach as Mandelbrot: 2D grid as piano roll
+    const juliaPianoRollWidth = 192;
+    const juliaPianoRollHeight = 24;
+
+    const dMinorScale = new jm.theory.harmony.Scale({ tonic: 'D', mode: 'minor' });
+    const dMinorPitches = dMinorScale.generate({ start: 'D3', length: juliaPianoRollHeight });
+
     const juliaMusic = new jm.generative.fractals.Julia({
       c: { real: -0.7, imaginary: 0.27015 },
-      width: 20, height: 20,
-      maxIterations: 100
+      width: juliaPianoRollWidth, height: juliaPianoRollHeight,
+      maxIterations: 200
     });
 
-    const juliaSequence = juliaMusic.extractSequence('diagonal');
-    display("Julia sequence: " + juliaSequence.join(", "));
-
-    // Map to D minor scale
-    const dMinorScale = new jm.theory.harmony.Scale({ tonic: 'D', mode: 'minor' });
-    const dMinorPitches = dMinorScale.generate({ start: 'D3', length: 15 });
-
-    const juliaPitches = juliaMusic.mapToScale({
-      sequence: juliaSequence,
-      pitches: dMinorPitches
+    const juliaGrid = juliaMusic.generate();
+    const juliaNotes = juliaMusic.gridToNotes({
+      grid: juliaGrid, pitches: dMinorPitches, duration: 0.5, maxDuration: 8
     });
 
-    const juliaNotes = jm.theory.rhythm.beatcycle(
-      juliaPitches,
-      [1, 0.5, 0.5, 1, 2]
-    );
+    // Piano roll visualization
+    display(Plot.plot({
+      title: "Dendrite Julia — piano roll",
+      width: 500, height: 200,
+      x: { label: "Time" },
+      y: { label: "Pitch" },
+      color: { scheme: "greys", domain: [0, 1] },
+      marks: [
+        Plot.cell(juliaNotes, { x: "time", y: "pitch", fill: "velocity", inset: 0.5 })
+      ]
+    }));
 
     const juliaPiece = {
-      title: "Julia Set Melody",
-      tempo: 100,
+      title: "Julia Set — Dendrite",
+      tempo: 130,
+      keySignature: "D-minor",
       tracks: [{ notes: juliaNotes, synth: 0 }]
     };
 
-    display(await jm.score(juliaPiece, { verovio }));
+    display(await jm.score(juliaPiece, { verovio, VerovioToolkit }));
     display(await jm.play(juliaPiece, { Tone }));
   </script>
   <script type="text/markdown">
@@ -776,7 +740,7 @@
 
     The Burning Ship fractal uses the iteration `z = (|Re(z)| + i|Im(z)|)² + c` — the absolute values before squaring create the characteristic "ship" shape.
   </script>
-  <script type="module">
+  <script type="module" pinned>
     const ship = new jm.generative.fractals.BurningShip({
       width: 400, height: 400,
       center: { x: -1.75, y: -0.03 },
@@ -800,7 +764,7 @@
       y: { axis: null },
       color: { scheme: "turbo" },
       marks: [
-        Plot.raster(shipPlotData, { x: "x", y: "y", fill: "value" })
+        Plot.raster(shipPlotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })
       ]
     }));
   </script>
@@ -809,7 +773,7 @@
 
     The `Fractal` factory lets you create any complex plane fractal by type name — useful when the fractal type is a parameter:
   </script>
-  <script type="module">
+  <script type="module" pinned>
     // Fractal factory — create fractals by type name
     const types = ['mandelbrot', 'julia', 'burningship'];
 
@@ -832,7 +796,7 @@
           width: 200, height: 200,
           x: { axis: null }, y: { axis: null },
           color: { scheme: "viridis" },
-          marks: [Plot.raster(plotData, { x: "x", y: "y", fill: "value" })]
+          marks: [Plot.raster(plotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })]
         })}
       </div>`;
     });

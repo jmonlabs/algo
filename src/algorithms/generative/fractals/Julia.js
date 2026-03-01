@@ -5,14 +5,13 @@ import { ComplexPlaneFractal } from './ComplexPlaneFractal.js';
  * z₀ = point in plane, c = fixed parameter, iterate z = z² + c
  *
  * @example
- * // Classic dendrite Julia set
  * new Julia({ c: { real: -0.7, imaginary: 0.27015 } })
  *
- * // With center+size coordinates from a fractal viewer
+ * @example
  * new Julia({
  *   c: { real: -0.8, imaginary: 0.156 },
  *   center: { x: 0, y: 0 },
- *   size: { w: 3, h: 3 }
+ *   size: { w: 4, h: 4 }
  * })
  */
 export class Julia extends ComplexPlaneFractal {
@@ -24,7 +23,8 @@ export class Julia extends ComplexPlaneFractal {
     if (!options.c) {
       throw new Error('Julia set requires a c parameter: { real, imaginary }');
     }
-    const defaults = { xMin: -2.0, xMax: 2.0, yMin: -2.0, yMax: 2.0 };
+    // Default viewing window: centered at origin, 4×4
+    const defaults = { center: { x: 0, y: 0 }, size: { w: 4, h: 4 } };
     super({ ...defaults, ...options });
     this.c = { real: options.c.real, imaginary: options.c.imaginary };
   }

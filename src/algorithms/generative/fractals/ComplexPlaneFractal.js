@@ -7,9 +7,10 @@
 /**
  * Base class for complex plane fractals (Mandelbrot, Julia, Burning Ship, etc.)
  *
- * Supports two coordinate formats:
- * - Bounds: `{ xMin, xMax, yMin, yMax }`
- * - Center + size: `{ center: { x, y }, size: { w, h } }`
+ * Constructor accepts `center` and `size`:
+ *   { center: { x, y }, size: { w, h } }
+ *
+ * `xMin/xMax/yMin/yMax` are deprecated — pass center and size instead.
  *
  * Subclasses must implement `iterate(point)` and the `type` getter.
  */
@@ -20,16 +21,30 @@ export class ComplexPlaneFractal {
     this.maxIterations = options.maxIterations || 100;
 
     if (options.center && options.size) {
-      this.xMin = options.center.x - options.size.w / 2;
-      this.xMax = options.center.x + options.size.w / 2;
-      this.yMin = options.center.y - options.size.h / 2;
-      this.yMax = options.center.y + options.size.h / 2;
+      // Primary API: center and size
+      this._center = { x: options.center.x, y: options.center.y };
+      this._size = { w: options.size.w, h: options.size.h };
+    } else if (options.xMin !== undefined || options.xMax !== undefined ||
+               options.yMin !== undefined || options.yMax !== undefined) {
+      // Deprecated: xMin/xMax/yMin/yMax
+      console.warn('[jmon/algo] xMin/xMax/yMin/yMax are deprecated. Use center and size instead.');
+      const xMin = options.xMin ?? -2.5;
+      const xMax = options.xMax ?? 1.5;
+      const yMin = options.yMin ?? -2.0;
+      const yMax = options.yMax ?? 2.0;
+      this._center = { x: (xMin + xMax) / 2, y: (yMin + yMax) / 2 };
+      this._size = { w: xMax - xMin, h: yMax - yMin };
     } else {
-      this.xMin = options.xMin ?? -2.5;
-      this.xMax = options.xMax ?? 1.5;
-      this.yMin = options.yMin ?? -2.0;
-      this.yMax = options.yMax ?? 2.0;
+      // Defaults: full Mandelbrot view
+      this._center = { x: -0.5, y: 0 };
+      this._size = { w: 4, h: 4 };
     }
+
+    // Internal bounds computed from center and size
+    this.xMin = this._center.x - this._size.w / 2;
+    this.xMax = this._center.x + this._size.w / 2;
+    this.yMin = this._center.y - this._size.h / 2;
+    this.yMax = this._center.y + this._size.h / 2;
   }
 
   /** @returns {string} Fractal type identifier */
@@ -39,15 +54,15 @@ export class ComplexPlaneFractal {
 
   /** @returns {{x: number, y: number}} Center of the viewing window */
   get center() {
-    return { x: (this.xMin + this.xMax) / 2, y: (this.yMin + this.yMax) / 2 };
+    return { ...this._center };
   }
 
   /** @returns {{w: number, h: number}} Size of the viewing window */
   get size() {
-    return { w: this.xMax - this.xMin, h: this.yMax - this.yMin };
+    return { ...this._size };
   }
 
-  /** @returns {{xMin: number, xMax: number, yMin: number, yMax: number}} Bounds */
+  /** @returns {{xMin: number, xMax: number, yMin: number, yMax: number}} Bounds (computed from center and size) */
   get bounds() {
     return { xMin: this.xMin, xMax: this.xMax, yMin: this.yMin, yMax: this.yMax };
   }
@@ -212,5 +227,90 @@ export class ComplexPlaneFractal {
       const clampedIndex = Math.max(0, Math.min(subdivisionIndex, subdivisions.length - 1));
       return 1 / subdivisions[clampedIndex];
     });
+  }
+
+  /**
+   * Treat the 2D iteration grid as a piano roll.
+   * x-axis = time, y-axis = pitch. Boundary pixels (iteration counts
+   * between thresholdMin and thresholdMax fractions of maxIterations)
+   * become active notes. Velocity is derived from the local iteration
+   * gradient magnitude. Consecutive same-pitch notes are merged into
+   * single longer notes.
+   *
+   * @param {Object} options
+   * @param {number[][]} options.grid - 2D iteration-count array (from generate())
+   * @param {number[]} options.pitches - MIDI pitch values, one per grid row (length must equal grid height)
+   * @param {number} [options.thresholdMin=0.1] - Lower boundary fraction of maxIterations
+   * @param {number} [options.thresholdMax=0.95] - Upper boundary fraction of maxIterations
+   * @param {number} [options.duration=1] - Duration of each time step in quarter notes
+   * @param {number} [options.maxDuration=Infinity] - Maximum merged note duration in quarter notes
+   * @returns {{ pitch: number, time: number, duration: number, velocity: number }[]} JMON note array
+   */
+  gridToNotes({ grid, pitches, thresholdMin = 0.1, thresholdMax = 0.95, duration = 1, maxDuration = Infinity }) {
+    const height = grid.length;
+    const width = grid[0]?.length || 0;
+    if (height === 0 || width === 0 || !pitches || pitches.length === 0) return [];
+
+    const lo = thresholdMin * this.maxIterations;
+    const hi = thresholdMax * this.maxIterations;
+
+    // Compute gradient magnitude for velocity
+    const gradient = [];
+    for (let y = 0; y < height; y++) {
+      gradient[y] = [];
+      for (let x = 0; x < width; x++) {
+        const dx = (grid[y][Math.min(x + 1, width - 1)] - grid[y][Math.max(x - 1, 0)]) / 2;
+        const dy = ((grid[Math.min(y + 1, height - 1)] || grid[y])[x] - (grid[Math.max(y - 1, 0)])[x]) / 2;
+        gradient[y][x] = Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+
+    // Find max gradient for normalization
+    let maxGrad = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (gradient[y][x] > maxGrad) maxGrad = gradient[y][x];
+      }
+    }
+    if (maxGrad === 0) maxGrad = 1;
+
+    // Build raw note events — row 0 maps to the highest pitch (top of piano roll)
+    const raw = [];
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        const v = grid[y][x];
+        if (v >= lo && v <= hi) {
+          const pitchIndex = height - 1 - y; // flip: top row = high pitch
+          const pitch = pitches[Math.min(pitchIndex, pitches.length - 1)];
+          const vel = 0.2 + 0.8 * (gradient[y][x] / maxGrad);
+          raw.push({ pitch, time: x * duration, duration, velocity: vel });
+        }
+      }
+    }
+
+    // Merge consecutive same-pitch notes
+    if (raw.length === 0) return [];
+
+    // Sort by pitch then time
+    raw.sort((a, b) => a.pitch - b.pitch || a.time - b.time);
+
+    const merged = [raw[0]];
+    for (let i = 1; i < raw.length; i++) {
+      const prev = merged[merged.length - 1];
+      const curr = raw[i];
+      if (curr.pitch === prev.pitch && Math.abs(curr.time - (prev.time + prev.duration)) < 0.001 && prev.duration < maxDuration) {
+        // Merge: extend duration, average velocity
+        const totalDur = prev.duration + curr.duration;
+        prev.velocity = (prev.velocity * prev.duration + curr.velocity * curr.duration) / totalDur;
+        prev.duration = totalDur;
+      } else {
+        merged.push({ ...curr });
+      }
+    }
+
+    // Sort final output by time then pitch
+    merged.sort((a, b) => a.time - b.time || a.pitch - b.pitch);
+
+    return merged;
   }
 }

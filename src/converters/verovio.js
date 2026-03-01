@@ -129,8 +129,8 @@ export function musicxml(composition) {
         xml += '      </direction>\n';
       }
 
-      // Notes in measure
-      measure.forEach(note => {
+      // Notes in measure — detect simultaneous notes as chords
+      measure.forEach((note, noteIdx) => {
         if (note.isRest) {
           xml += '      <note>\n';
           xml += '        <rest/>\n';
@@ -138,10 +138,12 @@ export function musicxml(composition) {
           xml += `        <type>${getDurationType(note.duration)}</type>\n`;
           xml += '      </note>\n';
         } else if (Array.isArray(note.pitch)) {
-          // Chord
+          // Chord (explicit pitch array)
+          const isChordContinuation = noteIdx > 0 && !measure[noteIdx - 1].isRest &&
+            timeEqual(note.time, measure[noteIdx - 1].time);
           note.pitch.forEach((p, i) => {
             xml += '      <note>\n';
-            if (i > 0) {
+            if (i > 0 || isChordContinuation) {
               xml += '        <chord/>\n';
             }
             const { step, alter, octave } = midiToPitch(p);
@@ -157,8 +159,13 @@ export function musicxml(composition) {
             xml += '      </note>\n';
           });
         } else {
-          // Single note
+          // Single note — check if it shares time with the previous note (chord)
+          const isChordContinuation = noteIdx > 0 && !measure[noteIdx - 1].isRest &&
+            timeEqual(note.time, measure[noteIdx - 1].time);
           xml += '      <note>\n';
+          if (isChordContinuation) {
+            xml += '        <chord/>\n';
+          }
           const { step, alter, octave } = midiToPitch(note.pitch);
           xml += '        <pitch>\n';
           xml += `          <step>${step}</step>\n`;
