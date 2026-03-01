@@ -717,7 +717,7 @@
     display(Plot.plot({
       title: "Dendrite Julia — piano roll",
       width: 500, height: 200,
-      x: { label: "Time" },
+      x: { label: "Time", domain: d3.range(0, Math.max(...juliaNotes.map(d => d.time)) + 1) },
       y: { label: "Pitch" },
       color: { scheme: "greys", domain: [0, 1] },
       marks: [
