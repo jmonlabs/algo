@@ -53,14 +53,10 @@
   },
   "homepage": "https://github.com/jmonlabs/algo#readme",
   "peerDependencies": {
-    "tone": "^14.8.49",
-    "@tangent.to/ds": "^0.1.0"
+    "tone": "^14.8.49"
   },
   "peerDependenciesMeta": {
     "tone": {
-      "optional": true
-    },
-    "@tangent.to/ds": {
       "optional": true
     }
   },

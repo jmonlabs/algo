@@ -68,27 +68,27 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 			}
 		});
 
-		// Create synths for each track
+		// Phase 1: Create synths and effects for each track
+		const trackSynths = [];
+		const samplers = [];
 		tracks.forEach((track, trackIndex) => {
-			const notes = track.events || track.notes || [];
 			const synthRef = track.synthRef;
 			const trackModulations = compiledModulations[trackIndex] || [];
 
 			// Determine which synth/sampler to use
 			let synth = null;
+			const gmProgram = typeof track.synth === "number" ? track.synth : track.instrument;
 			if (synthRef && graphInstruments && graphInstruments[synthRef]) {
-				// Use audioGraph synth
 				synth = graphInstruments[synthRef];
-			} else if (track.instrument !== undefined && !track.synth) {
-				// Create Sampler for GM instrument
-				const urls = generateSamplerUrls(track.instrument);
+			} else if (gmProgram !== undefined) {
+				const urls = generateSamplerUrls(gmProgram);
 				synth = new Tone.Sampler({
 					urls,
-					baseUrl: "" // URLs are already complete
+					baseUrl: ""
 				}).toDestination();
-				console.log(`[WAV] Creating Sampler for GM instrument ${track.instrument}`);
+				samplers.push(synth);
+				console.log(`[WAV] Creating Sampler for GM instrument ${gmProgram}`);
 			} else {
-				// Use specified synth type or default PolySynth
 				const synthType = track.synth || "PolySynth";
 				try {
 					synth = new Tone[synthType]().toDestination();
@@ -105,28 +105,21 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 				(m) => m.type === "amplitude" && m.subtype === "tremolo"
 			);
 
-			// Create effect chain if needed
 			let vibratoEffect = null;
 			let tremoloEffect = null;
 
 			if (vibratoMods.length > 0 || tremoloMods.length > 0) {
-				console.log(
-					`[WAV] Creating effect chain for track ${trackIndex} (${vibratoMods.length} vibrato, ${tremoloMods.length} tremolo)`
-				);
-
-				// Disconnect synth from destination first
 				if (!synthRef || !graphInstruments?.[synthRef]) {
 					synth.disconnect();
 				}
 
-				// Create effects
 				if (vibratoMods.length > 0) {
 					const defaultVibrato = vibratoMods[0];
 					vibratoEffect = new Tone.Vibrato({
 						frequency: defaultVibrato.rate || 5,
 						depth: (defaultVibrato.depth || 50) / 100,
 					});
-					vibratoEffect.wet.value = 0; // Start disabled
+					vibratoEffect.wet.value = 0;
 				}
 
 				if (tremoloMods.length > 0) {
@@ -135,10 +128,9 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 						frequency: defaultTremolo.rate || 8,
 						depth: defaultTremolo.depth || 0.3,
 					}).start();
-					tremoloEffect.wet.value = 0; // Start disabled
+					tremoloEffect.wet.value = 0;
 				}
 
-				// Connect effect chain
 				if (vibratoEffect && tremoloEffect) {
 					synth.connect(vibratoEffect);
 					vibratoEffect.connect(tremoloEffect);
@@ -150,49 +142,48 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 					synth.connect(tremoloEffect);
 					tremoloEffect.toDestination();
 				}
-
-				// Schedule effect enable/disable based on modulations
-				trackModulations.forEach((mod) => {
-					const startTime = mod.start * secondsPerQuarterNote;
-					const endTime = mod.end * secondsPerQuarterNote;
-
-					if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
-						const vibratoFreq = mod.rate || 5;
-						const vibratoDepth = (mod.depth || 50) / 100;
-
-						// Schedule enable
-						transport.schedule((time) => {
-							vibratoEffect.frequency.value = vibratoFreq;
-							vibratoEffect.depth.value = vibratoDepth;
-							vibratoEffect.wet.value = 1;
-						}, startTime);
-
-						// Schedule disable
-						transport.schedule((time) => {
-							vibratoEffect.wet.value = 0;
-						}, endTime);
-					}
-
-					if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
-						const tremoloFreq = mod.rate || 8;
-						const tremoloDepth = mod.depth || 0.3;
-
-						// Schedule enable
-						transport.schedule((time) => {
-							tremoloEffect.frequency.value = tremoloFreq;
-							tremoloEffect.depth.value = tremoloDepth;
-							tremoloEffect.wet.value = 1;
-						}, startTime);
-
-						// Schedule disable
-						transport.schedule((time) => {
-							tremoloEffect.wet.value = 0;
-						}, endTime);
-					}
-				});
 			}
 
-			// Create modulation lookup by note index for glissando
+			trackSynths.push({ synth, vibratoEffect, tremoloEffect });
+		});
+
+		// Phase 2: Wait for all samplers to finish loading
+		console.log(`[WAV] Waiting for ${samplers.length} sampler(s) to load...`);
+		await Promise.all(samplers.map(s => s.loaded));
+		await Tone.loaded();
+		console.log('[WAV] Samples loaded, scheduling notes');
+
+		// Phase 3: Schedule notes and modulation effects
+		tracks.forEach((track, trackIndex) => {
+			const notes = track.events || track.notes || [];
+			const trackModulations = compiledModulations[trackIndex] || [];
+			const { synth, vibratoEffect, tremoloEffect } = trackSynths[trackIndex];
+
+			// Schedule effect enable/disable
+			trackModulations.forEach((mod) => {
+				const startTime = mod.start * secondsPerQuarterNote;
+				const endTime = mod.end * secondsPerQuarterNote;
+
+				if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
+					transport.schedule(() => {
+						vibratoEffect.frequency.value = mod.rate || 5;
+						vibratoEffect.depth.value = (mod.depth || 50) / 100;
+						vibratoEffect.wet.value = 1;
+					}, startTime);
+					transport.schedule(() => { vibratoEffect.wet.value = 0; }, endTime);
+				}
+
+				if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
+					transport.schedule(() => {
+						tremoloEffect.frequency.value = mod.rate || 8;
+						tremoloEffect.depth.value = mod.depth || 0.3;
+						tremoloEffect.wet.value = 1;
+					}, startTime);
+					transport.schedule(() => { tremoloEffect.wet.value = 0; }, endTime);
+				}
+			});
+
+			// Build glissando lookup
 			const modsByNote = {};
 			trackModulations.forEach((mod) => {
 				if (!modsByNote[mod.index]) modsByNote[mod.index] = [];
@@ -205,73 +196,56 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 				const noteDuration = (note.duration || 1) * secondsPerQuarterNote;
 				const noteMods = modsByNote[noteIndex] || [];
 
-				// Check for glissando
 				const glissando = noteMods.find(
 					(m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
 				);
 
+				const mt = note.microtuning || 0;
+
 				if (Array.isArray(note.pitch)) {
-					const noteNames = note.pitch.map((p) =>
-						typeof p === "number" ? Tone.Frequency(p, "midi").toNote() : p
+					const chordNotes = note.pitch.map((p) =>
+						typeof p === "number"
+							? (mt ? Tone.Frequency(p + mt, "midi").toFrequency() : Tone.Frequency(p, "midi").toNote())
+							: p
 					);
-					synth.triggerAttackRelease(
-						noteNames,
-						noteDuration,
-						time,
-						note.velocity || 0.8
-					);
+					synth.triggerAttackRelease(chordNotes, noteDuration, time, note.velocity || 0.8);
 				} else {
 					const noteName =
 						typeof note.pitch === "number"
 							? Tone.Frequency(note.pitch, "midi").toNote()
 							: note.pitch;
 
-					// Handle glissando using detune parameter
 					if (glissando && glissando.to !== undefined) {
 						const toNote = typeof glissando.to === "number"
 							? Tone.Frequency(glissando.to, "midi").toNote()
 							: glissando.to;
-
 						const startFreq = Tone.Frequency(noteName).toFrequency();
 						const endFreq = Tone.Frequency(toNote).toFrequency();
 						const cents = 1200 * Math.log2(endFreq / startFreq);
+						const microtuningCents = mt * 100;
 
 						if (synth.detune) {
-							// Main synth supports detune
-							console.log(`[WAV] Glissando using main synth: ${noteName} -> ${toNote} (${cents} cents)`);
-
 							synth.triggerAttack(noteName, time, note.velocity || 0.8);
-							synth.detune.setValueAtTime(0, time);
-							synth.detune.linearRampToValueAtTime(cents, time + noteDuration);
+							synth.detune.setValueAtTime(microtuningCents, time);
+							synth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
 							synth.triggerRelease(time + noteDuration);
 						} else {
-							// Create temporary MonoSynth for glissando
-							// (PolySynth and Sampler don't support detune automation)
-							console.log(`[WAV] Glissando using temp MonoSynth: ${noteName} -> ${toNote} (${cents} cents)`);
-
 							const glissSynth = new Tone.MonoSynth().toDestination();
 							glissSynth.triggerAttack(noteName, time, note.velocity || 0.8);
-							glissSynth.detune.setValueAtTime(0, time);
-							glissSynth.detune.linearRampToValueAtTime(cents, time + noteDuration);
+							glissSynth.detune.setValueAtTime(microtuningCents, time);
+							glissSynth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
 							glissSynth.triggerRelease(time + noteDuration);
 						}
 					} else {
-						// Normal note
-						synth.triggerAttackRelease(
-							noteName,
-							noteDuration,
-							time,
-							note.velocity || 0.8
-						);
+						// Apply microtuning by converting to frequency
+						const playNote = mt
+							? Tone.Frequency(note.pitch + mt, "midi").toFrequency()
+							: noteName;
+						synth.triggerAttackRelease(playNote, noteDuration, time, note.velocity || 0.8);
 					}
 				}
 			});
 		});
-
-		// Wait for all samplers to load before starting offline rendering
-		console.log('[WAV] Waiting for all samples to load...');
-		await Tone.loaded();
-		console.log('[WAV] Samples loaded, starting offline rendering');
 
 		transport.start(0);
 	}, finalDuration);
@@ -279,13 +253,13 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 	// Convert AudioBuffer to WAV blob
 	const wavBlob = await audioBufferToWav(buffer);
 
-	// Download
+	// Return a download link element (like the MIDI converter)
 	const url = URL.createObjectURL(wavBlob);
 	const a = document.createElement("a");
 	a.href = url;
 	a.download = filename;
-	a.click();
-	URL.revokeObjectURL(url);
+	a.textContent = `Download ${filename}`;
+	return a;
 }
 
 /**

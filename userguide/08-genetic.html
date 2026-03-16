@@ -2,15 +2,15 @@
 <notebook theme="air">
   <title>8. Genetic Algorithms</title>
   <script id="0" type="text/markdown">
-    # 8. Genetic Algorithms
+    # 8. Genetic algorithms
 
-    Genetic algorithms mimic natural selection and genetics to evolve solutions to problems over successive generations. Suppose we have a sequence of musical objects, described as:
+    Genetic algorithms borrow ideas from natural selection to evolve solutions over successive generations. Start with a sequence of musical objects.
 
     ```
     [🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨, 🟨]
     ```
 
-    We can clone it to obtain a population. But as in life, cloning is not perfect and mutations can occur.
+    Clone it to get a population. But cloning isn't perfect. Mutations happen.
 
     ```
     [
@@ -22,7 +22,7 @@
     ]
     ```
 
-    These mutations could benefit a sequence, or not. We need to quantify the benefit/detriment acquired after mutation.
+    Some mutations help, some don't. We score each individual to find out.
 
     ```
     [
@@ -34,7 +34,7 @@
     ]
     ```
 
-    We can breed together the best ones (let's say the two best ones who survived) to create children. Children can have the traits of a parent or another, and also can contain mutations.
+    The best survivors breed to create children. Children inherit traits from either parent, and mutations can appear again.
 
     ```
     [
@@ -46,24 +46,23 @@
     ]
     ```
 
-    And so on. Given an initial population, scoring criteria, number of best mates, mutation rates and number of generations, we can "evolve" a piece of music.
+    And so on. Given an initial population, scoring criteria, mutation rates and a number of generations, we can "evolve" a piece of music.
   </script>
   <script id="1" type="module" pinned="">
     import jm from "../src/index.js";
     import * as Tone from "npm:tone";
     import verovio from "npm:verovio@4.3.1/wasm";
+    import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
     import * as Plot from "npm:@observablehq/plot@0.6";
   </script>
   <script id="2" type="text/markdown">
     ## The `Darwin` class
 
-    The `Darwin` class in the `genetic` module takes care of the evolution process, while the `MusicalIndex` class in the `analysis` module takes care of scoring.
+    The `Darwin` class handles the evolution process, while `MusicalIndex` handles scoring.
 
-    ### 1. Population Initialization
+    ### 1. Population
 
-    The evolutionary journey begins with the creation of an initial population. In the `Darwin` class, this population is a list of notes, or track, complying to jmon/algo's notation, where each note is a `[pitch, duration, time]` array. This population acts as the gene pool from which new musical ideas will be generated and evolved. The diversity within this initial population is crucial as it lays the foundation for genetic variation and the potential for innovative musical creations.
-
-    Twinkle, twinkle little star in C-major can be used as our primordial soup.
+    Evolution starts from an initial population - a list of notes in jmon/algo format where each note is `[pitch, duration, time]`. This population is the gene pool from which new musical ideas will emerge. We'll use Twinkle, Twinkle Little Star in C major as our starting point.
   </script>
   <script id="3" type="module" pinned="">
     const initialPhrases = [
@@ -89,20 +88,18 @@
     display(initialPhrases[0]);
   </script>
   <script id="4" type="text/markdown">
-    ### 2. Fitness Evaluation
+    ### 2. Fitness evaluation
 
-    Once the population is established, each member (musical phrase) undergoes a fitness evaluation. This is where the `MusicalIndex` class assesses how well each phrase meets predefined quantitative criteria based on a variety of metrics, including pitch diversity, rhythmic balance, and motif development. An overall score is computed as the weighted similarity to ideal scores defined as targets. This score determines the phrase's suitability and guides the selection process for the next generation. The higher the similarity score, the better the musical phrase aligns with the desired compositional goals.
-
-    Let's examine the metrics for our initial phrase:
+    Each phrase is scored on how well it meets quantitative criteria: pitch diversity, rhythmic balance, motif repetition, and so on. The `MusicalIndex` class computes these metrics, and an overall fitness score is the weighted similarity to predefined targets. Higher fitness means closer to the compositional goals. Since we start from clones, all individuals in the initial population have the same score - until mutations kick in. Here are the metrics for our starting phrase.
   </script>
-  <script id="5" type="module">
+  <script id="5" type="module" pinned="">
     // Extract pitch and duration sequences
     const pInitial = initialPhrases[0].map(note => note[0]);
     const rInitial = initialPhrases[0].map(note => note[1]);
 
     // Create C major scale for dissonance calculation
     const cMajorScale = new jm.theory.harmony.Scale({ tonic: 'C', mode: 'major' });
-    const cMajorPitches = cMajorScale.generate({ start: 'C0', length: 128 });
+    const cMajorPitches = cMajorScale.generate({ start: 'C0', end: 127 });
 
     // Calculate metrics
     const pitchIndex = new jm.analysis.MusicalIndex(pInitial);
@@ -150,65 +147,53 @@
       marks: [
         Plot.barX(categories.map((cat, i) => ({ category: cat, value: initialValues[i] })), {
           x: "value",
-          y: "category",
-          fill: "steelblue"
+          y: "category"
         })
       ]
     }));
   </script>
   <script id="6" type="text/markdown">
-    In the beginning, the population is composed of clones of the initial musical phrase. So the fitness score of each individual of the initial population should be equal. Until mutations happen.
-
     ### 3. Mutation
 
-    Mutation introduces random changes to the musical phrases. In the Darwin class, this can involve altering the pitch, duration, or time of notes within a phrase - although in practice it is more convenient to consider the time as a consequence of following durations. The mutation rate determines the probability of these changes occurring and is a critical factor in maintaining genetic diversity within the population. By introducing new variations, mutation ensures that the evolutionary process does not stagnate and allows for the exploration of new musical territories.
-
-    **API call.**
+    Mutation introduces random changes to pitch, duration, or timing. The `mutationRate` parameter controls how often this happens. Too low and the population stagnates; too high and you get noise.
 
     ```js
-    const mutationExample = demoDarwin.mutate(initialPhrases[0].map(note => [...note]));
+    const mutated = demoDarwin.mutate(initialPhrases[0].map(note => [...note]));
     ```
 
     ### 4. Selection
 
-    Selection is the process of choosing the fittest individuals from the population to carry forward to the next generation. The Darwin class employs a method where the top-performing musical phrases (based on their fitness scores) are selected. This mimics natural selection, where the most adapted individuals have a higher chance of survival and reproduction. The selected phrases ensure that the population's quality improves over generations, moving closer to the desired musical objectives.
+    The fittest individuals survive and become parents for the next generation.
 
     **API call.**
 
     ```js
-    const selectedParents = demoDarwin.select(5);
+    const parents = demoDarwin.select(5);
     ```
 
     ### 5. Crossover
 
-    Crossover, or recombination, is the process where genetic material is exchanged between the phrases of two random parents (who survived the selection process) to produce new offspring phrases. This is akin to mating in natural systems. In the context of the `Darwin` class, segments from two selected musical phrases are combined to create new phrases. This mixing of genetic information promotes diversity within the population and contributes to the development of innovative and complex musical compositions.
-
-    **API call.**
+    Two parents exchange segments to produce offspring - like genetic recombination. The children combine traits from both parents, plus any new mutations.
 
     ```js
-    const crossoverChild = demoDarwin.crossover(selectedParents[0], selectedParents[1]);
+    const child = demoDarwin.crossover(parents[0], parents[1]);
     ```
 
-    ### 6. The Evolution Process
+    ### 6. Evolution
 
-    The evolution process in the `Darwin` class encompasses the repeated application of mutation, selection, and crossover over multiple generations. With each generation, the population undergoes mutation and recombination, followed by the selection of the fittest individuals based on their adaptivity to the musical criteria. This cycle continues iteratively, with the population ideally becoming more refined and closer to the desired musical goals with each generation.
-
-    **API call.**
+    The full cycle - mutate, select, crossover - repeats for many generations. Fitness should climb and eventually plateau.
 
     ```js
-    const generationStats = demoDarwin.evolve(5);
+    const stats = demoDarwin.evolve(5);
     ```
-
-    The following cell executes these snippets on a lightweight `demoDarwin` instance so you can compare the actual arrays that come out of each method before we launch the longer evolution run.
-
-    With the groundwork laid, we proceed to the core of our exploration: the application of the Darwin class to evolve our musical phrases.
   </script>
   <script id="6a" type="module">
+    const demoScale = cMajorScale.generate({ start: 'C3', end: 'C6' });
     const demoDarwin = new jm.generative.genetic.Darwin({
       initialPhrases: initialPhrases,
       mutationRate: 0.05,
       populationSize: 40,
-      scale: cMajorPitches,
+      scale: demoScale,
       measureLength: 4,
       timeResolution: [0.25, 4],
       seed: 7
@@ -248,12 +233,16 @@
       rest: [0.0, 0.0, 0.0]
     };
 
+    // Narrow the scale to a musical range around the initial phrase (C3–C6)
+    // so pitch mutations stay close to the original register
+    const evolverScale = cMajorScale.generate({ start: 'C3', end: 'C6' });
+
     // Create the evolver
     const evolver = new jm.generative.genetic.Darwin({
       initialPhrases: initialPhrases,
       mutationRate: 0.05,
       populationSize: 200,
-      scale: cMajorPitches,
+      scale: evolverScale,
       measureLength: 4,
       timeResolution: [0.25, 4],
       weights: weights,
@@ -264,45 +253,38 @@
     display("Darwin evolver created with population size: " + evolver.populationSize);
   </script>
   <script id="8" type="text/markdown">
-    The Darwin class encapsulates the genetic algorithm, facilitating the evolution of our initial musical phrases through processes of mutation, selection, and crossover. The parameters such as `mutationRate`, `populationSize`, and `timeResolution` define the environment and rules under which our musical compositions will evolve.
+    ### Configuring the evolution
 
-    ### Fitness weights & targets at a glance
+    The `weights` control how much each metric matters; the `targets` define the ideal value for each. The `scale` parameter limits which pitches mutations can pick from.
 
-    | Metric | What it measures | Default weight (pitch / duration / offset) | Typical target range |
-    | --- | --- | --- | --- |
-    | `gini` | Evenness of pitch or duration distribution | `1.0 / 1.0 / 0.0` | Pitch `0.1–0.3`, duration `0.4–0.6` |
-    | `balance` | Center of gravity (e.g., around middle C) | `1.0 / 1.0 / 0.0` | Pitch `0.45–0.55`, duration `0.1–0.2` |
-    | `motif` | Repetition strength | `10.0 / 1.0 / 0.0` | `0.7–1.0` |
-    | `dissonance` | Scale conformity | `1.0 / 0.0 / 0.0` | `< 0.1` for diatonic phrases |
-    | `rhythmic` | Grid alignment of durations | `0.0 / 10.0 / 0.0` | `0.8–1.0` |
-    | `rest` | Silence proportion | `1.0 / 0.0 / 0.0` | `0.0–0.05` |
+    A few practical tips:
 
-    Use the weights to emphasize the columns that matter for your piece (many workflows keep offset weights at zero). Targets act as magnets: the closer a phrase gets to them, the higher the fitness.
+    - **`mutationRate`**: keep it between 0.02 and 0.15. Above that, phrases become noisy; below, evolution stalls.
+    - **`populationSize`**: 40–250 works well. Larger populations explore more but run slower.
+    - **`timeResolution`**: pair it with `measureLength` so durations snap to your rhythmic grid.
+    - **`k` in `evolve(k)`**: the number of parents selected each generation. 10–25 is a good range.
 
-    **Tuning tips**
-
-    - `mutationRate`: keep it between `0.02` and `0.15`; higher values create noisy phrases, lower values risk stagnation.
-    - `populationSize`: `40–250` is practical. Larger populations explore more but take longer to evaluate.
-    - `timeResolution`: pair it with `measureLength` so durations snap to your intended rhythmic grid.
-    - `k` argument in `evolve(k)`: select 10–25 parents for melodic material; increase `k` when you need stronger selection pressure.
-    - `mutationProbabilities`: override the defaults when you want to bias mutations toward a register, rhythm family, or rest density.
-
-    This evolution process is run in a loop. It's the heart of the genetic algorithm, where each cycle represents a generational shift towards optimal musical phrases based on the weights and targets. After some iterations, the musical piece should stop its evolution, since it's no longer relying on finding good parents, but rather relying on random mutations to improve.
+    Below we run 12 generations with `evolve(10)` - each round selects the 10 fittest parents, breeds them, and mutates the offspring.
   </script>
   <script id="9" type="module" pinned="">
     // Run evolution
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 12; i++) {
       evolver.evolve(10); // k=10 parents selected each generation
     }
+
+    // Snapshot data so downstream cells see the evolved state
+    const bestScores = [...evolver.bestScores];
+    const bestIndividuals = evolver.bestIndividuals.map(ind => [...ind]);
+    const finalPhrase = evolver.getBestIndividual();
 
     display("Evolution complete! Ran " + evolver.generationCount + " generations");
   </script>
   <script id="10" type="text/markdown">
-    We can plot the similarity score to make sure it indeed evolved:
+    The fitness of the best individual at each generation should climb and then level off.
   </script>
   <script id="11" type="module">
     // Plot evolution of fitness scores
-    const scoreData = evolver.bestScores.map((score, generation) => ({
+    const scoreData = bestScores.map((score, generation) => ({
       generation,
       fitness: score
     }));
@@ -314,17 +296,16 @@
       x: { label: "Generation" },
       y: { label: "Fitness score" },
       marks: [
-        Plot.line(scoreData, { x: "generation", y: "fitness", stroke: "steelblue" }),
-        Plot.dot(scoreData, { x: "generation", y: "fitness", fill: "steelblue", r: 2 })
+        Plot.line(scoreData, { x: "generation", y: "fitness" }),
+        Plot.dot(scoreData, { x: "generation", y: "fitness", r: 2 })
       ]
     }));
   </script>
   <script id="12" type="text/markdown">
-    Upon the conclusion of the evolutionary cycles, it's crucial to evaluate the transformed musical material. Let's compare the initial and final metrics:
+    How do the evolved phrase's metrics compare to the initial Twinkle and to our targets?
   </script>
   <script id="13" type="module">
-    // Get final phrase
-    const finalPhrase = evolver.getBestIndividual();
+    // Use finalPhrase snapshot from script 9
     const pFinal = finalPhrase.map(note => note[0]);
     const rFinal = finalPhrase.map(note => note[1]);
 
@@ -392,7 +373,7 @@
     }));
   </script>
   <script id="14" type="text/markdown">
-    Although some metrics might diverge from targets, overall the evolution has moved the musical phrase toward the desired characteristics. Here is our final piece!
+    Some metrics won't reach their target - that's expected when targets pull in conflicting directions (e.g. high motif repetition vs. high pitch diversity). The evolved phrase is a compromise.
   </script>
   <script id="15" type="module" pinned="">
     // Quantize the notes (working with tuple format [pitch, duration, time])
@@ -417,16 +398,17 @@
         synth: 0
       }]
     };
+    display(galapagosStars)
 
-    //display(await jm.score(galapagosStars, { verovio }));
+    //display(await jm.score(galapagosStars, { verovio, VerovioToolkit }));
     display(await jm.play(galapagosStars, { Tone }));
   </script>
   <script id="16" type="text/markdown">
-    The result might seem simple, but seeing how pitches evolved grasps the underlying process. Let's visualize the evolution of pitches across all generations:
+    Each line below shows the best melody at a given generation - note position on x, MIDI pitch on y. Early generations (faint) stay close to the original Twinkle; later ones (darker) drift as mutations accumulate and selection reshapes the phrase.
   </script>
   <script id="17" type="module">
     // Plot pitch evolution across generations
-    const allPitchLines = evolver.bestIndividuals.flatMap((individual, generation) =>
+    const allPitchLines = bestIndividuals.flatMap((individual, generation) =>
       individual.map((note, index) => ({
         generation,
         position: index,
@@ -452,11 +434,11 @@
     }));
   </script>
   <script id="18" type="text/markdown">
-    Through this structured evolutionary process, the `Darwin` class facilitates the generation of new and innovative musical compositions that evolve over time, guided by the principles of genetic variation, selection, and inheritance. The end result is a dynamic exploration of musical possibilities that extends beyond traditional composition techniques.
+    ## Custom mutation probabilities
 
-    ## Advanced usage
+    By default, pitch mutations pick a random note from the `scale` array. You can override this with `mutationProbabilities` - an object with `pitch()`, `duration()`, and `rest()` functions that return the mutated value.
 
-    You can customize the mutation probabilities to control how evolution explores the musical space:
+    The example below restricts pitch mutations to G3–G5, favors short durations, and increases the chance of rests. The shaded area in the plot shows one standard deviation around the mean fitness.
   </script>
   <script id="19" type="module">
     // Example with custom mutation probabilities
@@ -495,12 +477,6 @@
       seed: 42
     });
 
-    display("Created custom evolver with specialized mutation probabilities");
-  </script>
-  <script id="20" type="text/markdown">
-    You can also track population statistics to understand the diversity and convergence of your evolution:
-  </script>
-  <script id="21" type="module">
     // Run a few generations and track stats
     const populationStats = [];
 
@@ -514,8 +490,6 @@
     const diversityData = populationStats.map((stats, i) => ({
       generation: i,
       mean: stats.meanFitness,
-      min: stats.minFitness,
-      max: stats.maxFitness,
       stdDev: stats.standardDeviation
     }));
 
@@ -533,115 +507,12 @@
           fill: "lightblue",
           opacity: 0.3
         }),
-        Plot.line(diversityData, { x: "generation", y: "mean", stroke: "blue" }),
-        Plot.line(diversityData, { x: "generation", y: "max", stroke: "green", strokeDasharray: "4,2" }),
-        Plot.line(diversityData, { x: "generation", y: "min", stroke: "red", strokeDasharray: "4,2" })
+        Plot.line(diversityData, { x: "generation", y: "mean" })
       ]
     }));
   </script>
   <script id="22" type="text/markdown">
-    Genetic algorithms offer a powerful approach to algorithmic composition, allowing you to define high-level musical goals and let evolution discover creative solutions. By adjusting weights, targets, and mutation parameters, you can guide the evolution toward different musical aesthetics while maintaining an element of surprise and innovation.
+    When the shaded band narrows, the population is converging — most individuals are similarly fit. A wide band means high diversity, which isn't necessarily bad unless the mean fitness isn't climbing. If the band stays wide and flat, try lowering `mutationRate` or narrowing the `scale`.
   </script>
-  <script id="23" type="text/markdown">
-    ## Random walk + Darwin: a full-pipeline example
 
-    To showcase how jmon/algo modules complement one another, let's recycle the melodic wanderings from the random-walk chapter (06) and hand the resulting phrase to `Darwin`. The walk provides a spontaneous idea; the genetic stage then nudges it toward better pitch balance and motif strength.
-  </script>
-  <script id="24" type="module">
-    const walk = new jm.generative.walks.RandomWalk({
-      length: 16,
-      stepSize: 2,
-      bounds: [55, 75],
-      attractorStrength: 0.05
-    });
-
-    walk.generate([60]);
-
-    const walkPitches = walk.mapToScale(0, [0, 2, 4, 5, 7, 9, 11], 2);
-    const walkDurations = walk.mapToRhythm(0, [0.5, 0.5, 1, 1.5]);
-    const phraseLength = Math.min(walkPitches.length, walkDurations.length);
-
-    const walkPhrase = [];
-    let walkTime = 0;
-    for (let i = 0; i < phraseLength; i++) {
-      const duration = walkDurations[i];
-      walkPhrase.push([walkPitches[i], duration, walkTime]);
-      walkTime += duration;
-    }
-
-    const walkPitchIndex = new jm.analysis.MusicalIndex(walkPhrase.map(note => note[0]));
-    const walkInitialMetrics = {
-      balance: walkPitchIndex.balance(),
-      motif: walkPitchIndex.motif()
-    };
-
-    const walkWeights = {
-      gini: [0.5, 0.5, 0.0],
-      balance: [2.5, 0.5, 0.0],
-      motif: [12.0, 1.0, 0.0],
-      dissonance: [0.5, 0.0, 0.0],
-      rhythmic: [0.0, 6.0, 0.0],
-      rest: [0.2, 0.0, 0.0]
-    };
-
-    const walkTargets = {
-      gini: [0.25, 0.5, 0.0],
-      balance: [0.5, 0.1, 0.0],
-      motif: [0.9, 0.6, 0.0],
-      dissonance: [0.05, 0.0, 0.0],
-      rhythmic: [0.0, 1.0, 0.0],
-      rest: [0.0, 0.0, 0.0]
-    };
-
-    const walkEvolver = new jm.generative.genetic.Darwin({
-      initialPhrases: [walkPhrase],
-      mutationRate: 0.08,
-      populationSize: 120,
-      weights: walkWeights,
-      targets: walkTargets,
-      scale: cMajorPitches,
-      measureLength: 4,
-      timeResolution: [0.25, 2],
-      seed: 2718
-    });
-
-    for (let i = 0; i < 60; i++) {
-      walkEvolver.evolve(12);
-    }
-
-    const evolvedPhrase = walkEvolver.getBestIndividual();
-    const evolvedPitchIndex = new jm.analysis.MusicalIndex(evolvedPhrase.map(note => note[0]));
-    const walkFinalMetrics = {
-      balance: evolvedPitchIndex.balance(),
-      motif: evolvedPitchIndex.motif()
-    };
-
-    const walkComparisonData = [
-      { metric: "Pitch balance", stage: "Random walk", value: walkInitialMetrics.balance },
-      { metric: "Pitch balance", stage: "Darwin refined", value: walkFinalMetrics.balance },
-      { metric: "Motif strength", stage: "Random walk", value: walkInitialMetrics.motif },
-      { metric: "Motif strength", stage: "Darwin refined", value: walkFinalMetrics.motif }
-    ];
-
-    display({
-      walkSeedPreview: walkPhrase.slice(0, 6),
-      evolvedPreview: evolvedPhrase.slice(0, 6)
-    });
-
-    display(Plot.plot({
-      title: "Random walk vs. Darwin refinement",
-      width: 600,
-      height: 320,
-      x: { label: "Metric / stage" },
-      y: { label: "Score", domain: [0, 1] },
-      color: { legend: true },
-      marks: [
-        Plot.barY(walkComparisonData, {
-          x: d => `${d.metric} - ${d.stage}`,
-          y: "value",
-          fill: "stage"
-        })
-      ]
-    }));
-  </script>
 </notebook>

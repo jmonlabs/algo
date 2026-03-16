@@ -4,12 +4,13 @@
   <script id="0" type="text/markdown">
     # 7. Fractals
 
-    Walks offer an internal structure only when we force them to pass through predefined points with fitted kernels. Fractals are mathematical sets that exhibit a repeating pattern at every scale. They have not only captivated mathematicians and scientists, but have also found a fascinating application in the world of music. The concept of fractals in music revolves around the idea of using these self-similar patterns to create compositions that can vary in complexity, embodying both a sense of infinity and a coherent structure. This approach to music composition allows for the exploration of new textures, forms, and sonic landscapes, pushing the boundaries of traditional musical creativity. Fractals inspired modern composers Jessie Montgomery in [Rounds for Piano and Orchestra](https://www.youtube.com/watch?v=eMYG_w6ueUg) and Dinuk Wijeratne in [Invisible cities](https://www.youtube.com/watch?v=sAK8aqAdUCA&t=1424s). jmon/algo has three types of fractals: **cellular automata** (self-organizing systems governed by simple rules in a discrete grid), **Mandelbrot** (complex and infinitely detailed fractal structure), and **logistic map** (a simple mathematical model illustrating chaos theory).
+    Walks offer an internal structure only when we force them to pass through predefined points with fitted kernels. Fractals are mathematical objects with infinite detail — zoom in and you always find new structure, though not necessarily identical copies of the whole. Simple fractals like the Koch snowflake are strictly self-similar, but the Mandelbrot set is far wilder: each zoom level reveals genuinely new geometry. What fractals share is that a simple rule produces inexhaustible complexity. For music, this means a compact algorithm can generate rich, non-repeating material at any timescale. Fractals inspired modern composers Jessie Montgomery in [Rounds for Piano and Orchestra](https://www.youtube.com/watch?v=eMYG_w6ueUg) and Dinuk Wijeratne in [Invisible cities](https://www.youtube.com/watch?v=sAK8aqAdUCA&t=1424s). jmon/algo has three types of fractals: **cellular automata** (self-organizing systems governed by simple rules in a discrete grid), **Mandelbrot** (infinitely detailed boundary structure from a simple iteration), and **logistic map** (a simple mathematical model illustrating chaos theory).
   </script>
   <script id="1" type="module" pinned="">
     import jm from "../src/index.js";
     import * as Tone from "npm:tone";
     import verovio from "npm:verovio@4.3.1/wasm";
+    import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
     import * as Plot from "npm:@observablehq/plot@0.6";
   </script>
   <script id="2" type="text/markdown">
@@ -338,7 +339,7 @@
       ]
     };
 
-    display(await jm.score(caPiece, { verovio }));
+    display(await jm.score(caPiece, { verovio, VerovioToolkit }));
     display(await jm.play(caPiece, { Tone }));
   </script>
   <script id="24" type="text/markdown">
@@ -493,12 +494,10 @@
   <script id="35" type="module" pinned="">
     // Generate basic Mandelbrot set
     const mb = new jm.generative.fractals.Mandelbrot({
-      width: 400,
-      height: 400,
-      xMin: -2.0,
-      xMax: 1.0,
-      yMin: -1.5,
-      yMax: 1.5,
+      width: 600,
+      height: 600,
+      center: { x: -0.5, y: 0 },
+      size: { w: 3.0, h: 3.0 },
       maxIterations: 100
     });
 
@@ -523,28 +522,26 @@
       y: { axis: null },
       color: { scheme: "viridis", legend: true },
       marks: [
-    Plot.raster(mbPlotData, { x: "x", y: "y", fill: "value" })
+    Plot.raster(mbPlotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })
       ]
     }));
   </script>
   <script id="38" type="text/markdown">
-    By zooming the plot, you can find unexplored regions. Let's create a zoom sequence:
+    By zooming into the boundary, every level reveals new structure. We pick four regions — the full set plus three boundary-rich zooms — that we'll also use to generate music later. The deeper you zoom, the more likely you are the first person to ever see that particular pattern, making fractal music an infinite source of creativity.
   </script>
   <script id="39" type="module">
-    // Create zoomed Mandelbrot views
-    const mbRanges = [
-      { xMin: -2.0, xMax: 1.0, yMin: -1.5, yMax: 1.5 },
-      { xMin: -1.5, xMax: -1.0, yMin: 0, yMax: 0.5 },
-      { xMin: -1.2, xMax: -1.1, yMin: 0.2, yMax: 0.3 },
-      { xMin: -1.150, xMax: -1.145, yMin: 0.275, yMax: 0.280 }
+    const zoomRegions = [
+      { name: "Seahorse", center: { x: -0.755, y: 0.105 }, size: { w: 0.03, h: 0.03 }, maxIter: 500, synth: 0 },
+      { name: "Period-2", center: { x: -1.15, y: 0.25 }, size: { w: 0.1, h: 0.1 }, maxIter: 500, synth: 40 },
+      { name: "Deep", center: { x: -1.1475, y: 0.2775 }, size: { w: 0.005, h: 0.005 }, maxIter: 1000, synth: 73 }
     ];
 
-    const mbZoomPlots = mbRanges.map(({ xMin, xMax, yMin, yMax }, i) => {
+    const mbZoomPlots = zoomRegions.map(({ center, size, maxIter }, i) => {
       const zoomMb = new jm.generative.fractals.Mandelbrot({
     width: 300,
     height: 300,
-    xMin, xMax, yMin, yMax,
-    maxIterations: 500
+    center, size,
+    maxIterations: maxIter
       });
 
       const zoomData = zoomMb.generate();
@@ -556,7 +553,7 @@
       });
 
       return html`<div style="display: inline-block; margin: 10px;">
-    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">Zoom ${i + 1}</div>
+    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${zoomRegions[i].name}</div>
     ${Plot.plot({
       width: 250,
       height: 250,
@@ -564,7 +561,7 @@
       y: { axis: null },
       color: { scheme: "viridis" },
       marks: [
-        Plot.raster(zoomPlotData, { x: "x", y: "y", fill: "value" })
+        Plot.raster(zoomPlotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })
       ]
     })}
       </div>`;
@@ -573,75 +570,239 @@
     display(html`<div style="display: flex; flex-wrap: wrap; justify-content: center;">${mbZoomPlots}</div>`);
   </script>
   <script id="40" type="text/markdown">
-    By scanning the Mandelbrot matrix to extract the numbers (horizontally, vertically or diagonally), you can generate a sequence of integers. The smaller value used for length pixelates the Mandelbrot plot to create a smaller matrix, since we need fewer values for a musical sequence.
+    ### The Mandelbrot piano roll
+
+    Just like we did for cellular automata, we can read the 2D grid as a piano roll: x = time, y = pitch. Cells in the boundary band (iteration count between a low and high threshold) become active notes; interior and exterior cells stay silent. `gridToNotes()` does this and also derives velocity from the local gradient — sharp boundaries play louder.
   </script>
   <script id="41" type="module" pinned="">
-    // Create low-resolution Mandelbrot for music generation
-    const mbLength = 20;
-    const mbMusic = new jm.generative.fractals.Mandelbrot({
-      width: mbLength,
-      height: mbLength,
-      xMin: -1.150,
-      xMax: -1.145,
-      yMin: 0.275,
-      yMax: 0.280,
-      maxIterations: 100
+    // Scale for pitch mapping — 24 pitches spanning two octaves of G major
+    const gMajorScale = new jm.theory.harmony.Scale({ tonic: 'G', mode: 'major' });
+    const gMajorPitches = gMajorScale.generate({ start: 'G3', length: 24 });
+  </script>
+  <script id="42" type="module" pinned="">
+    // Three zoom regions as piano-roll grids (48 time steps × 24 pitch rows)
+    const pianoRollWidth = 192;
+    const pianoRollHeight = 24;
+
+    const zoomTracks = zoomRegions.map(({ name, center, size, maxIter, synth }) => {
+      const mb = new jm.generative.fractals.Mandelbrot({
+        width: pianoRollWidth, height: pianoRollHeight,
+        center, size, maxIterations: maxIter
+      });
+      const grid = mb.generate();
+      const notes = mb.gridToNotes({ grid, pitches: gMajorPitches, duration: 0.5, maxDuration: 8 });
+      return { name, grid, notes, synth, maxIter };
     });
 
-    // Extract diagonal sequence using the built-in method
-    const mbSequence = mbMusic.extractSequence('diagonal');
+    // Display piano rolls
+    const rasterPlots = zoomTracks.map(({ name, notes }) => {
+      return Plot.plot({
+        title: name,
+        width: 320, height: 180,
+        x: { label: "Time" },
+        y: { label: "Pitch" },
+        color: { scheme: "greys", domain: [0, 1] },
+        marks: [
+          Plot.cell(notes, { x: "time", y: "pitch", fill: "velocity", inset: 0.5 })
+        ]
+      });
+    });
 
-    display("Mandelbrot sequence: " + mbSequence.join(", "));
+    display(html`<div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center">
+      ${rasterPlots.map(p => html`<div>${p}</div>`)}
+    </div>`);
+  </script>
+  <script id="42a" type="text/markdown">
+    Each zoom level produces a different pattern. Let's play all four together, each on a different instrument:
+  </script>
+  <script id="43" type="module">
+    // Compose: three zoom levels as three tracks
+    const mbPiece = {
+      title: "Mandelbrot — piano roll",
+      tempo: 130,
+      keySignature: "G-major",
+      tracks: zoomTracks.map(({ notes, synth, name }) => ({
+        notes,
+        synth,
+        label: name
+      }))
+    };
 
-    // Plot the sequence
-    const mbSeqPlotData = mbSequence.map((value, i) => ({ step: i, value }));
+    //display(await jm.score(mbPiece, { verovio, VerovioToolkit }));
+    display(await jm.play(mbPiece, { Tone }));
+    display(await jm.converters.downloadWav(mbPiece, Tone, "fractal.wav"));
+  </script>
+  <script type="text/markdown">
+    ## Julia Set
+
+    The Julia set is closely related to the Mandelbrot set. While the Mandelbrot iterates `z = z² + c` starting from `z₀ = 0` for each point `c` in the plane, the Julia set starts from `z₀ = point` with a **fixed** `c` parameter.
+
+    Different `c` values produce wildly different Julia sets — some are connected, some are dust-like, some have beautiful dendrite patterns.
+  </script>
+  <script type="module" pinned>
+    // Classic dendrite Julia set
+    const julia1 = new jm.generative.fractals.Julia({
+      c: { real: -0.7, imaginary: 0.27015 },
+      width: 400, height: 400,
+      maxIterations: 200
+    });
+
+    const juliaData1 = julia1.generate();
+
+    // A few famous Julia sets with different c values
+    const juliaVariants = [
+      { c: { real: -0.7, imaginary: 0.27015 }, label: "Dendrite" },
+      { c: { real: -0.8, imaginary: 0.156 }, label: "Spirals" },
+      { c: { real: 0.285, imaginary: 0.01 }, label: "Islands" },
+      { c: { real: -0.4, imaginary: 0.6 }, label: "Rabbit" }
+    ];
+
+    const juliaPlots = juliaVariants.map(({ c, label }) => {
+      const julia = new jm.generative.fractals.Julia({
+        c,
+        width: 250, height: 250,
+        maxIterations: 200
+      });
+
+      const data = julia.generate();
+      const plotData = [];
+      data.forEach((row, y) => {
+        row.forEach((value, x) => {
+          plotData.push({ x, y, value });
+        });
+      });
+
+      return html`<div style="display: inline-block; margin: 10px;">
+        <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${label} (c = ${c.real} + ${c.imaginary}i)</div>
+        ${Plot.plot({
+          width: 250,
+          height: 250,
+          x: { axis: null },
+          y: { axis: null },
+          color: { scheme: "magma" },
+          marks: [
+            Plot.raster(plotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })
+          ]
+        })}
+      </div>`;
+    });
+
+    display(html`<div style="display: flex; flex-wrap: wrap; justify-content: center;">${juliaPlots}</div>`);
+  </script>
+  <script type="text/markdown">
+    ### Julia Set Piano Roll
+
+    Just like the Mandelbrot, we use the 2D grid as a piano roll. The dendrite Julia set has intricate, branching boundary patterns that produce rich polyphonic textures:
+  </script>
+  <script type="module" pinned>
+    // Julia piano roll — same approach as Mandelbrot: 2D grid as piano roll
+    const juliaPianoRollWidth = 192;
+    const juliaPianoRollHeight = 24;
+
+    const dMinorScale = new jm.theory.harmony.Scale({ tonic: 'D', mode: 'minor' });
+    const dMinorPitches = dMinorScale.generate({ start: 'D3', length: juliaPianoRollHeight });
+
+    const juliaMusic = new jm.generative.fractals.Julia({
+      c: { real: -0.7, imaginary: 0.27015 },
+      width: juliaPianoRollWidth, height: juliaPianoRollHeight,
+      maxIterations: 200
+    });
+
+    const juliaGrid = juliaMusic.generate();
+    const juliaNotes = juliaMusic.gridToNotes({
+      grid: juliaGrid, pitches: dMinorPitches, duration: 0.5, maxDuration: 8
+    });
+
+    // Piano roll visualization
+    display(Plot.plot({
+      title: "Dendrite Julia — piano roll",
+      width: 500, height: 200,
+      x: { label: "Time", domain: d3.range(0, Math.max(...juliaNotes.map(d => d.time)) + 1) },
+      y: { label: "Pitch" },
+      color: { scheme: "greys", domain: [0, 1] },
+      marks: [
+        Plot.cell(juliaNotes, { x: "time", y: "pitch", fill: "velocity", inset: 0.5 })
+      ]
+    }));
+
+    const juliaPiece = {
+      title: "Julia Set — Dendrite",
+      tempo: 130,
+      keySignature: "D-minor",
+      tracks: [{ notes: juliaNotes, synth: 0 }]
+    };
+
+    display(await jm.score(juliaPiece, { verovio, VerovioToolkit }));
+    display(await jm.play(juliaPiece, { Tone }));
+  </script>
+  <script type="text/markdown">
+    ## Burning Ship
+
+    The Burning Ship fractal uses the iteration `z = (|Re(z)| + i|Im(z)|)² + c` — the absolute values before squaring create the characteristic "ship" shape.
+  </script>
+  <script type="module" pinned>
+    const ship = new jm.generative.fractals.BurningShip({
+      width: 400, height: 400,
+      center: { x: -1.75, y: -0.03 },
+      size: { w: 0.15, h: 0.15 },
+      maxIterations: 300
+    });
+
+    const shipData = ship.generate();
+    const shipPlotData = [];
+    shipData.forEach((row, y) => {
+      row.forEach((value, x) => {
+        shipPlotData.push({ x, y, value });
+      });
+    });
 
     display(Plot.plot({
-      title: "Mandelbrot diagonal sequence",
-      width: 600,
-      height: 200,
+      title: "Burning Ship Fractal",
+      width: 500,
+      height: 500,
+      x: { axis: null },
+      y: { axis: null },
+      color: { scheme: "turbo" },
       marks: [
-    Plot.line(mbSeqPlotData, { x: "step", y: "value", stroke: "#1f77b4" }),
-    Plot.dot(mbSeqPlotData, { x: "step", y: "value", fill: "#1f77b4" }),
-    Plot.text(mbSeqPlotData, {
-      x: "step",
-      y: "value",
-      text: d => d.value,
-      dy: -10
-    })
+        Plot.raster(shipPlotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })
       ]
     }));
   </script>
-  <script id="42" type="text/markdown">
-    These numbers can be set as MIDI pitches, indices on scales, etc. If you need a scale, make sure the indices are included in the scale. We can use the built-in `mapToScale` method to convert the Mandelbrot values to pitches.
+  <script type="text/markdown">
+    ## Fractal Factory
+
+    The `Fractal` factory lets you create any complex plane fractal by type name — useful when the fractal type is a parameter:
   </script>
-  <script id="43" type="module" pinned="">
-    // Create a G major scale spanning 2 octaves
-    const gMajorScale = new jm.theory.harmony.Scale({ tonic: 'G', mode: 'major' });
-    const gMajorPitches = gMajorScale.generate({ start: 'G3', length: 15 }); // 2 octaves + 1 note
+  <script type="module" pinned>
+    // Fractal factory — create fractals by type name
+    const types = ['mandelbrot', 'julia', 'burningship'];
 
-    display("G major scale pitches: " + gMajorPitches);
+    const factoryPlots = types.map(type => {
+      const opts = { width: 200, height: 200, maxIterations: 100 };
+      if (type === 'julia') opts.c = { real: -0.4, imaginary: 0.6 };
 
-    // Map Mandelbrot sequence to the G major scale pitches
-    const mbPitches = mbSequence.map(value => {
-      const normalized = (value - Math.min(...mbSequence)) / (Math.max(...mbSequence) - Math.min(...mbSequence));
-      const index = Math.floor(normalized * (gMajorPitches.length - 1));
-      return gMajorPitches[index];
+      const f = jm.generative.fractals.Fractal(type, opts);
+      const data = f.generate();
+      const plotData = [];
+      data.forEach((row, y) => {
+        row.forEach((value, x) => {
+          plotData.push({ x, y, value });
+        });
+      });
+
+      return html`<div style="display: inline-block; margin: 10px;">
+        <div style="text-align: center; font-weight: bold;">${type}</div>
+        ${Plot.plot({
+          width: 200, height: 200,
+          x: { axis: null }, y: { axis: null },
+          color: { scheme: "viridis" },
+          marks: [Plot.raster(plotData, { x: "x", y: "y", fill: "value", interpolate: "nearest" })]
+        })}
+      </div>`;
     });
 
-    const mbNotes = jm.theory.rhythm.beatcycle(
-      mbPitches,
-      [0.5, 0.5, 1, 2, 1]
-    );
-
-    const mbPiece = {
-      title: "Mandelbrot Melody",
-      tempo: 120,
-      tracks: [{ notes: mbNotes, synth: 0 }]
-    };
-
-    display(await jm.score(mbPiece, { verovio }));
-    display(await jm.play(mbPiece, { Tone }));
+    display(html`<div style="display: flex; flex-wrap: wrap; justify-content: center;">${factoryPlots}</div>`);
+    display("Available fractal types: " + jm.generative.fractals.Fractal.types().join(", "));
   </script>
   <script id="44" type="text/markdown">
     ## Logistic map
@@ -828,8 +989,11 @@
     Map these values to a scale and create music:
   </script>
   <script id="57" type="module" pinned="">
-    // Map to G major scale using the built-in method
-    const lmPitches = lmMusic.mapToScale(lmValues, gMajorScale, 2);
+    // Map logistic values [0, 1] to the G major scale pitches
+    const lmPitches = lmValues.map(value => {
+      const index = Math.floor(value * (gMajorPitches.length - 1));
+      return gMajorPitches[index];
+    });
 
     const lmNotes = jm.theory.rhythm.beatcycle(
       lmPitches,
@@ -842,7 +1006,7 @@
       tracks: [{ notes: lmNotes, synth: 0 }]
     };
 
-    display(await jm.score(lmPiece, { verovio }));
+    display(await jm.score(lmPiece, { verovio, VerovioToolkit }));
     display(await jm.play(lmPiece, { Tone }));
   </script>
   <script id="58" type="text/markdown">

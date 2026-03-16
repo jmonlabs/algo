@@ -1,24 +1,17 @@
 /**
  * deriveVisualFromArticulations.js
  *
- * Shared helper to derive visual rendering hints from declarative note.articulations[]
- * for both ABC and VexFlow renderers. It normalizes articulation entries, resolves
- * precedence among accent-like marks, and maps to:
- *
- * - ABC decorations (e.g., !staccato!, !accent!, !trill!, !fermata!, !arpeggio!, !slide!)
- * - VexFlow articulation codes (e.g., a., a>, a-, a^), plus stroke (roll/brush up/down),
- *   and gliss/portamento linkage hints
- *
- * This utility does NOT mutate inputs and does NOT convert pitches to renderer-specific
- * formats; consumers can handle any pitch conversion as needed.
+ * Shared helper to derive visual rendering hints from declarative note.articulations[].
+ * Normalizes articulation entries, resolves precedence among accent-like marks, and
+ * extracts stroke and gliss/portamento hints.
  *
  * Usage:
  *   import { deriveVisualFromArticulations } from './deriveVisualFromArticulations.js';
  *   const hints = deriveVisualFromArticulations(note.articulations);
- *   // hints.abc.decorations -> ['!staccato!', '!trill!']
- *   // hints.vexflow.articulations -> ['a.', 'a>']
- *   // hints.vexflow.stroke -> { direction: 'up', style: 'roll' } | null
- *   // hints.vexflow.gliss -> { type: 'glissando'|'portamento', target, curve?, text? } | null
+ *   // hints.has -> Set of articulation types
+ *   // hints.resolved -> { staccato, accent, tenuto, marcato }
+ *   // hints.stroke -> { direction: 'up', style: 'roll' } | null
+ *   // hints.gliss -> { type: 'glissando'|'portamento', target, curve?, text? } | null
  */
 
 /**
@@ -59,54 +52,7 @@ function resolveAccentPrecedence(types) {
 }
 
 /**
- * Map accent-like marks to VexFlow articulation codes
- * @param {{staccato:boolean, accent:boolean, tenuto:boolean, marcato:boolean}} resolved
- * @returns {string[]} e.g. ['a.', 'a>', 'a-', 'a^']
- */
-function mapToVexFlowArticulationCodes(resolved) {
-  const codes = [];
-  if (resolved.staccato) codes.push('a.');
-  if (resolved.accent) codes.push('a>');
-  if (resolved.tenuto) codes.push('a-');
-  if (resolved.marcato) codes.push('a^');
-  return codes;
-}
-
-/**
- * Map articulation types to ABC decorations
- * Includes articulations and ornaments; glissando/portamento → !slide!
- * @param {Array<{type:string,[key:string]:any}>} arts
- * @param {{includeFermata?:boolean}} [options]
- * @returns {string[]} e.g. ['!staccato!','!accent!','!trill!','!fermata!']
- */
-function mapToAbcDecorations(arts, options = {}) {
-  const includeFermata = options.includeFermata !== false;
-  const abc = [];
-
-  // Accent family
-  const types = new Set(arts.map((a) => a.type));
-  const resolved = resolveAccentPrecedence(types);
-  if (resolved.staccato) abc.push('!staccato!');
-  if (resolved.accent) abc.push('!accent!');
-  if (resolved.tenuto) abc.push('!tenuto!');
-  if (resolved.marcato) abc.push('!marcato!');
-
-  // Ornaments and others
-  const want = (t) => types.has(t);
-  if (includeFermata && want('fermata')) abc.push('!fermata!');
-  if (want('trill')) abc.push('!trill!');
-  if (want('mordent')) abc.push('!mordent!');
-  if (want('turn')) abc.push('!turn!');
-  if (want('arpeggio')) abc.push('!arpeggio!');
-
-  // Gliss/Portamento standardized as slide decoration in ABC
-  if (want('glissando') || want('portamento')) abc.push('!slide!');
-
-  return abc;
-}
-
-/**
- * Extract stroke (arpeggio/arpeggiate/strum) direction/style for VexFlow use
+ * Extract stroke (arpeggio/arpeggiate/strum) direction/style hint.
  * Supports:
  * - { type: 'arpeggio'|'stroke', direction?: 'up'|'down', style?: 'roll'|'brush' }
  * - legacy: { type: 'arpeggiate' } is also accepted
@@ -126,7 +72,7 @@ function extractStrokeHint(arts) {
 }
 
 /**
- * Extract a single gliss/portamento hint for VexFlow use
+ * Extract a single gliss/portamento hint.
  * Supports entries like: { type: 'glissando'|'portamento', target?: number, curve?: string }
  * The target is a MIDI integer; consumers can convert to renderer-specific key formats.
  * @param {Array<{type:string,[key:string]:any}>} arts
@@ -145,40 +91,29 @@ function extractGlissHint(arts) {
 /**
  * Main helper to derive renderer hints from declarative articulations.
  * @param {Array<string|{type:string,[key:string]:any}>|null|undefined} articulations
- * @param {{ abc?: { includeFermata?: boolean } }} [options]
  * @returns {{
  *   has: Set<string>,
- *   abc: { decorations: string[] },
- *   vexflow: {
- *     articulations: string[],
- *     stroke: {direction:'up'|'down', style:'roll'|'brush'}|null,
- *     gliss: { type:'glissando'|'portamento', target?:number, curve?:string, text?:string }|null
- *   }
+ *   resolved: {staccato:boolean, accent:boolean, tenuto:boolean, marcato:boolean},
+ *   stroke: {direction:'up'|'down', style:'roll'|'brush'}|null,
+ *   gliss: { type:'glissando'|'portamento', target?:number, curve?:string, text?:string }|null
  * }}
  */
-export function deriveVisualFromArticulations(articulations, options = {}) {
+export function deriveVisualFromArticulations(articulations) {
   const arts = normalizeArticulations(articulations);
   const has = new Set(arts.map((a) => a.type));
 
   // Accent-like marks
   const resolved = resolveAccentPrecedence(has);
 
-  // ABC decorations
-  const abcDecorations = mapToAbcDecorations(arts, options.abc);
-
-  // VexFlow hints
-  const vfArticulations = mapToVexFlowArticulationCodes(resolved);
-  const vfStroke = extractStrokeHint(arts);
-  const vfGliss = extractGlissHint(arts);
+  // Stroke and gliss hints
+  const stroke = extractStrokeHint(arts);
+  const gliss = extractGlissHint(arts);
 
   return {
     has,
-    abc: { decorations: abcDecorations },
-    vexflow: {
-      articulations: vfArticulations,
-      stroke: vfStroke,
-      gliss: vfGliss,
-    },
+    resolved,
+    stroke,
+    gliss,
   };
 }
 

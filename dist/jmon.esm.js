@@ -1804,263 +1804,6 @@ var init_audio_effects = __esm({
   }
 });
 
-// node_modules/verovio/dist/verovio.mjs
-var verovio_exports = {};
-__export(verovio_exports, {
-  LOG_DEBUG: () => LOG_DEBUG,
-  LOG_ERROR: () => LOG_ERROR,
-  LOG_INFO: () => LOG_INFO,
-  LOG_OFF: () => LOG_OFF,
-  LOG_WARNING: () => LOG_WARNING,
-  VerovioToolkit: () => VerovioToolkit,
-  enableLog: () => enableLog,
-  enableLogToBuffer: () => enableLogToBuffer
-});
-function getToolkitFunction(VerovioModule, method) {
-  const mapping = {};
-  mapping.constructor = VerovioModule.cwrap("vrvToolkit_constructor", "number", []);
-  mapping.destructor = VerovioModule.cwrap("vrvToolkit_destructor", null, ["number"]);
-  mapping.edit = VerovioModule.cwrap("vrvToolkit_edit", "number", ["number", "string"]);
-  mapping.editInfo = VerovioModule.cwrap("vrvToolkit_editInfo", "string", ["number"]);
-  mapping.getAvailableOptions = VerovioModule.cwrap("vrvToolkit_getAvailableOptions", "string", ["number"]);
-  mapping.getDefaultOptions = VerovioModule.cwrap("vrvToolkit_getDefaultOptions", "string", ["number"]);
-  mapping.getDescriptiveFeatures = VerovioModule.cwrap("vrvToolkit_getDescriptiveFeatures", "string", ["number", "string"]);
-  mapping.getElementAttr = VerovioModule.cwrap("vrvToolkit_getElementAttr", "string", ["number", "string"]);
-  mapping.getElementsAtTime = VerovioModule.cwrap("vrvToolkit_getElementsAtTime", "string", ["number", "number"]);
-  mapping.getExpansionIdsForElement = VerovioModule.cwrap("vrvToolkit_getExpansionIdsForElement", "string", ["number", "string"]);
-  mapping.getHumdrum = VerovioModule.cwrap("vrvToolkit_getHumdrum", "string", ["number"]);
-  mapping.convertMEIToHumdrum = VerovioModule.cwrap("vrvToolkit_convertMEIToHumdrum", "string", ["number", "string"]);
-  mapping.convertHumdrumToHumdrum = VerovioModule.cwrap("vrvToolkit_convertHumdrumToHumdrum", "string", ["number", "string"]);
-  mapping.convertHumdrumToMIDI = VerovioModule.cwrap("vrvToolkit_convertHumdrumToMIDI", "string", ["number", "string"]);
-  mapping.getLog = VerovioModule.cwrap("vrvToolkit_getLog", "string", ["number"]);
-  mapping.getMEI = VerovioModule.cwrap("vrvToolkit_getMEI", "string", ["number", "string"]);
-  mapping.getNotatedIdForElement = VerovioModule.cwrap("vrvToolkit_getNotatedIdForElement", "string", ["number", "string"]);
-  mapping.getOptions = VerovioModule.cwrap("vrvToolkit_getOptions", "string", ["number"]);
-  mapping.getPageCount = VerovioModule.cwrap("vrvToolkit_getPageCount", "number", ["number"]);
-  mapping.getPageWithElement = VerovioModule.cwrap("vrvToolkit_getPageWithElement", "number", ["number", "string"]);
-  mapping.getTimeForElement = VerovioModule.cwrap("vrvToolkit_getTimeForElement", "number", ["number", "string"]);
-  mapping.getTimesForElement = VerovioModule.cwrap("vrvToolkit_getTimesForElement", "string", ["number", "string"]);
-  mapping.getMIDIValuesForElement = VerovioModule.cwrap("vrvToolkit_getMIDIValuesForElement", "string", ["number", "string"]);
-  mapping.getVersion = VerovioModule.cwrap("vrvToolkit_getVersion", "string", ["number"]);
-  mapping.loadData = VerovioModule.cwrap("vrvToolkit_loadData", "number", ["number", "string"]);
-  mapping.loadZipDataBase64 = VerovioModule.cwrap("vrvToolkit_loadZipDataBase64", "number", ["number", "string"]);
-  mapping.loadZipDataBuffer = VerovioModule.cwrap("vrvToolkit_loadZipDataBuffer", "number", ["number", "number", "number"]);
-  mapping.redoLayout = VerovioModule.cwrap("vrvToolkit_redoLayout", null, ["number", "string"]);
-  mapping.redoPagePitchPosLayout = VerovioModule.cwrap("vrvToolkit_redoPagePitchPosLayout", null, ["number"]);
-  mapping.renderData = VerovioModule.cwrap("vrvToolkit_renderData", "string", ["number", "string", "string"]);
-  mapping.renderToExpansionMap = VerovioModule.cwrap("vrvToolkit_renderToExpansionMap", "string", ["number"]);
-  mapping.renderToMIDI = VerovioModule.cwrap("vrvToolkit_renderToMIDI", "string", ["number"]);
-  mapping.renderToPAE = VerovioModule.cwrap("vrvToolkit_renderToPAE", "string", ["number"]);
-  mapping.renderToSVG = VerovioModule.cwrap("vrvToolkit_renderToSVG", "string", ["number", "number", "number"]);
-  mapping.renderToTimemap = VerovioModule.cwrap("vrvToolkit_renderToTimemap", "string", ["number", "string"]);
-  mapping.resetOptions = VerovioModule.cwrap("vrvToolkit_resetOptions", null, ["number"]);
-  mapping.resetXmlIdSeed = VerovioModule.cwrap("vrvToolkit_resetXmlIdSeed", null, ["number", "number"]);
-  mapping.select = VerovioModule.cwrap("vrvToolkit_select", "number", ["number", "string"]);
-  mapping.setOptions = VerovioModule.cwrap("vrvToolkit_setOptions", null, ["number", "string"]);
-  mapping.validatePAE = VerovioModule.cwrap("vrvToolkit_validatePAE", "string", ["number", "string"]);
-  return mapping[method];
-}
-function enableLog(level, VerovioModule) {
-  return VerovioModule.cwrap("enableLog", null, ["number"])(level);
-}
-function enableLogToBuffer(value, VerovioModule) {
-  return VerovioModule.cwrap("enableLogToBuffer", null, ["number"])(value);
-}
-var createEmscriptenProxy, VerovioToolkit, LOG_OFF, LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG;
-var init_verovio = __esm({
-  "node_modules/verovio/dist/verovio.mjs"() {
-    createEmscriptenProxy = (VerovioModule) => {
-      return new Proxy({}, {
-        get: (target, method) => {
-          return (...args) => {
-            return getToolkitFunction(VerovioModule, method)(...args);
-          };
-        }
-      });
-    };
-    VerovioToolkit = class _VerovioToolkit {
-      constructor(VerovioModule) {
-        this.VerovioModule = VerovioModule;
-        if (!this.VerovioModule) {
-          throw new Error("VerovioToolkit needs VerovioModule passed as argument to the constructor.");
-        }
-        this.proxy = createEmscriptenProxy(this.VerovioModule);
-        this.ptr = this.proxy.constructor();
-        _VerovioToolkit.instances.push(this);
-      }
-      destroy() {
-        _VerovioToolkit.instances.splice(_VerovioToolkit.instances.findIndex((i) => i.ptr === this.ptr), 1);
-        this.proxy.destructor(this.ptr);
-      }
-      edit(editorAction) {
-        return this.proxy.edit(this.ptr, JSON.stringify(editorAction));
-      }
-      editInfo() {
-        return JSON.parse(this.proxy.editInfo(this.ptr));
-      }
-      getAvailableOptions() {
-        return JSON.parse(this.proxy.getAvailableOptions(this.ptr));
-      }
-      getDefaultOptions() {
-        return JSON.parse(this.proxy.getDefaultOptions(this.ptr));
-      }
-      getDescriptiveFeatures(options) {
-        return JSON.parse(this.proxy.getDescriptiveFeatures(this.ptr, JSON.stringify(options)));
-      }
-      getElementAttr(xmlId) {
-        return JSON.parse(this.proxy.getElementAttr(this.ptr, xmlId));
-      }
-      getElementsAtTime(millisec) {
-        return JSON.parse(this.proxy.getElementsAtTime(this.ptr, millisec));
-      }
-      getExpansionIdsForElement(xmlId) {
-        return JSON.parse(this.proxy.getExpansionIdsForElement(this.ptr, xmlId));
-      }
-      getHumdrum() {
-        return this.proxy.getHumdrum(this.ptr);
-      }
-      convertHumdrumToHumdrum(data) {
-        return this.proxy.convertHumdrumToHumdrum(this.ptr, data);
-      }
-      convertHumdrumToMIDI(data) {
-        return this.proxy.convertHumdrumToMIDI(this.ptr, data);
-      }
-      convertMEIToHumdrum(data) {
-        return this.proxy.convertMEIToHumdrum(this.ptr, data);
-      }
-      getLog() {
-        return this.proxy.getLog(this.ptr);
-      }
-      getMEI(options = {}) {
-        return this.proxy.getMEI(this.ptr, JSON.stringify(options));
-      }
-      getMIDIValuesForElement(xmlId) {
-        return JSON.parse(this.proxy.getMIDIValuesForElement(this.ptr, xmlId));
-      }
-      getNotatedIdForElement(xmlId) {
-        return this.proxy.getNotatedIdForElement(this.ptr, xmlId);
-      }
-      getOptions(defaultValues) {
-        if (defaultValues === true) {
-          console.warn("This function (with 'true' parameter) is deprecated. Use getDefaultOptions() instead.");
-          return JSON.parse(this.proxy.getDefaultOptions(this.ptr));
-        } else if (defaultValues === false) {
-          console.warn("This function (with 'false' parameter) is deprecated. Use getOptions() instead.");
-          return JSON.parse(this.proxy.getOptions(this.ptr));
-        } else {
-          return JSON.parse(this.proxy.getOptions(this.ptr));
-        }
-      }
-      getPageCount() {
-        return this.proxy.getPageCount(this.ptr);
-      }
-      getPageWithElement(xmlId) {
-        return this.proxy.getPageWithElement(this.ptr, xmlId);
-      }
-      getTimeForElement(xmlId) {
-        return this.proxy.getTimeForElement(this.ptr, xmlId);
-      }
-      getTimesForElement(xmlId) {
-        return JSON.parse(this.proxy.getTimesForElement(this.ptr, xmlId));
-      }
-      getVersion() {
-        return this.proxy.getVersion(this.ptr);
-      }
-      loadData(data) {
-        return this.proxy.loadData(this.ptr, data);
-      }
-      loadZipDataBase64(data) {
-        return this.proxy.loadZipDataBase64(this.ptr, data);
-      }
-      loadZipDataBuffer(data) {
-        if (!(data instanceof ArrayBuffer)) {
-          console.error("Parameter for loadZipDataBuffer has to be of type ArrayBuffer");
-          return false;
-        }
-        var dataArray = new Uint8Array(data);
-        var dataSize = dataArray.length * dataArray.BYTES_PER_ELEMENT;
-        var dataPtr = this.VerovioModule._malloc(dataSize);
-        this.VerovioModule.HEAPU8.set(dataArray, dataPtr);
-        var res = this.proxy.loadZipDataBuffer(this.ptr, dataPtr, dataSize);
-        this.VerovioModule._free(dataPtr);
-        return res;
-      }
-      redoLayout(options = {}) {
-        this.proxy.redoLayout(this.ptr, JSON.stringify(options));
-      }
-      redoPagePitchPosLayout() {
-        this.proxy.redoPagePitchPosLayout(this.ptr);
-      }
-      renderData(data, options) {
-        return this.proxy.renderData(this.ptr, data, JSON.stringify(options));
-      }
-      renderToExpansionMap() {
-        return JSON.parse(this.proxy.renderToExpansionMap(this.ptr));
-      }
-      renderToMIDI() {
-        return this.proxy.renderToMIDI(this.ptr);
-      }
-      renderToPAE() {
-        return this.proxy.renderToPAE(this.ptr);
-      }
-      renderToSVG(pageNo = 1, xmlDeclaration = false) {
-        return this.proxy.renderToSVG(this.ptr, pageNo, xmlDeclaration);
-      }
-      renderToTimemap(options = {}) {
-        return JSON.parse(this.proxy.renderToTimemap(this.ptr, JSON.stringify(options)));
-      }
-      resetOptions() {
-        this.proxy.resetOptions(this.ptr);
-      }
-      resetXmlIdSeed(seed) {
-        return this.proxy.resetXmlIdSeed(this.ptr, seed);
-      }
-      select(selection) {
-        return this.proxy.select(this.ptr, JSON.stringify(selection));
-      }
-      setOptions(options) {
-        options = this.preprocessOptions(options);
-        return this.proxy.setOptions(this.ptr, JSON.stringify(options));
-      }
-      validatePAE(data) {
-        if (data instanceof Object) {
-          data = JSON.stringify(data);
-        }
-        return JSON.parse(this.proxy.validatePAE(this.ptr, data));
-      }
-      preprocessOptions(options) {
-        if (!options.hasOwnProperty("fontAddCustom")) {
-          return options;
-        }
-        const files = options["fontAddCustom"];
-        let filesInBase64 = [];
-        for (const file of files) {
-          if (!/^https?:\/\//.test(file)) {
-            filesInBase64.push(file);
-            continue;
-          }
-          const request = new XMLHttpRequest();
-          request.open("GET", file, false);
-          request.send(null);
-          if (request.status === 200) {
-            filesInBase64.push(request.responseText);
-          } else {
-            console.error(`${file} could not be retrieved`);
-          }
-        }
-        options["fontAddCustom"] = filesInBase64;
-        return options;
-      }
-    };
-    VerovioToolkit.instances = [];
-    LOG_OFF = 0;
-    LOG_ERROR = 1;
-    LOG_WARNING = 2;
-    LOG_INFO = 3;
-    LOG_DEBUG = 4;
-  }
-});
-
 // src/browser/music-player.js
 var music_player_exports = {};
 __export(music_player_exports, {
@@ -2081,14 +1824,18 @@ function createPlayer(composition, options = {}) {
   const totalDuration = metadata.totalDuration;
   const originalTracksSource = tracks;
   let isPlaying = false;
+  let isBusy = false;
   let currentTime = 0;
   let animationId = null;
   let scheduledEvents = [];
+  let ToneLib = null;
+  let masterGain = null;
+  let trackConfigs = [];
   let activeSynths = [];
   const container = document.createElement("div");
   container.style.cssText = `
     font-family: Arial, sans-serif;
-    background: #434F43;
+    background: #464646;
     color: #fff;
     padding: 12px;
     border-radius: 8px;
@@ -2102,7 +1849,7 @@ function createPlayer(composition, options = {}) {
     gap: 12px;
   `;
   const buttonStyle = `
-    background: #2D3931;
+    background: #000000;
     border: none;
     color: white;
     padding: 8px 16px;
@@ -2129,7 +1876,7 @@ function createPlayer(composition, options = {}) {
   timeline.style.cssText = `
     flex: 1;
     height: 8px;
-    background: #F0C0C0;
+    background: #efefef;
     border-radius: 4px;
     cursor: pointer;
     position: relative;
@@ -2137,7 +1884,7 @@ function createPlayer(composition, options = {}) {
   const timelineProgress = document.createElement("div");
   timelineProgress.style.cssText = `
     height: 100%;
-    background: #AD8B8B;
+    background: #959595;
     border-radius: 4px;
     width: 0%;
     transition: width 0.1s linear;
@@ -2164,8 +1911,8 @@ function createPlayer(composition, options = {}) {
   }
   totalTimeDisplay.textContent = formatTime(totalDuration);
   function updateTimeline() {
-    if (!window.Tone?.Transport) return;
-    currentTime = window.Tone.Transport.seconds;
+    if (!ToneLib?.Transport) return;
+    currentTime = ToneLib.Transport.seconds;
     const progress = currentTime / totalDuration * 100;
     timelineProgress.style.width = `${Math.min(progress, 100)}%`;
     currentTimeDisplay.textContent = formatTime(currentTime);
@@ -2175,8 +1922,8 @@ function createPlayer(composition, options = {}) {
       stop();
     }
   }
-  async function setupAudio() {
-    let ToneLib = externalTone || window.Tone;
+  async function buildSynths() {
+    ToneLib = externalTone || window.Tone;
     if (!ToneLib) {
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
@@ -2189,113 +1936,120 @@ function createPlayer(composition, options = {}) {
         document.head.appendChild(script);
       });
     }
-    if (!ToneLib) {
-      throw new Error("Failed to load Tone.js");
-    }
+    if (!ToneLib) throw new Error("Failed to load Tone.js");
     window.Tone = ToneLib;
     await ToneLib.start();
     ToneLib.Transport.bpm.value = tempo;
-    activeSynths.forEach((s) => {
-      try {
-        s.dispose();
-      } catch (e) {
-        console.warn("Error disposing synth/effect:", e);
-      }
-    });
-    activeSynths = [];
-    scheduledEvents = [];
+    disposeAudio();
     const masterLimiter = new ToneLib.Limiter(-3).toDestination();
-    const masterGain = new ToneLib.Gain(0.7).connect(masterLimiter);
-    activeSynths.push(masterLimiter);
-    activeSynths.push(masterGain);
-    const connectToMaster = (node) => {
-      node.disconnect();
-      node.connect(masterGain);
-    };
-    convertedTracks.forEach((trackConfig) => {
+    const numTracks = tracks.length || 1;
+    const gainLevel = 0.7 / Math.sqrt(numTracks);
+    masterGain = new ToneLib.Gain(gainLevel).connect(masterLimiter);
+    activeSynths.push(masterLimiter, masterGain);
+    normalizeAudioGraph(composition);
+    const graphNodes = {};
+    if (composition.audioGraph && Array.isArray(composition.audioGraph)) {
+      composition.audioGraph.forEach(({ id, type, options: opts = {} }) => {
+        if (!id || !type) return;
+        if (type === "Destination") {
+          graphNodes[id] = masterGain;
+          return;
+        }
+        try {
+          if (SYNTHESIZER_TYPES.includes(type) || ALL_EFFECTS.includes(type)) {
+            graphNodes[id] = new ToneLib[type](opts);
+            activeSynths.push(graphNodes[id]);
+          }
+        } catch (e) {
+          console.warn(`[AUDIOGRAPH] Failed to create ${type}:`, e);
+        }
+      });
+      composition.audioGraph.forEach(({ id, target }) => {
+        if (!id || !graphNodes[id] || graphNodes[id] === masterGain) return;
+        const node = graphNodes[id];
+        if (target && graphNodes[target]) {
+          node.connect(graphNodes[target] === masterGain ? masterGain : graphNodes[target]);
+        } else {
+          node.connect(masterGain);
+        }
+      });
+    }
+    const secondsPerQN = 60 / tempo;
+    trackConfigs = convertedTracks.map((trackConfig) => {
       const { originalTrackIndex, partEvents } = trackConfig;
       const originalTrack = originalTracksSource[originalTrackIndex] || {};
       let modulations = [];
       try {
         const compiled = compileEvents(originalTrack);
         modulations = compiled.modulations || [];
-        console.log(`[ARTICULATIONS] Track ${originalTrackIndex}: Found ${modulations.length} modulations`, modulations);
       } catch (e) {
         console.warn("Failed to compile articulations:", e);
       }
       let synth;
       const synthSpec = originalTrack.synth;
-      if (typeof synthSpec === "number") {
+      const synthRef = originalTrack.synthRef;
+      const graphSynthId = synthRef || (composition.audioGraph || []).find(
+        (n) => SYNTHESIZER_TYPES.includes(n.type)
+      )?.id;
+      const graphSynth = graphSynthId && graphNodes[graphSynthId];
+      let connectTarget = masterGain;
+      if (composition.audioGraph && !graphSynth) {
+        const targetedIds = new Set((composition.audioGraph || []).map((n) => n.target).filter(Boolean));
+        const effectEntry = composition.audioGraph.find(
+          (n) => ALL_EFFECTS.includes(n.type) && !targetedIds.has(n.id)
+        );
+        if (effectEntry && graphNodes[effectEntry.id]) {
+          connectTarget = graphNodes[effectEntry.id];
+        }
+      }
+      if (graphSynth && !synthSpec) {
+        synth = graphSynth;
+      } else if (typeof synthSpec === "number") {
         const urls = generateSamplerUrls(synthSpec);
-        synth = new ToneLib.Sampler({
-          urls,
-          baseUrl: "",
-          // URLs are already complete
-          onload: () => console.log(`Loaded GM instrument ${synthSpec}`)
-        });
-        synth.connect(masterGain);
-        console.log(`Creating Sampler for GM instrument ${synthSpec}`);
+        synth = new ToneLib.Sampler({ urls, baseUrl: "" });
+        synth.connect(connectTarget);
       } else if (typeof synthSpec === "string") {
         try {
           synth = new ToneLib[synthSpec]();
-          synth.connect(masterGain);
+          synth.connect(connectTarget);
         } catch {
           synth = new ToneLib.PolySynth();
-          synth.connect(masterGain);
+          synth.connect(connectTarget);
         }
       } else if (typeof synthSpec === "object" && synthSpec !== null) {
         const synthType = synthSpec.type || "PolySynth";
         try {
-          const options2 = synthSpec.options || {};
+          const opts = synthSpec.options || {};
           if (synthType === "Sampler") {
-            synth = new ToneLib.Sampler({
-              ...options2,
-              onload: () => console.log(`[SAMPLER] Loaded custom sampler for track ${originalTrackIndex}`),
-              onerror: (error) => console.error(`[SAMPLER] Failed to load sample:`, error)
-            });
-            synth.connect(masterGain);
-            console.log(`[SAMPLER] Creating custom Sampler with URLs:`, options2.urls);
+            synth = new ToneLib.Sampler(opts);
           } else {
-            synth = new ToneLib[synthType](options2);
-            synth.connect(masterGain);
-            console.log(`[SYNTH] Creating ${synthType} for track ${originalTrackIndex}`);
+            synth = new ToneLib[synthType](opts);
           }
+          synth.connect(connectTarget);
         } catch (e) {
-          console.error(`[SYNTH] Failed to create ${synthType}:`, e);
           synth = new ToneLib.PolySynth();
-          synth.connect(masterGain);
+          synth.connect(connectTarget);
         }
       } else {
         synth = new ToneLib.PolySynth();
-        synth.connect(masterGain);
+        synth.connect(connectTarget);
       }
       activeSynths.push(synth);
-      const vibratoMods = modulations.filter(
-        (m) => m.type === "pitch" && m.subtype === "vibrato"
-      );
-      const tremoloMods = modulations.filter(
-        (m) => m.type === "amplitude" && m.subtype === "tremolo"
-      );
-      console.log(`[EFFECTS] Track ${originalTrackIndex}: ${vibratoMods.length} vibrato, ${tremoloMods.length} tremolo`);
+      const vibratoMods = modulations.filter((m) => m.type === "pitch" && m.subtype === "vibrato");
+      const tremoloMods = modulations.filter((m) => m.type === "amplitude" && m.subtype === "tremolo");
       let vibratoEffect = null;
       let tremoloEffect = null;
       if (vibratoMods.length > 0 || tremoloMods.length > 0) {
         synth.disconnect();
         if (vibratoMods.length > 0) {
-          const defaultVibrato = vibratoMods[0];
-          vibratoEffect = new ToneLib.Vibrato({
-            frequency: defaultVibrato.rate || 5,
-            depth: (defaultVibrato.depth || 50) / 100
-          });
+          const dv = vibratoMods[0];
+          vibratoEffect = new ToneLib.Vibrato({ frequency: dv.rate || 5, depth: (dv.depth || 50) / 100 });
           vibratoEffect.wet.value = 0;
           activeSynths.push(vibratoEffect);
         }
         if (tremoloMods.length > 0) {
-          const defaultTremolo = tremoloMods[0];
-          tremoloEffect = new ToneLib.Tremolo({
-            frequency: defaultTremolo.rate || 8,
-            depth: defaultTremolo.depth || 0.3
-          }).start();
+          const dt = tremoloMods[0];
+          tremoloEffect = new ToneLib.Tremolo({ frequency: dt.rate || 8, depth: dt.depth || 0.3 }).start();
           tremoloEffect.wet.value = 0;
           activeSynths.push(tremoloEffect);
         }
@@ -2310,61 +2064,59 @@ function createPlayer(composition, options = {}) {
           synth.connect(tremoloEffect);
           tremoloEffect.connect(masterGain);
         }
-        const secondsPerQuarterNote = 60 / tempo;
-        modulations.forEach((mod) => {
-          const startTime = mod.start * secondsPerQuarterNote;
-          const endTime = mod.end * secondsPerQuarterNote;
-          if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
-            const vibratoFreq = mod.rate || 5;
-            const vibratoDepth = (mod.depth || 50) / 100;
-            const enableId = ToneLib.Transport.schedule((time) => {
-              vibratoEffect.frequency.value = vibratoFreq;
-              vibratoEffect.depth.value = vibratoDepth;
-              vibratoEffect.wet.value = 1;
-            }, startTime);
-            scheduledEvents.push(enableId);
-            const disableId = ToneLib.Transport.schedule((time) => {
-              vibratoEffect.wet.value = 0;
-            }, endTime);
-            scheduledEvents.push(disableId);
-          }
-          if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
-            const tremoloFreq = mod.rate || 8;
-            const tremoloDepth = mod.depth || 0.3;
-            const enableId = ToneLib.Transport.schedule((time) => {
-              tremoloEffect.frequency.value = tremoloFreq;
-              tremoloEffect.depth.value = tremoloDepth;
-              tremoloEffect.wet.value = 1;
-            }, startTime);
-            scheduledEvents.push(enableId);
-            const disableId = ToneLib.Transport.schedule((time) => {
-              tremoloEffect.wet.value = 0;
-            }, endTime);
-            scheduledEvents.push(disableId);
-          }
-        });
       }
+      return { synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN };
+    });
+    await ToneLib.loaded();
+  }
+  function scheduleNotes() {
+    clearScheduledEvents();
+    trackConfigs.forEach(({ synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN }) => {
+      modulations.forEach((mod) => {
+        const startTime = mod.start * secondsPerQN;
+        const endTime = mod.end * secondsPerQN;
+        if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            vibratoEffect.frequency.value = mod.rate || 5;
+            vibratoEffect.depth.value = (mod.depth || 50) / 100;
+            vibratoEffect.wet.value = 1;
+          }, startTime));
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            vibratoEffect.wet.value = 0;
+          }, endTime));
+        }
+        if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            tremoloEffect.frequency.value = mod.rate || 8;
+            tremoloEffect.depth.value = mod.depth || 0.3;
+            tremoloEffect.wet.value = 1;
+          }, startTime));
+          scheduledEvents.push(ToneLib.Transport.schedule(() => {
+            tremoloEffect.wet.value = 0;
+          }, endTime));
+        }
+      });
       const modsByNote = {};
       modulations.forEach((mod) => {
         if (!modsByNote[mod.index]) modsByNote[mod.index] = [];
         modsByNote[mod.index].push(mod);
       });
       partEvents.forEach((note, noteIndex) => {
-        const time = typeof note.time === "number" ? note.time * (60 / tempo) : note.time;
-        const duration = typeof note.duration === "number" ? note.duration * (60 / tempo) : note.duration;
+        const time = typeof note.time === "number" ? note.time * secondsPerQN : note.time;
+        const duration = typeof note.duration === "number" ? note.duration * secondsPerQN : note.duration;
         const velocity = note.velocity || 0.8;
         const mods = modsByNote[noteIndex] || [];
         const glissando = mods.find(
           (m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
         );
         if (Array.isArray(note.pitch)) {
-          const noteNames = note.pitch.map(
-            (p) => typeof p === "number" ? ToneLib.Frequency(p, "midi").toNote() : p
+          const mt = note.microtuning || 0;
+          const chordNotes = note.pitch.map(
+            (p) => typeof p === "number" ? mt ? ToneLib.Frequency(p + mt, "midi").toFrequency() : ToneLib.Frequency(p, "midi").toNote() : p
           );
-          const eventId = ToneLib.Transport.schedule((schedTime) => {
-            synth.triggerAttackRelease(noteNames, duration, schedTime, velocity);
-          }, time);
-          scheduledEvents.push(eventId);
+          scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+            synth.triggerAttackRelease(chordNotes, duration, t, velocity);
+          }, time));
           return;
         }
         const noteName = typeof note.pitch === "number" ? ToneLib.Frequency(note.pitch, "midi").toNote() : note.pitch;
@@ -2377,89 +2129,86 @@ function createPlayer(composition, options = {}) {
           const startDetune = microtuningCents;
           const endDetune = microtuningCents + cents;
           if (synth.detune) {
-            console.log(`[GLISSANDO] Using main synth detune: ${noteName} -> ${toNote} (${cents} cents)`);
-            const eventId = ToneLib.Transport.schedule((schedTime) => {
-              synth.triggerAttack(noteName, schedTime, velocity);
-              synth.detune.setValueAtTime(startDetune, schedTime);
-              synth.detune.linearRampToValueAtTime(endDetune, schedTime + duration);
-              synth.triggerRelease(schedTime + duration);
-            }, time);
-            scheduledEvents.push(eventId);
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              synth.triggerAttack(noteName, t, velocity);
+              synth.detune.setValueAtTime(startDetune, t);
+              synth.detune.linearRampToValueAtTime(endDetune, t + duration);
+              synth.triggerRelease(t + duration);
+            }, time));
           } else {
-            console.log(`[GLISSANDO] Creating temporary MonoSynth: ${noteName} -> ${toNote} (${cents} cents)`);
             const glissSynth = new ToneLib.MonoSynth();
             glissSynth.connect(masterGain);
             activeSynths.push(glissSynth);
-            const eventId = ToneLib.Transport.schedule((schedTime) => {
-              glissSynth.triggerAttack(noteName, schedTime, velocity);
-              glissSynth.detune.setValueAtTime(startDetune, schedTime);
-              glissSynth.detune.linearRampToValueAtTime(endDetune, schedTime + duration);
-              glissSynth.triggerRelease(schedTime + duration);
-            }, time);
-            scheduledEvents.push(eventId);
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              glissSynth.triggerAttack(noteName, t, velocity);
+              glissSynth.detune.setValueAtTime(startDetune, t);
+              glissSynth.detune.linearRampToValueAtTime(endDetune, t + duration);
+              glissSynth.triggerRelease(t + duration);
+            }, time));
           }
         } else {
-          const eventId = ToneLib.Transport.schedule((schedTime) => {
-            if (note.microtuning && synth.detune) {
-              const cents = note.microtuning * 100;
-              synth.triggerAttack(noteName, schedTime, velocity);
-              synth.detune.setValueAtTime(cents, schedTime);
-              synth.triggerRelease(schedTime + duration);
-            } else {
-              synth.triggerAttackRelease(noteName, duration, schedTime, velocity);
-            }
-          }, time);
-          scheduledEvents.push(eventId);
+          const playNote = note.microtuning ? ToneLib.Frequency(note.pitch + note.microtuning, "midi").toFrequency() : noteName;
+          scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+            synth.triggerAttackRelease(playNote, duration, t, velocity);
+          }, time));
         }
       });
     });
   }
+  function clearScheduledEvents() {
+    if (ToneLib) {
+      ToneLib.Transport.cancel(0);
+    }
+    scheduledEvents = [];
+  }
+  function disposeAudio() {
+    clearScheduledEvents();
+    activeSynths.forEach((s) => {
+      try {
+        if (!s.disposed) s.dispose();
+      } catch (e) {
+      }
+    });
+    activeSynths = [];
+    trackConfigs = [];
+    masterGain = null;
+  }
   async function play2() {
+    if (isBusy) return;
     if (isPlaying) {
-      window.Tone.Transport.pause();
+      ToneLib.Transport.pause();
       isPlaying = false;
       playButton.textContent = "\u25B6 Play";
       cancelAnimationFrame(animationId);
-    } else {
-      if (!window.Tone || scheduledEvents.length === 0) {
-        await setupAudio();
-        console.log("Waiting for samples to load...");
-        await window.Tone.loaded();
-        console.log("Samples loaded, starting playback");
+      return;
+    }
+    isBusy = true;
+    playButton.textContent = "... Wait";
+    playButton.disabled = true;
+    try {
+      if (trackConfigs.length === 0) {
+        await buildSynths();
       }
-      if (window.Tone.Transport.state === "paused") {
-        window.Tone.Transport.start();
-      } else {
-        window.Tone.Transport.start("+0", currentTime);
-      }
+      scheduleNotes();
+      ToneLib.Transport.stop();
+      ToneLib.Transport.start("+0.05", currentTime);
       isPlaying = true;
       playButton.textContent = "\u23F8 Pause";
       stopButton.disabled = false;
       updateTimeline();
+    } catch (e) {
+      console.error("[PLAYER] Play failed:", e);
+      playButton.textContent = "\u25B6 Play";
+    } finally {
+      isBusy = false;
+      playButton.disabled = false;
     }
   }
   function stop() {
-    if (window.Tone) {
-      window.Tone.Transport.stop();
-      window.Tone.Transport.cancel(0);
-      scheduledEvents.forEach((eventId) => {
-        try {
-          window.Tone.Transport.clear(eventId);
-        } catch (e) {
-        }
-      });
-      scheduledEvents = [];
-      activeSynths.forEach((s) => {
-        try {
-          if (!s.disposed) {
-            s.dispose();
-          }
-        } catch (e) {
-          console.warn("Error disposing synth/effect:", e);
-        }
-      });
-      activeSynths = [];
+    if (ToneLib) {
+      ToneLib.Transport.stop();
     }
+    disposeAudio();
     isPlaying = false;
     currentTime = 0;
     playButton.textContent = "\u25B6 Play";
@@ -2468,20 +2217,23 @@ function createPlayer(composition, options = {}) {
     currentTimeDisplay.textContent = "0:00";
     cancelAnimationFrame(animationId);
   }
-  timeline.addEventListener("click", (e) => {
+  timeline.addEventListener("click", async (e) => {
+    if (isBusy) return;
     const rect = timeline.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percent = x / rect.width;
-    const newTime = percent * totalDuration;
-    if (window.Tone) {
-      const wasPlaying = isPlaying;
-      stop();
-      currentTime = newTime;
-      if (wasPlaying) {
-        play2();
-      } else {
-        timelineProgress.style.width = `${percent * 100}%`;
-        currentTimeDisplay.textContent = formatTime(newTime);
+    const percent = (e.clientX - rect.left) / rect.width;
+    const newTime = Math.max(0, Math.min(percent * totalDuration, totalDuration));
+    timelineProgress.style.width = `${percent * 100}%`;
+    currentTimeDisplay.textContent = formatTime(newTime);
+    currentTime = newTime;
+    if (isPlaying && ToneLib) {
+      isBusy = true;
+      try {
+        ToneLib.Transport.pause();
+        scheduleNotes();
+        ToneLib.Transport.start("+0.05", newTime);
+        updateTimeline();
+      } finally {
+        isBusy = false;
       }
     }
   });
@@ -2497,6 +2249,8 @@ var init_music_player = __esm({
     init_tonejs();
     init_audio();
     init_gm_instruments();
+    init_audio_effects();
+    init_normalize();
   }
 });
 
@@ -4207,13 +3961,21 @@ var Articulation = class {
   /**
    * Apply articulation to notes array (returns new array, immutable)
    * This API matches the Ornament pattern for consistency
-   * @param {Array} notes - The notes array
-   * @param {number|Array} noteIndex - Index of note to articulate, or array of indices
-   * @param {string} articulationType - Type of articulation
+   *
+   * Overloaded signatures:
+   * - apply(notes[], noteIndex, articulationType, params) - array API (immutable)
+   * - apply(note, articulationType) - single note API (mutates in place, returns {success})
+   *
+   * @param {Array|Object} notes - The notes array or single note object
+   * @param {number|Array|string} noteIndex - Index of note to articulate, array of indices, or articulation type
+   * @param {string} articulationType - Type of articulation (when using array API)
    * @param {Object} params - Parameters for complex articulations
-   * @returns {Array} New notes array with articulation applied
+   * @returns {Array|Object} New notes array with articulation applied, or {success: boolean}
    */
   static apply(notes, noteIndex, articulationType, params = {}) {
+    if (!Array.isArray(notes) && typeof notes === "object" && typeof noteIndex === "string") {
+      return this._applySingleNote(notes, noteIndex);
+    }
     if (!Array.isArray(notes) || notes.length === 0) {
       return notes;
     }
@@ -4263,6 +4025,50 @@ var Articulation = class {
       default:
         return notes;
     }
+  }
+  /**
+   * Apply articulation to a single note (mutates in place)
+   * Legacy API for backward compatibility
+   * @param {Object} note - The note object to modify
+   * @param {string} articulationType - Type of articulation
+   * @returns {{success: boolean}} Result object
+   */
+  static _applySingleNote(note, articulationType) {
+    if (!note || typeof note !== "object") {
+      return { success: false };
+    }
+    const articulationDef = ARTICULATION_TYPES[articulationType];
+    if (!articulationDef) {
+      console.warn(`Unknown articulation type: ${articulationType}`);
+      return { success: false };
+    }
+    switch (articulationType) {
+      case "staccato":
+        note.duration = note.duration * 0.5;
+        break;
+      case "staccatissimo":
+        note.duration = note.duration * 0.25;
+        break;
+      case "accent":
+      case "marcato": {
+        const multiplier = articulationType === "marcato" ? 1.3 : 1.2;
+        const velocity = note.velocity !== void 0 ? note.velocity : 0.8;
+        note.velocity = Math.min(1, velocity * multiplier);
+        break;
+      }
+      case "tenuto":
+        break;
+      case "legato":
+        note.duration = note.duration * 1.05;
+        break;
+      default:
+        return { success: false };
+    }
+    if (!Array.isArray(note.articulations)) {
+      note.articulations = [];
+    }
+    note.articulations.push(articulationType);
+    return { success: true };
   }
   /**
    * Apply staccato - shorten duration and insert rest
@@ -4528,22 +4334,25 @@ var Arpeggiate = class _Arpeggiate {
         return Array.from({ length: chordLength }, (_, i) => i);
       case "down":
         return Array.from({ length: chordLength }, (_, i) => chordLength - 1 - i);
-      case "updown":
+      case "updown": {
         const up = Array.from({ length: chordLength }, (_, i) => i);
         const down = Array.from({ length: chordLength - 1 }, (_, i) => chordLength - 2 - i);
         return [...up, ...down];
-      case "downup":
+      }
+      case "downup": {
         const down2 = Array.from({ length: chordLength }, (_, i) => chordLength - 1 - i);
         const up2 = Array.from({ length: chordLength - 1 }, (_, i) => i + 1);
         return [...down2, ...up2];
-      case "random":
+      }
+      case "random": {
         const shuffled = Array.from({ length: chordLength }, (_, i) => i);
         for (let i = shuffled.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
         return shuffled;
-      case "random-walk":
+      }
+      case "random-walk": {
         const walk = [Math.floor(Math.random() * chordLength)];
         for (let i = 1; i < chordLength; i++) {
           const prev = walk[walk.length - 1];
@@ -4552,6 +4361,7 @@ var Arpeggiate = class _Arpeggiate {
           walk.push(next);
         }
         return walk;
+      }
       default:
         return Array.from({ length: chordLength }, (_, i) => i);
     }
@@ -4732,10 +4542,11 @@ var Strum = class {
       case "down":
         return "up";
       // In Arpeggiate, 'up' means low to high
-      case "alternate":
+      case "alternate": {
         const isDown = this.alternateState % 2 === 0;
         this.alternateState++;
         return isDown ? "up" : "down";
+      }
       case "random":
         return "random";
       default:
@@ -5719,7 +5530,7 @@ var Loop = class _Loop {
     if (notes.length === 0) {
       throw new Error("Track must have notes to create loop");
     }
-    return new _Loop({ [track.label || "Track"]: track }, measureLength);
+    return new _Loop({ loops: { [track.label || "Track"]: track }, measureLength });
   }
   /**
    * Create a loop from simple pitch/duration arrays
@@ -5757,25 +5568,19 @@ var Loop = class _Loop {
       }
     }
     return new _Loop({
-      [label]: { notes }
-    }, options.measureLength || 4);
+      loops: { [label]: { notes } },
+      measureLength: options.measureLength || 4
+    });
   }
   /**
    * Create loop from Euclidean rhythm (JMON format)
-   * @param {Object} options - Configuration options
-   * @param {number} options.beats - Total number of beats
-   * @param {number} options.pulses - Number of active pulses to distribute
-   * @param {Array} [options.pitches=[60]] - Array of MIDI pitches to cycle through
-   * @param {string} [options.label] - Label for the loop
+   * @param {number} beats - Total number of beats
+   * @param {number} pulses - Number of active pulses to distribute
+   * @param {Array} [pitches=[60]] - Array of MIDI pitches to cycle through
+   * @param {string} [label] - Label for the loop
    * @returns {Loop} A new Loop instance
    */
-  static euclidean(options = {}) {
-    const {
-      beats,
-      pulses,
-      pitches = [60],
-      label
-    } = options;
+  static euclidean(beats, pulses, pitches = [60], label) {
     if (typeof beats !== "number" || beats <= 0 || !Number.isInteger(beats)) {
       throw new Error("beats must be a positive integer");
     }
@@ -6106,6 +5911,10 @@ var Darwin = class {
     );
     this.mutationProbabilities = mutationProbabilities || {
       pitch: () => {
+        if (this.scale && this.scale.length > 0) {
+          const idx = Math.floor(this.randomState.random() * this.scale.length);
+          return Math.max(0, Math.min(127, this.scale[idx]));
+        }
         return Math.max(0, Math.min(127, Math.floor(this.gaussianRandom(60, 5))));
       },
       duration: () => {
@@ -7319,22 +7128,59 @@ var PhasorSystem = class _PhasorSystem {
   }
 };
 
-// src/algorithms/generative/fractals/Mandelbrot.js
-var Mandelbrot = class {
-  /**
-   * @param {MandelbrotOptions} [options={}] - Configuration options
-   */
+// src/algorithms/generative/fractals/ComplexPlaneFractal.js
+var ComplexPlaneFractal = class {
   constructor(options = {}) {
     this.width = options.width || 100;
     this.height = options.height || 100;
     this.maxIterations = options.maxIterations || 100;
-    this.xMin = options.xMin || -2.5;
-    this.xMax = options.xMax || 1.5;
-    this.yMin = options.yMin || -2;
-    this.yMax = options.yMax || 2;
+    if (options.center && options.size) {
+      this._center = { x: options.center.x, y: options.center.y };
+      this._size = { w: options.size.w, h: options.size.h };
+    } else if (options.xMin !== void 0 || options.xMax !== void 0 || options.yMin !== void 0 || options.yMax !== void 0) {
+      console.warn("[jmon/algo] xMin/xMax/yMin/yMax are deprecated. Use center and size instead.");
+      const xMin = options.xMin ?? -2.5;
+      const xMax = options.xMax ?? 1.5;
+      const yMin = options.yMin ?? -2;
+      const yMax = options.yMax ?? 2;
+      this._center = { x: (xMin + xMax) / 2, y: (yMin + yMax) / 2 };
+      this._size = { w: xMax - xMin, h: yMax - yMin };
+    } else {
+      this._center = { x: -0.5, y: 0 };
+      this._size = { w: 4, h: 4 };
+    }
+    this.xMin = this._center.x - this._size.w / 2;
+    this.xMax = this._center.x + this._size.w / 2;
+    this.yMin = this._center.y - this._size.h / 2;
+    this.yMax = this._center.y + this._size.h / 2;
+  }
+  /** @returns {string} Fractal type identifier */
+  get type() {
+    throw new Error("Subclasses must implement the type getter");
+  }
+  /** @returns {{x: number, y: number}} Center of the viewing window */
+  get center() {
+    return { ...this._center };
+  }
+  /** @returns {{w: number, h: number}} Size of the viewing window */
+  get size() {
+    return { ...this._size };
+  }
+  /** @returns {{xMin: number, xMax: number, yMin: number, yMax: number}} Bounds (computed from center and size) */
+  get bounds() {
+    return { xMin: this.xMin, xMax: this.xMax, yMin: this.yMin, yMax: this.yMax };
   }
   /**
-   * Generate Mandelbrot set data
+   * Calculate iterations for a point in the complex plane.
+   * Subclasses must implement this.
+   * @param {ComplexPoint} point - Point in the complex plane
+   * @returns {number} Number of iterations before escape
+   */
+  iterate(point) {
+    throw new Error("Subclasses must implement iterate()");
+  }
+  /**
+   * Generate fractal data as a 2D grid of iteration counts.
    * @returns {number[][]} 2D array of iteration counts
    */
   generate() {
@@ -7344,16 +7190,15 @@ var Mandelbrot = class {
       for (let x = 0; x < this.width; x++) {
         const real = this.xMin + x / this.width * (this.xMax - this.xMin);
         const imaginary = this.yMin + y / this.height * (this.yMax - this.yMin);
-        const iterations = this.mandelbrotIterations({ real, imaginary });
-        row.push(iterations);
+        row.push(this.iterate({ real, imaginary }));
       }
       data.push(row);
     }
     return data;
   }
   /**
-   * Extract sequence from Mandelbrot data using various methods
-   * @param {'diagonal'|'border'|'spiral'|'column'|'row'} [method='diagonal'] - Extraction method
+   * Extract sequence from fractal data using various methods
+   * @param {'diagonal'|'border'|'spiral'|'column'|'row'} [method='diagonal']
    * @param {number} [index=0] - Index for column/row extraction
    * @returns {number[]} Extracted sequence
    */
@@ -7374,29 +7219,6 @@ var Mandelbrot = class {
         return this.extractDiagonal(data);
     }
   }
-  /**
-   * Calculate Mandelbrot iterations for a complex point
-   * @param {ComplexPoint} c - Complex point to test
-   * @returns {number} Number of iterations before escape
-   */
-  mandelbrotIterations(c) {
-    const z = { real: 0, imaginary: 0 };
-    for (let i = 0; i < this.maxIterations; i++) {
-      const zReal = z.real * z.real - z.imaginary * z.imaginary + c.real;
-      const zImaginary = 2 * z.real * z.imaginary + c.imaginary;
-      z.real = zReal;
-      z.imaginary = zImaginary;
-      if (z.real * z.real + z.imaginary * z.imaginary > 4) {
-        return i;
-      }
-    }
-    return this.maxIterations;
-  }
-  /**
-   * Extract diagonal sequence
-   * @param {number[][]} data - 2D fractal data
-   * @returns {number[]} Diagonal sequence
-   */
   extractDiagonal(data) {
     const sequence = [];
     const minDimension = Math.min(data.length, data[0]?.length || 0);
@@ -7405,39 +7227,21 @@ var Mandelbrot = class {
     }
     return sequence;
   }
-  /**
-   * Extract border sequence (clockwise)
-   * @param {number[][]} data - 2D fractal data
-   * @returns {number[]} Border sequence
-   */
   extractBorder(data) {
     const sequence = [];
     const height = data.length;
     const width = data[0]?.length || 0;
     if (height === 0 || width === 0) return sequence;
-    for (let x = 0; x < width; x++) {
-      sequence.push(data[0][x]);
-    }
-    for (let y = 1; y < height; y++) {
-      sequence.push(data[y][width - 1]);
-    }
+    for (let x = 0; x < width; x++) sequence.push(data[0][x]);
+    for (let y = 1; y < height; y++) sequence.push(data[y][width - 1]);
     if (height > 1) {
-      for (let x = width - 2; x >= 0; x--) {
-        sequence.push(data[height - 1][x]);
-      }
+      for (let x = width - 2; x >= 0; x--) sequence.push(data[height - 1][x]);
     }
     if (width > 1) {
-      for (let y = height - 2; y > 0; y--) {
-        sequence.push(data[y][0]);
-      }
+      for (let y = height - 2; y > 0; y--) sequence.push(data[y][0]);
     }
     return sequence;
   }
-  /**
-   * Extract spiral sequence (from outside to inside)
-   * @param {number[][]} data - 2D fractal data
-   * @returns {number[]} Spiral sequence
-   */
   extractSpiral(data) {
     const sequence = [];
     const height = data.length;
@@ -7446,68 +7250,40 @@ var Mandelbrot = class {
     let top = 0, bottom = height - 1;
     let left = 0, right = width - 1;
     while (top <= bottom && left <= right) {
-      for (let x = left; x <= right; x++) {
-        sequence.push(data[top][x]);
-      }
+      for (let x = left; x <= right; x++) sequence.push(data[top][x]);
       top++;
-      for (let y = top; y <= bottom; y++) {
-        sequence.push(data[y][right]);
-      }
+      for (let y = top; y <= bottom; y++) sequence.push(data[y][right]);
       right--;
       if (top <= bottom) {
-        for (let x = right; x >= left; x--) {
-          sequence.push(data[bottom][x]);
-        }
+        for (let x = right; x >= left; x--) sequence.push(data[bottom][x]);
         bottom--;
       }
       if (left <= right) {
-        for (let y = bottom; y >= top; y--) {
-          sequence.push(data[y][left]);
-        }
+        for (let y = bottom; y >= top; y--) sequence.push(data[y][left]);
         left++;
       }
     }
     return sequence;
   }
-  /**
-   * Extract specific column
-   * @param {number[][]} data - 2D fractal data
-   * @param {number} columnIndex - Column index to extract
-   * @returns {number[]} Column sequence
-   */
   extractColumn(data, columnIndex) {
     const sequence = [];
     const width = data[0]?.length || 0;
     const clampedIndex = Math.max(0, Math.min(columnIndex, width - 1));
     for (const row of data) {
-      if (row[clampedIndex] !== void 0) {
-        sequence.push(row[clampedIndex]);
-      }
+      if (row[clampedIndex] !== void 0) sequence.push(row[clampedIndex]);
     }
     return sequence;
   }
-  /**
-   * Extract specific row
-   * @param {number[][]} data - 2D fractal data
-   * @param {number} rowIndex - Row index to extract
-   * @returns {number[]} Row sequence
-   */
   extractRow(data, rowIndex) {
     const clampedIndex = Math.max(0, Math.min(rowIndex, data.length - 1));
     return data[clampedIndex] ? [...data[clampedIndex]] : [];
   }
   /**
    * Map fractal values to musical scale pitches
-   * @param {Object} options - Mapping options
+   * @param {Object} options
    * @param {number[]} options.sequence - Fractal sequence to map
-   * @param {number[]} options.pitches - Array of MIDI pitch values to map to
+   * @param {number[]} options.pitches - MIDI pitch values to map to
    * @returns {number[]} MIDI note sequence
-   *
-   * @example
-   * const mbSequence = [10, 25, 15, 30, 5];
-   * const gMajorPitches = [55, 57, 59, 60, 62, 64, 66, 67]; // G major scale
-   * const mapped = mb.mapToScale({ sequence: mbSequence, pitches: gMajorPitches });
-   * // Maps each value to a pitch based on normalized position
    */
   mapToScale({ sequence, pitches }) {
     if (sequence.length === 0) return [];
@@ -7525,9 +7301,9 @@ var Mandelbrot = class {
   }
   /**
    * Generate rhythmic pattern from fractal data
-   * @param {Object} options - Mapping options
+   * @param {Object} options
    * @param {number[]} options.sequence - Fractal sequence
-   * @param {number[]} [options.subdivisions=[1, 2, 4, 8, 16]] - Rhythmic subdivisions
+   * @param {number[]} [options.subdivisions=[1, 2, 4, 8, 16]]
    * @returns {number[]} Rhythmic durations
    */
   mapToRhythm({ sequence, subdivisions = [1, 2, 4, 8, 16] }) {
@@ -7542,7 +7318,164 @@ var Mandelbrot = class {
       return 1 / subdivisions[clampedIndex];
     });
   }
+  /**
+   * Treat the 2D iteration grid as a piano roll.
+   * x-axis = time, y-axis = pitch. Boundary pixels (iteration counts
+   * between thresholdMin and thresholdMax fractions of maxIterations)
+   * become active notes. Velocity is derived from the local iteration
+   * gradient magnitude. Consecutive same-pitch notes are merged into
+   * single longer notes.
+   *
+   * @param {Object} options
+   * @param {number[][]} options.grid - 2D iteration-count array (from generate())
+   * @param {number[]} options.pitches - MIDI pitch values, one per grid row (length must equal grid height)
+   * @param {number} [options.thresholdMin=0.1] - Lower boundary fraction of maxIterations
+   * @param {number} [options.thresholdMax=0.95] - Upper boundary fraction of maxIterations
+   * @param {number} [options.duration=1] - Duration of each time step in quarter notes
+   * @param {number} [options.maxDuration=Infinity] - Maximum merged note duration in quarter notes
+   * @returns {{ pitch: number, time: number, duration: number, velocity: number }[]} JMON note array
+   */
+  gridToNotes({ grid, pitches, thresholdMin = 0.1, thresholdMax = 0.95, duration = 1, maxDuration = Infinity }) {
+    const height = grid.length;
+    const width = grid[0]?.length || 0;
+    if (height === 0 || width === 0 || !pitches || pitches.length === 0) return [];
+    const lo = thresholdMin * this.maxIterations;
+    const hi = thresholdMax * this.maxIterations;
+    const gradient = [];
+    for (let y = 0; y < height; y++) {
+      gradient[y] = [];
+      for (let x = 0; x < width; x++) {
+        const dx = (grid[y][Math.min(x + 1, width - 1)] - grid[y][Math.max(x - 1, 0)]) / 2;
+        const dy = ((grid[Math.min(y + 1, height - 1)] || grid[y])[x] - grid[Math.max(y - 1, 0)][x]) / 2;
+        gradient[y][x] = Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+    let maxGrad = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (gradient[y][x] > maxGrad) maxGrad = gradient[y][x];
+      }
+    }
+    if (maxGrad === 0) maxGrad = 1;
+    const raw = [];
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        const v = grid[y][x];
+        if (v >= lo && v <= hi) {
+          const pitchIndex = height - 1 - y;
+          const pitch = pitches[Math.min(pitchIndex, pitches.length - 1)];
+          const vel = 0.2 + 0.8 * (gradient[y][x] / maxGrad);
+          raw.push({ pitch, time: x * duration, duration, velocity: vel });
+        }
+      }
+    }
+    if (raw.length === 0) return [];
+    raw.sort((a, b) => a.pitch - b.pitch || a.time - b.time);
+    const merged = [raw[0]];
+    for (let i = 1; i < raw.length; i++) {
+      const prev = merged[merged.length - 1];
+      const curr = raw[i];
+      if (curr.pitch === prev.pitch && Math.abs(curr.time - (prev.time + prev.duration)) < 1e-3 && prev.duration < maxDuration) {
+        const totalDur = prev.duration + curr.duration;
+        prev.velocity = (prev.velocity * prev.duration + curr.velocity * curr.duration) / totalDur;
+        prev.duration = totalDur;
+      } else {
+        merged.push({ ...curr });
+      }
+    }
+    merged.sort((a, b) => a.time - b.time || a.pitch - b.pitch);
+    return merged;
+  }
 };
+
+// src/algorithms/generative/fractals/Mandelbrot.js
+var Mandelbrot = class extends ComplexPlaneFractal {
+  get type() {
+    return "mandelbrot";
+  }
+  iterate(point) {
+    let zReal = 0, zImag = 0;
+    for (let i = 0; i < this.maxIterations; i++) {
+      const newReal = zReal * zReal - zImag * zImag + point.real;
+      const newImag = 2 * zReal * zImag + point.imaginary;
+      zReal = newReal;
+      zImag = newImag;
+      if (zReal * zReal + zImag * zImag > 4) return i;
+    }
+    return this.maxIterations;
+  }
+};
+
+// src/algorithms/generative/fractals/Julia.js
+var Julia = class extends ComplexPlaneFractal {
+  /**
+   * @param {Object} options
+   * @param {{real: number, imaginary: number}} options.c - The fixed c parameter
+   */
+  constructor(options = {}) {
+    if (!options.c) {
+      throw new Error("Julia set requires a c parameter: { real, imaginary }");
+    }
+    const defaults = { center: { x: 0, y: 0 }, size: { w: 4, h: 4 } };
+    super({ ...defaults, ...options });
+    this.c = { real: options.c.real, imaginary: options.c.imaginary };
+  }
+  get type() {
+    return "julia";
+  }
+  iterate(point) {
+    let zReal = point.real, zImag = point.imaginary;
+    for (let i = 0; i < this.maxIterations; i++) {
+      const newReal = zReal * zReal - zImag * zImag + this.c.real;
+      const newImag = 2 * zReal * zImag + this.c.imaginary;
+      zReal = newReal;
+      zImag = newImag;
+      if (zReal * zReal + zImag * zImag > 4) return i;
+    }
+    return this.maxIterations;
+  }
+};
+
+// src/algorithms/generative/fractals/BurningShip.js
+var BurningShip = class extends ComplexPlaneFractal {
+  constructor(options = {}) {
+    const defaults = { center: { x: -0.5, y: -0.5 }, size: { w: 4, h: 3 } };
+    super({ ...defaults, ...options });
+  }
+  get type() {
+    return "burningship";
+  }
+  iterate(point) {
+    let zReal = 0, zImag = 0;
+    for (let i = 0; i < this.maxIterations; i++) {
+      const absReal = Math.abs(zReal);
+      const absImag = Math.abs(zImag);
+      const newReal = absReal * absReal - absImag * absImag + point.real;
+      const newImag = 2 * absReal * absImag + point.imaginary;
+      zReal = newReal;
+      zImag = newImag;
+      if (zReal * zReal + zImag * zImag > 4) return i;
+    }
+    return this.maxIterations;
+  }
+};
+
+// src/algorithms/generative/fractals/Fractal.js
+var TYPES = {
+  mandelbrot: Mandelbrot,
+  julia: Julia,
+  burningship: BurningShip
+};
+function Fractal(type, options = {}) {
+  const FractalClass = TYPES[type];
+  if (!FractalClass) {
+    throw new Error(
+      `Unknown fractal type: "${type}". Supported: ${Object.keys(TYPES).join(", ")}`
+    );
+  }
+  return new FractalClass(options);
+}
+Fractal.types = () => Object.keys(TYPES);
 
 // src/algorithms/generative/fractals/LogisticMap.js
 var LogisticMap = class {
@@ -8220,7 +8153,11 @@ var Corruptor = class {
       ghostTrack: options.ghostTrack !== void 0 ? options.ghostTrack : false,
       ghostOctaveShift: options.ghostOctaveShift || -2,
       ghostDurationMultiplier: options.ghostDurationMultiplier || 4,
-      ghostVelocityMultiplier: options.ghostVelocityMultiplier || 0.3
+      ghostVelocityMultiplier: options.ghostVelocityMultiplier || 0.3,
+      ghostDelay: options.ghostDelay !== void 0 ? options.ghostDelay : 1,
+      // beats of delay before ghost enters
+      ghostDrift: options.ghostDrift !== void 0 ? options.ghostDrift : 0.3
+      // temporal smearing amount
     };
     this.perlin = new PerlinNoise(this.options.seed);
     this.randomSeed = this.options.seed;
@@ -8363,35 +8300,55 @@ var Corruptor = class {
   }
   /**
    * Generate ghost tracks (semantic ghosting)
+   *
+   * Ghost tracks are delayed, blurred shadow layers — not parallel voicing.
+   * They enter after the melody, use fewer anchor points, drift in time,
+   * and sustain long notes that follow the melody's contour from a distance.
+   *
    * @param {Array} tracks - Original JMON tracks
    * @param {Number} entropy - Entropy level
    * @returns {Array} Ghost tracks
    */
   generateGhostTracks(tracks, entropy) {
     const ghostTracks = [];
+    const mult = this.options.ghostDurationMultiplier;
+    const delay = this.options.ghostDelay;
+    const drift = this.options.ghostDrift;
     for (const track of tracks) {
       if (!track.notes || track.notes.length === 0) continue;
       const pitches = track.notes.map((n) => typeof n.pitch === "number" ? n.pitch : 60);
       const uniquePitches = new Set(pitches);
-      if (uniquePitches.size > 3) {
-        const ghostNotes = track.notes.map((note) => {
-          const originalPitch = typeof note.pitch === "number" ? note.pitch : 60;
-          const ghostPitch = originalPitch + this.options.ghostOctaveShift * 12;
-          return {
-            pitch: ghostPitch,
-            duration: note.duration * this.options.ghostDurationMultiplier,
-            time: note.time,
-            velocity: (note.velocity || 0.8) * this.options.ghostVelocityMultiplier
-          };
+      if (uniquePitches.size <= 3) continue;
+      const trackEnd = Math.max(...track.notes.map((n) => (n.time || 0) + (n.duration || 0)));
+      const ghostNotes = [];
+      let nextAvailable = -Infinity;
+      for (let i = 0; i < track.notes.length; i++) {
+        const note = track.notes[i];
+        const noteTime = note.time || 0;
+        const driftOffset = this.perlin.noise(i * 0.15) * drift * entropy;
+        const ghostTime = noteTime + delay + driftOffset;
+        if (ghostTime < nextAvailable) continue;
+        if (ghostTime >= trackEnd) continue;
+        const originalPitch = typeof note.pitch === "number" ? note.pitch : 60;
+        const ghostPitch = originalPitch + this.options.ghostOctaveShift * 12;
+        const ghostDur = Math.min(note.duration * mult, trackEnd - ghostTime);
+        if (ghostDur <= 0) continue;
+        ghostNotes.push({
+          pitch: ghostPitch,
+          duration: ghostDur,
+          time: ghostTime,
+          velocity: (note.velocity || 0.8) * this.options.ghostVelocityMultiplier
         });
-        const ghostTrack = {
-          label: `${track.label || "Track"} (Ghost)`,
-          notes: ghostNotes,
-          midiChannel: track.midiChannel || 0,
-          synth: track.synth || { type: "Synth" }
-        };
-        ghostTracks.push(ghostTrack);
+        nextAvailable = ghostTime + ghostDur;
       }
+      if (ghostNotes.length === 0) continue;
+      ghostTracks.push({
+        label: `${track.label || "Track"} (Ghost)`,
+        notes: ghostNotes,
+        midiChannel: track.midiChannel || 0,
+        synth: "Synth"
+        // sustaining oscillator, not the melody's percussive synth
+      });
     }
     return ghostTracks;
   }
@@ -8810,9 +8767,66 @@ var FractalVisualizer = class {
     });
   }
   /**
-   * Generate Mandelbrot set visualization
+   * Visualize any complex plane fractal (Mandelbrot, Julia, BurningShip, etc.)
+   * @param {import('../../generative/fractals/ComplexPlaneFractal.js').ComplexPlaneFractal} fractal - Fractal instance
+   * @param {FractalVisualizationOptions} [options={}] - Visualization options
+   * @returns {Object} Plot data object or canvas
+   */
+  static plotFractal(fractal, options = {}) {
+    const {
+      title = `${fractal.type.charAt(0).toUpperCase() + fractal.type.slice(1)} Set`,
+      width = 600,
+      height = 600,
+      colorScheme = "plasma",
+      canvas = null,
+      resolution = fractal.width
+    } = options;
+    if (canvas) {
+      return this.renderFractalCanvas(canvas, fractal, resolution, colorScheme);
+    }
+    const data = fractal.generate();
+    const matrix = data.map(
+      (row) => row.map((val) => val / fractal.maxIterations)
+    );
+    return PlotRenderer.heatmap(matrix, { title, width, height, showAxis: false });
+  }
+  /**
+   * Render any complex plane fractal directly to Canvas
+   * @param {HTMLCanvasElement} canvas - Canvas element
+   * @param {import('../../generative/fractals/ComplexPlaneFractal.js').ComplexPlaneFractal} fractal - Fractal instance
+   * @param {number} resolution - Grid resolution
+   * @param {string} [colorScheme='plasma'] - Color scheme
+   * @returns {HTMLCanvasElement} The canvas element
+   */
+  static renderFractalCanvas(canvas, fractal, resolution, colorScheme = "plasma") {
+    const ctx = canvas.getContext("2d");
+    canvas.width = resolution;
+    canvas.height = resolution;
+    const imageData = ctx.createImageData(resolution, resolution);
+    const pixels = imageData.data;
+    const dx = (fractal.xMax - fractal.xMin) / resolution;
+    const dy = (fractal.yMax - fractal.yMin) / resolution;
+    for (let py = 0; py < resolution; py++) {
+      const imag = fractal.yMin + py * dy;
+      for (let px = 0; px < resolution; px++) {
+        const real = fractal.xMin + px * dx;
+        const iterations = fractal.iterate({ real, imaginary: imag });
+        const normalized = iterations / fractal.maxIterations;
+        const color = this.getColorComponents(normalized, colorScheme);
+        const idx = (py * resolution + px) * 4;
+        pixels[idx] = color.r;
+        pixels[idx + 1] = color.g;
+        pixels[idx + 2] = color.b;
+        pixels[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+  }
+  /**
+   * Generate Mandelbrot set visualization (backward-compatible wrapper)
    * @param {number} [xMin=-2.5] - Minimum x coordinate
-   * @param {number} [xMax=1.0] - Maximum x coordinate  
+   * @param {number} [xMax=1.0] - Maximum x coordinate
    * @param {number} [yMin=-1.25] - Minimum y coordinate
    * @param {number} [yMax=1.25] - Maximum y coordinate
    * @param {number} [resolution=400] - Grid resolution
@@ -8861,16 +8875,7 @@ var FractalVisualizer = class {
     });
   }
   /**
-   * Render Mandelbrot set directly to Canvas for better performance
-   * @param {HTMLCanvasElement} canvas - Canvas element
-   * @param {number} xMin - Minimum x coordinate
-   * @param {number} xMax - Maximum x coordinate
-   * @param {number} yMin - Minimum y coordinate
-   * @param {number} yMax - Maximum y coordinate
-   * @param {number} resolution - Grid resolution
-   * @param {number} maxIterations - Maximum iterations
-   * @param {string} colorScheme - Color scheme
-   * @returns {HTMLCanvasElement} The canvas element
+   * Render Mandelbrot set directly to Canvas (backward-compatible wrapper)
    */
   static renderMandelbrotCanvas(canvas, xMin, xMax, yMin, yMax, resolution, maxIterations, colorScheme) {
     const ctx = canvas.getContext("2d");
@@ -9137,7 +9142,7 @@ var generative = {
   automata: {
     Cellular: CellularAutomata
   },
-  loops: Loop,
+  loops: { Loop },
   genetic: {
     Darwin
   },
@@ -9151,12 +9156,17 @@ var generative = {
   },
   fractals: {
     Mandelbrot,
+    Julia,
+    BurningShip,
+    Fractal,
     LogisticMap
   },
   minimalism: {
     Process: MinimalismProcess,
     Tintinnabuli
   }
+  // Note: GaussianProcessRegressor removed to avoid @tangent.to/ds dependency
+  // Import it separately if needed: import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
 };
 var processors = {
   Corruptor,
@@ -9188,102 +9198,132 @@ var algorithms_default = {
 
 // src/converters/midi.js
 init_audio();
-var Midi = class _Midi {
-  static midiToNoteName(midi2) {
-    const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-    const octave = Math.floor(midi2 / 12) - 1;
-    const noteIndex = midi2 % 12;
-    return noteNames[noteIndex] + octave;
+function writeVarLen(value) {
+  const bytes = [];
+  bytes.push(value & 127);
+  value >>= 7;
+  while (value > 0) {
+    bytes.push(value & 127 | 128);
+    value >>= 7;
   }
-  static convert(composition) {
-    const bpm = composition.tempo || composition.bpm || 120;
-    const timeSignature = composition.timeSignature || "4/4";
-    const rawTracks = composition.tracks || [];
-    const tracksArray = Array.isArray(rawTracks) ? rawTracks : rawTracks && typeof rawTracks === "object" ? Object.values(rawTracks) : [];
-    return {
-      header: {
-        bpm,
-        timeSignature
-      },
-      tracks: tracksArray.map((track) => {
-        const label = track.label || track.name;
-        const notesSrc = Array.isArray(track.events) ? track.events : Array.isArray(track.notes) ? track.notes : Array.isArray(track) ? track : [];
-        const safeNotes = Array.isArray(notesSrc) ? notesSrc : [];
-        const perf = compileEvents({ events: safeNotes }, { tempo: bpm, timeSignature });
-        const notes = safeNotes.map((note) => ({
-          pitch: note.pitch,
-          noteName: typeof note.pitch === "number" ? _Midi.midiToNoteName(note.pitch) : note.pitch,
-          time: note.time,
-          duration: note.duration,
-          velocity: note.velocity || 0.8
-        }));
-        return {
-          label,
-          notes,
-          modulations: perf && Array.isArray(perf.modulations) ? perf.modulations : []
-        };
-      })
-    };
-  }
-};
-function midi(composition) {
-  return Midi.convert(composition);
+  return bytes.reverse();
 }
-function downloadMidi(composition, ToneMidi, filename = "composition.mid") {
-  const midiData = Midi.convert(composition);
-  const midiFile = new ToneMidi.Midi();
-  midiFile.header.setTempo(midiData.header.bpm);
-  midiData.tracks.forEach((trackData) => {
-    const track = midiFile.addTrack();
-    track.name = trackData.label || "Track";
-    trackData.notes.forEach((note) => {
-      track.addNote({
-        midi: typeof note.pitch === "number" ? note.pitch : 60,
-        time: note.time || 0,
-        duration: note.duration || 0.5,
-        velocity: note.velocity || 0.8
-      });
+function writeUint16(value) {
+  return [value >> 8 & 255, value & 255];
+}
+function writeUint32(value) {
+  return [value >> 24 & 255, value >> 16 & 255, value >> 8 & 255, value & 255];
+}
+function writeString(str) {
+  return Array.from(str, (c) => c.charCodeAt(0));
+}
+function encodeTrack(events) {
+  const data = [];
+  let lastTick = 0;
+  events.sort((a, b) => a.tick - b.tick || a.sortOrder - b.sortOrder);
+  for (const evt of events) {
+    const delta = evt.tick - lastTick;
+    data.push(...writeVarLen(delta));
+    data.push(...evt.bytes);
+    lastTick = evt.tick;
+  }
+  data.push(0, 255, 47, 0);
+  return data;
+}
+function buildMidiFile(composition) {
+  const bpm = composition.tempo || composition.bpm || 120;
+  const ticksPerBeat = 480;
+  const rawTracks = composition.tracks || [];
+  const tracksArray = Array.isArray(rawTracks) ? rawTracks : rawTracks && typeof rawTracks === "object" ? Object.values(rawTracks) : [];
+  const trackChunks = [];
+  const tempoEvents = [];
+  const microsecondsPerBeat = Math.round(6e7 / bpm);
+  tempoEvents.push({
+    tick: 0,
+    sortOrder: -1,
+    bytes: [
+      255,
+      81,
+      3,
+      microsecondsPerBeat >> 16 & 255,
+      microsecondsPerBeat >> 8 & 255,
+      microsecondsPerBeat & 255
+    ]
+  });
+  const title = composition.title || composition.metadata?.title || "";
+  if (title) {
+    const titleBytes = writeString(title);
+    tempoEvents.push({
+      tick: 0,
+      sortOrder: -2,
+      bytes: [255, 3, ...writeVarLen(titleBytes.length), ...titleBytes]
     });
-    if (Array.isArray(trackData.modulations)) {
-      trackData.modulations.forEach((mod) => {
-        if (mod.subtype === "vibrato") {
-          const rate = mod.rate || 5;
-          const depth = mod.depth || 50;
-          const start = mod.start || 0;
-          const end = mod.end || start + 1;
-          const ccValue = Math.min(127, Math.round(depth / 100 * 127));
-          track.addCC({ number: 1, value: ccValue, time: start });
-          track.addCC({ number: 1, value: 0, time: end });
-        }
-        if (mod.subtype === "tremolo") {
-          const rate = mod.rate || 8;
-          const depth = mod.depth || 0.3;
-          const start = mod.start || 0;
-          const end = mod.end || start + 1;
-          const ccValue = Math.min(127, Math.round(depth * 127));
-          track.addCC({ number: 11, value: 127 - ccValue, time: start });
-          track.addCC({ number: 11, value: 127, time: end });
-        }
-        if (mod.subtype === "crescendo" || mod.subtype === "diminuendo") {
-          const startV = mod.startVelocity || 0.8;
-          const endV = mod.endVelocity || 0.8;
-          const start = mod.start || 0;
-          const end = mod.end || start + 1;
-          const startCC = Math.round(startV * 127);
-          const endCC = Math.round(endV * 127);
-          track.addCC({ number: 7, value: startCC, time: start });
-          track.addCC({ number: 7, value: endCC, time: end });
-        }
+  }
+  trackChunks.push(encodeTrack(tempoEvents));
+  for (const track of tracksArray) {
+    const notesSrc = Array.isArray(track.events) ? track.events : Array.isArray(track.notes) ? track.notes : Array.isArray(track) ? track : [];
+    const safeNotes = Array.isArray(notesSrc) ? notesSrc : [];
+    const events = [];
+    const label = track.label || track.name || "";
+    if (label) {
+      const labelBytes = writeString(label);
+      events.push({
+        tick: 0,
+        sortOrder: -2,
+        bytes: [255, 3, ...writeVarLen(labelBytes.length), ...labelBytes]
       });
     }
-  });
-  const blob = new Blob([midiFile.toArray()], { type: "audio/midi" });
+    let currentTime = 0;
+    const notesWithTime = safeNotes.map((note) => {
+      const t = note.time !== void 0 ? note.time : currentTime;
+      currentTime = t + (note.duration || 1);
+      return { ...note, time: t };
+    });
+    for (const note of notesWithTime) {
+      const pitch = typeof note.pitch === "number" ? note.pitch : 60;
+      if (pitch === null || pitch === void 0) continue;
+      const velocity = Math.round((note.velocity || 0.8) * 127);
+      const startTick = Math.round((note.time || 0) * ticksPerBeat);
+      const endTick = Math.round(((note.time || 0) + (note.duration || 1)) * ticksPerBeat);
+      const channel = 0;
+      events.push({
+        tick: startTick,
+        sortOrder: 1,
+        bytes: [144 | channel, pitch, velocity]
+      });
+      events.push({
+        tick: endTick,
+        sortOrder: 0,
+        // note-off sorts before note-on at same tick
+        bytes: [128 | channel, pitch, 0]
+      });
+    }
+    trackChunks.push(encodeTrack(events));
+  }
+  const numTracks = trackChunks.length;
+  const fileBytes = [];
+  fileBytes.push(...writeString("MThd"));
+  fileBytes.push(...writeUint32(6));
+  fileBytes.push(...writeUint16(1));
+  fileBytes.push(...writeUint16(numTracks));
+  fileBytes.push(...writeUint16(ticksPerBeat));
+  for (const trackData of trackChunks) {
+    fileBytes.push(...writeString("MTrk"));
+    fileBytes.push(...writeUint32(trackData.length));
+    fileBytes.push(...trackData);
+  }
+  return new Uint8Array(fileBytes);
+}
+function midi(composition, options = {}) {
+  const { filename = "composition.mid" } = options;
+  const bytes = buildMidiFile(composition);
+  const blob = new Blob([bytes], { type: "audio/midi" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  a.textContent = `Download ${filename}`;
+  return a;
 }
 
 // src/converters/midi-to-jmon.js
@@ -9317,7 +9357,7 @@ var MidiToJmon = class _MidiToJmon {
    * @param {ArrayBuffer|Uint8Array} midiData - MIDI file data
    * @returns {Promise<Object>} JMON composition
    */
-  async convertToJmon(midiData) {
+  convertToJmon(midiData) {
     const Tone = this.initializeTone();
     let parsed;
     try {
@@ -9905,21 +9945,23 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
         compiledModulations[index] = [];
       }
     });
+    const trackSynths = [];
+    const samplers = [];
     tracks.forEach((track, trackIndex) => {
-      const notes = track.events || track.notes || [];
       const synthRef = track.synthRef;
       const trackModulations = compiledModulations[trackIndex] || [];
       let synth = null;
+      const gmProgram = typeof track.synth === "number" ? track.synth : track.instrument;
       if (synthRef && graphInstruments && graphInstruments[synthRef]) {
         synth = graphInstruments[synthRef];
-      } else if (track.instrument !== void 0 && !track.synth) {
-        const urls = generateSamplerUrls(track.instrument);
+      } else if (gmProgram !== void 0) {
+        const urls = generateSamplerUrls(gmProgram);
         synth = new Tone.Sampler({
           urls,
           baseUrl: ""
-          // URLs are already complete
         }).toDestination();
-        console.log(`[WAV] Creating Sampler for GM instrument ${track.instrument}`);
+        samplers.push(synth);
+        console.log(`[WAV] Creating Sampler for GM instrument ${gmProgram}`);
       } else {
         const synthType = track.synth || "PolySynth";
         try {
@@ -9937,9 +9979,6 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
       let vibratoEffect = null;
       let tremoloEffect = null;
       if (vibratoMods.length > 0 || tremoloMods.length > 0) {
-        console.log(
-          `[WAV] Creating effect chain for track ${trackIndex} (${vibratoMods.length} vibrato, ${tremoloMods.length} tremolo)`
-        );
         if (!synthRef || !graphInstruments?.[synthRef]) {
           synth.disconnect();
         }
@@ -9970,35 +10009,41 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
           synth.connect(tremoloEffect);
           tremoloEffect.toDestination();
         }
-        trackModulations.forEach((mod) => {
-          const startTime = mod.start * secondsPerQuarterNote;
-          const endTime = mod.end * secondsPerQuarterNote;
-          if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
-            const vibratoFreq = mod.rate || 5;
-            const vibratoDepth = (mod.depth || 50) / 100;
-            transport.schedule((time) => {
-              vibratoEffect.frequency.value = vibratoFreq;
-              vibratoEffect.depth.value = vibratoDepth;
-              vibratoEffect.wet.value = 1;
-            }, startTime);
-            transport.schedule((time) => {
-              vibratoEffect.wet.value = 0;
-            }, endTime);
-          }
-          if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
-            const tremoloFreq = mod.rate || 8;
-            const tremoloDepth = mod.depth || 0.3;
-            transport.schedule((time) => {
-              tremoloEffect.frequency.value = tremoloFreq;
-              tremoloEffect.depth.value = tremoloDepth;
-              tremoloEffect.wet.value = 1;
-            }, startTime);
-            transport.schedule((time) => {
-              tremoloEffect.wet.value = 0;
-            }, endTime);
-          }
-        });
       }
+      trackSynths.push({ synth, vibratoEffect, tremoloEffect });
+    });
+    console.log(`[WAV] Waiting for ${samplers.length} sampler(s) to load...`);
+    await Promise.all(samplers.map((s) => s.loaded));
+    await Tone.loaded();
+    console.log("[WAV] Samples loaded, scheduling notes");
+    tracks.forEach((track, trackIndex) => {
+      const notes = track.events || track.notes || [];
+      const trackModulations = compiledModulations[trackIndex] || [];
+      const { synth, vibratoEffect, tremoloEffect } = trackSynths[trackIndex];
+      trackModulations.forEach((mod) => {
+        const startTime = mod.start * secondsPerQuarterNote;
+        const endTime = mod.end * secondsPerQuarterNote;
+        if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
+          transport.schedule(() => {
+            vibratoEffect.frequency.value = mod.rate || 5;
+            vibratoEffect.depth.value = (mod.depth || 50) / 100;
+            vibratoEffect.wet.value = 1;
+          }, startTime);
+          transport.schedule(() => {
+            vibratoEffect.wet.value = 0;
+          }, endTime);
+        }
+        if (mod.type === "amplitude" && mod.subtype === "tremolo" && tremoloEffect) {
+          transport.schedule(() => {
+            tremoloEffect.frequency.value = mod.rate || 8;
+            tremoloEffect.depth.value = mod.depth || 0.3;
+            tremoloEffect.wet.value = 1;
+          }, startTime);
+          transport.schedule(() => {
+            tremoloEffect.wet.value = 0;
+          }, endTime);
+        }
+      });
       const modsByNote = {};
       trackModulations.forEach((mod) => {
         if (!modsByNote[mod.index]) modsByNote[mod.index] = [];
@@ -10011,16 +10056,12 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
         const glissando = noteMods.find(
           (m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
         );
+        const mt = note.microtuning || 0;
         if (Array.isArray(note.pitch)) {
-          const noteNames = note.pitch.map(
-            (p) => typeof p === "number" ? Tone.Frequency(p, "midi").toNote() : p
+          const chordNotes = note.pitch.map(
+            (p) => typeof p === "number" ? mt ? Tone.Frequency(p + mt, "midi").toFrequency() : Tone.Frequency(p, "midi").toNote() : p
           );
-          synth.triggerAttackRelease(
-            noteNames,
-            noteDuration,
-            time,
-            note.velocity || 0.8
-          );
+          synth.triggerAttackRelease(chordNotes, noteDuration, time, note.velocity || 0.8);
         } else {
           const noteName = typeof note.pitch === "number" ? Tone.Frequency(note.pitch, "midi").toNote() : note.pitch;
           if (glissando && glissando.to !== void 0) {
@@ -10028,34 +10069,26 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
             const startFreq = Tone.Frequency(noteName).toFrequency();
             const endFreq = Tone.Frequency(toNote).toFrequency();
             const cents = 1200 * Math.log2(endFreq / startFreq);
+            const microtuningCents = mt * 100;
             if (synth.detune) {
-              console.log(`[WAV] Glissando using main synth: ${noteName} -> ${toNote} (${cents} cents)`);
               synth.triggerAttack(noteName, time, note.velocity || 0.8);
-              synth.detune.setValueAtTime(0, time);
-              synth.detune.linearRampToValueAtTime(cents, time + noteDuration);
+              synth.detune.setValueAtTime(microtuningCents, time);
+              synth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
               synth.triggerRelease(time + noteDuration);
             } else {
-              console.log(`[WAV] Glissando using temp MonoSynth: ${noteName} -> ${toNote} (${cents} cents)`);
               const glissSynth = new Tone.MonoSynth().toDestination();
               glissSynth.triggerAttack(noteName, time, note.velocity || 0.8);
-              glissSynth.detune.setValueAtTime(0, time);
-              glissSynth.detune.linearRampToValueAtTime(cents, time + noteDuration);
+              glissSynth.detune.setValueAtTime(microtuningCents, time);
+              glissSynth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
               glissSynth.triggerRelease(time + noteDuration);
             }
           } else {
-            synth.triggerAttackRelease(
-              noteName,
-              noteDuration,
-              time,
-              note.velocity || 0.8
-            );
+            const playNote = mt ? Tone.Frequency(note.pitch + mt, "midi").toFrequency() : noteName;
+            synth.triggerAttackRelease(playNote, noteDuration, time, note.velocity || 0.8);
           }
         }
       });
     });
-    console.log("[WAV] Waiting for all samples to load...");
-    await Tone.loaded();
-    console.log("[WAV] Samples loaded, starting offline rendering");
     transport.start(0);
   }, finalDuration);
   const wavBlob = await audioBufferToWav(buffer);
@@ -10063,8 +10096,8 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  a.textContent = `Download ${filename}`;
+  return a;
 }
 async function buildAudioGraphInstruments(composition, Tone) {
   if (!composition.audioGraph || !Array.isArray(composition.audioGraph)) {
@@ -10124,15 +10157,15 @@ function audioBufferToWav(buffer) {
   const length = buffer.length * numberOfChannels * 2;
   const arrayBuffer = new ArrayBuffer(44 + length);
   const view = new DataView(arrayBuffer);
-  const writeString = (offset2, string) => {
+  const writeString2 = (offset2, string) => {
     for (let i = 0; i < string.length; i++) {
       view.setUint8(offset2 + i, string.charCodeAt(i));
     }
   };
-  writeString(0, "RIFF");
+  writeString2(0, "RIFF");
   view.setUint32(4, 36 + length, true);
-  writeString(8, "WAVE");
-  writeString(12, "fmt ");
+  writeString2(8, "WAVE");
+  writeString2(12, "fmt ");
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, numberOfChannels, true);
@@ -10140,7 +10173,7 @@ function audioBufferToWav(buffer) {
   view.setUint32(28, sampleRate * numberOfChannels * 2, true);
   view.setUint16(32, numberOfChannels * 2, true);
   view.setUint16(34, 16, true);
-  writeString(36, "data");
+  writeString2(36, "data");
   view.setUint32(40, length, true);
   const channels = [];
   for (let i = 0; i < numberOfChannels; i++) {
@@ -10155,108 +10188,6 @@ function audioBufferToWav(buffer) {
     }
   }
   return new Blob([arrayBuffer], { type: "audio/wav" });
-}
-
-// src/converters/abc.js
-function midiToABC(midi2) {
-  if (typeof midi2 !== "number") return "C";
-  const noteNames = ["C", "^C", "D", "^D", "E", "F", "^F", "G", "^G", "A", "^A", "B"];
-  const octave = Math.floor(midi2 / 12) - 1;
-  const noteName = noteNames[midi2 % 12];
-  if (octave === 4) {
-    return noteName;
-  } else if (octave === 5) {
-    return noteName.toLowerCase();
-  } else if (octave > 5) {
-    const ticks = "'".repeat(octave - 5);
-    return noteName.toLowerCase() + ticks;
-  } else if (octave === 3) {
-    return noteName;
-  } else {
-    const commas = ",".repeat(4 - octave);
-    return noteName + commas;
-  }
-}
-function durationToABC(duration) {
-  if (duration >= 4) return "4";
-  if (duration >= 3) return "3";
-  if (duration >= 2) return "2";
-  if (duration >= 1.5) return "3/2";
-  if (duration >= 1) return "";
-  if (duration >= 0.75) return "3/4";
-  if (duration >= 0.5) return "/2";
-  if (duration >= 0.25) return "/4";
-  return "/8";
-}
-function abc(composition) {
-  const lines = [];
-  lines.push("X:1");
-  const title = composition.title || composition.metadata?.title || "Untitled";
-  lines.push(`T:${title}`);
-  const tempo = composition.tempo || 120;
-  lines.push(`Q:1/4=${tempo}`);
-  const timeSignature = composition.timeSignature || "4/4";
-  lines.push(`M:${timeSignature}`);
-  lines.push("L:1/4");
-  const track = composition.tracks?.[0];
-  const keySignature = composition.keySignature || "C";
-  const clef = track?.clef || "treble";
-  const clefMap = {
-    "treble": "treble",
-    "bass": "bass",
-    "alto": "alto",
-    "tenor": "tenor",
-    "percussion": "perc"
-  };
-  const abcClef = clefMap[clef] || "treble";
-  lines.push(`K:${keySignature} clef=${abcClef}`);
-  if (!track?.notes?.length) {
-    lines.push("z4");
-    return lines.join("\n");
-  }
-  const [beatsPerMeasure, beatValue] = timeSignature.split("/").map(Number);
-  const measureDuration = beatsPerMeasure * (4 / beatValue);
-  const abcNotes = [];
-  let currentMeasureDuration = 0;
-  track.notes.forEach((note, index) => {
-    const duration = note.duration || 1;
-    const abcDuration = durationToABC(duration);
-    let abcNote;
-    if (Array.isArray(note.pitch)) {
-      const chordNotes = note.pitch.filter((p) => typeof p === "number").map((p) => midiToABC(p));
-      if (chordNotes.length > 1) {
-        abcNote = `[${chordNotes.join("")}]`;
-      } else if (chordNotes.length === 1) {
-        abcNote = chordNotes[0];
-      } else {
-        abcNote = "z";
-      }
-    } else if (note.pitch === null || note.pitch === void 0) {
-      abcNote = "z";
-    } else {
-      abcNote = midiToABC(note.pitch);
-    }
-    abcNotes.push(`${abcNote}${abcDuration}`);
-    currentMeasureDuration += duration;
-    if (currentMeasureDuration >= measureDuration) {
-      if (index < track.notes.length - 1) {
-        abcNotes.push("|");
-      }
-      currentMeasureDuration = 0;
-    }
-  });
-  lines.push(abcNotes.join(" "));
-  return lines.join("\n");
-}
-function downloadABC(composition, filename = "composition.abc") {
-  const abcText = abc(composition);
-  const blob = new Blob([abcText], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 // src/converters/supercollider.js
@@ -10278,1426 +10209,8 @@ function supercollider(composition) {
   return Supercollider.convert(composition);
 }
 
-// src/utils/notation/deriveVisualFromArticulations.js
-function normalizeArticulations2(articulations) {
-  const out = [];
-  if (!Array.isArray(articulations)) return out;
-  for (const a of articulations) {
-    if (typeof a === "string") {
-      out.push({ type: a });
-    } else if (a && typeof a === "object" && typeof a.type === "string") {
-      out.push({ ...a });
-    }
-  }
-  return out;
-}
-function resolveAccentPrecedence(types) {
-  const staccato = types.has("staccato");
-  const marcato = types.has("marcato");
-  const tenuto = types.has("tenuto");
-  const accent = !marcato && types.has("accent");
-  return { staccato, accent, tenuto, marcato };
-}
-function mapToVexFlowArticulationCodes(resolved) {
-  const codes = [];
-  if (resolved.staccato) codes.push("a.");
-  if (resolved.accent) codes.push("a>");
-  if (resolved.tenuto) codes.push("a-");
-  if (resolved.marcato) codes.push("a^");
-  return codes;
-}
-function mapToAbcDecorations(arts, options = {}) {
-  const includeFermata = options.includeFermata !== false;
-  const abc2 = [];
-  const types = new Set(arts.map((a) => a.type));
-  const resolved = resolveAccentPrecedence(types);
-  if (resolved.staccato) abc2.push("!staccato!");
-  if (resolved.accent) abc2.push("!accent!");
-  if (resolved.tenuto) abc2.push("!tenuto!");
-  if (resolved.marcato) abc2.push("!marcato!");
-  const want = (t) => types.has(t);
-  if (includeFermata && want("fermata")) abc2.push("!fermata!");
-  if (want("trill")) abc2.push("!trill!");
-  if (want("mordent")) abc2.push("!mordent!");
-  if (want("turn")) abc2.push("!turn!");
-  if (want("arpeggio")) abc2.push("!arpeggio!");
-  if (want("glissando") || want("portamento")) abc2.push("!slide!");
-  return abc2;
-}
-function extractStrokeHint(arts) {
-  const stroke = arts.find((a) => a.type === "stroke") || arts.find((a) => a.type === "arpeggio") || arts.find((a) => a.type === "arpeggiate");
-  if (!stroke) return null;
-  const dir = typeof stroke.direction === "string" && stroke.direction.toLowerCase() === "down" ? "down" : "up";
-  const style = typeof stroke.style === "string" && stroke.style.toLowerCase() === "brush" ? "brush" : "roll";
-  return { direction: dir, style };
-}
-function extractGlissHint(arts) {
-  const a = arts.find((x) => x.type === "glissando" || x.type === "portamento");
-  if (!a) return null;
-  const text = a.type === "portamento" ? "port." : "gliss.";
-  const out = { type: a.type, text };
-  if (typeof a.target === "number") out.target = a.target;
-  if (typeof a.curve === "string") out.curve = a.curve;
-  return out;
-}
-function deriveVisualFromArticulations(articulations, options = {}) {
-  const arts = normalizeArticulations2(articulations);
-  const has = new Set(arts.map((a) => a.type));
-  const resolved = resolveAccentPrecedence(has);
-  const abcDecorations = mapToAbcDecorations(arts, options.abc);
-  const vfArticulations = mapToVexFlowArticulationCodes(resolved);
-  const vfStroke = extractStrokeHint(arts);
-  const vfGliss = extractGlissHint(arts);
-  return {
-    has,
-    abc: { decorations: abcDecorations },
-    vexflow: {
-      articulations: vfArticulations,
-      stroke: vfStroke,
-      gliss: vfGliss
-    }
-  };
-}
-
-// src/converters/vexflow.js
-var VexFlowConverter = class {
-  constructor() {
-    this.noteMap = {
-      60: "C/4",
-      61: "C#/4",
-      62: "D/4",
-      63: "D#/4",
-      64: "E/4",
-      65: "F/4",
-      66: "F#/4",
-      67: "G/4",
-      68: "G#/4",
-      69: "A/4",
-      70: "A#/4",
-      71: "B/4",
-      72: "C/5",
-      73: "C#/5",
-      74: "D/5",
-      75: "D#/5",
-      76: "E/5",
-      77: "F/5",
-      78: "F#/5",
-      79: "G/5",
-      80: "G#/5",
-      81: "A/5",
-      82: "A#/5",
-      83: "B/5"
-    };
-  }
-  /**
-   * Convert MIDI note number to VexFlow pitch notation
-   */
-  midiToVexFlow(midiNote) {
-    if (this.noteMap[midiNote]) {
-      return this.noteMap[midiNote];
-    }
-    const octave = Math.floor(midiNote / 12) - 1;
-    const noteNames = [
-      "C",
-      "C#",
-      "D",
-      "D#",
-      "E",
-      "F",
-      "F#",
-      "G",
-      "G#",
-      "A",
-      "A#",
-      "B"
-    ];
-    const noteName = noteNames[midiNote % 12];
-    return `${noteName}/${octave}`;
-  }
-  /**
-   * Convert duration to VexFlow duration string
-   */
-  durationToVexFlow(duration) {
-    if (duration >= 4) return "w";
-    if (duration >= 2) return "h";
-    if (duration >= 1) return "q";
-    if (duration >= 0.5) return "8";
-    if (duration >= 0.25) return "16";
-    return "32";
-  }
-  /**
-   * Convert JMON composition to VexFlow format
-   */
-  convertToVexFlow(composition) {
-    const result = {
-      timeSignature: composition.timeSignature || "4/4",
-      keySignature: composition.keySignature || "C",
-      clef: composition.clef,
-      metadata: composition.metadata || {},
-      tempo: composition.tempo ?? composition.bpm ?? null,
-      tracks: []
-    };
-    let tracks = [];
-    if (Array.isArray(composition.tracks)) {
-      tracks = composition.tracks.map((t, i) => ({
-        name: t.name || `Track ${i + 1}`,
-        notes: t.notes || t,
-        clef: t.clef
-      }));
-    } else if (composition.tracks && typeof composition.tracks === "object") {
-      tracks = Object.entries(composition.tracks).map(([name, notes], i) => ({
-        name: name || `Track ${i + 1}`,
-        notes,
-        clef: notes && notes.clef || void 0
-      }));
-    } else if (composition.notes) {
-      tracks = [{
-        name: composition.name || "Track 1",
-        notes: composition.notes,
-        clef: composition.clef
-      }];
-    } else {
-      tracks = [{
-        name: "Track 1",
-        notes: composition,
-        clef: composition.clef
-      }];
-    }
-    tracks.forEach((track, trackIndex) => {
-      const notes = track.notes || track;
-      const vexFlowNotes = [];
-      if (Array.isArray(notes)) {
-        notes.forEach((note) => {
-          const pitches = Array.isArray(note.pitch) ? note.pitch : note.pitch !== null && note.pitch !== void 0 ? [note.pitch] : [];
-          if (pitches.length > 0) {
-            const vexFlowNote = {
-              keys: pitches.map(
-                (p) => String(this.midiToVexFlow(p)).toLowerCase()
-              ),
-              duration: this.durationToVexFlow(note.duration || 1),
-              time: note.time ?? 0
-            };
-            if (note.articulation || Array.isArray(note.articulations) && note.articulations.length) {
-              if (note.articulation && typeof note.articulation === "string") {
-                vexFlowNote.articulations = [note.articulation];
-              } else if (Array.isArray(note.articulations) && note.articulations.length) {
-                const hints = deriveVisualFromArticulations(note.articulations);
-                if (hints && hints.vexflow) {
-                  if (Array.isArray(hints.vexflow.articulations) && hints.vexflow.articulations.length) {
-                    vexFlowNote.vfArticulations = hints.vexflow.articulations.slice();
-                  }
-                  if (hints.vexflow.stroke) {
-                    vexFlowNote.stroke = { ...hints.vexflow.stroke };
-                  }
-                  if (hints.vexflow.gliss) {
-                    const g = hints.vexflow.gliss;
-                    try {
-                      vexFlowNote.gliss = {
-                        type: g.type,
-                        targetKey: typeof g.target === "number" ? String(this.midiToVexFlow(g.target)).toLowerCase() : void 0,
-                        curve: g.curve || "linear",
-                        text: g.text || (g.type === "portamento" ? "port." : "gliss.")
-                      };
-                    } catch (_) {
-                    }
-                  }
-                }
-              }
-            }
-            if (Array.isArray(note.ornaments) && note.ornaments.length) {
-              vexFlowNote.ornaments = note.ornaments.map((ornament) => {
-                const processedOrnament = { type: ornament.type };
-                if (ornament.parameters) {
-                  processedOrnament.parameters = { ...ornament.parameters };
-                  if (ornament.type === "grace_note" && ornament.parameters.gracePitches) {
-                    processedOrnament.parameters.gracePitches = ornament.parameters.gracePitches.map((pitch) => {
-                      if (typeof pitch === "number") {
-                        return this.midiToVexFlow(pitch);
-                      }
-                      return pitch;
-                    });
-                  }
-                }
-                return processedOrnament;
-              });
-            }
-            vexFlowNotes.push(vexFlowNote);
-          } else {
-            vexFlowNotes.push({
-              keys: [],
-              duration: this.durationToVexFlow(note.duration || 1),
-              time: note.time ?? 0,
-              isRest: true
-            });
-          }
-        });
-      }
-      result.tracks.push({
-        name: track.name || `Track ${trackIndex + 1}`,
-        notes: vexFlowNotes,
-        clef: track.clef
-      });
-    });
-    return result;
-  }
-  /**
-   * Create VexFlow renderer configuration
-   */
-  createRenderer(elementId, width = 800, height = 200) {
-    return {
-      elementId,
-      width,
-      height,
-      renderer: "svg",
-      // or 'canvas'
-      scale: 1
-    };
-  }
-  /**
-   * Generate VexFlow rendering instructions
-   */
-  generateRenderingInstructions(vexFlowData, rendererConfig) {
-    return {
-      type: "vexflow",
-      data: vexFlowData,
-      config: rendererConfig,
-      render: function(VF) {
-        const targetEl = rendererConfig.element && rendererConfig.element.nodeType === 1 ? rendererConfig.element : rendererConfig.elementId ? document.getElementById(rendererConfig.elementId) : null;
-        let div = targetEl;
-        const root = document.body || document.documentElement;
-        if (!div) {
-          div = document.createElement("div");
-          div.id = rendererConfig.elementId || `vexflow-${Date.now()}`;
-          root.appendChild(div);
-        } else {
-          if (!div.id) {
-            div.id = rendererConfig.elementId || `vexflow-${Date.now()}`;
-          }
-          if (!root.contains(div)) {
-            root.appendChild(div);
-          }
-        }
-        rendererConfig.elementId = div.id;
-        const VFNS = (() => {
-          const candidates = [
-            VF,
-            VF && VF.default,
-            typeof globalThis.window !== "undefined" && (globalThis.window.VF || globalThis.window.VexFlow),
-            typeof globalThis.window !== "undefined" && globalThis.window.Vex && (globalThis.window.Vex.Flow || globalThis.window.Vex)
-          ];
-          for (const c of candidates) {
-            if (c) return c;
-          }
-          return null;
-        })();
-        try {
-          const FactoryCtor = VFNS && (VFNS.Factory || VFNS.Flow && VFNS.Flow.Factory || VFNS.VF && VFNS.VF.Factory);
-          if (!FactoryCtor) {
-            throw new Error("VexFlow Factory API not available on this build");
-          }
-          const factory = new FactoryCtor({
-            renderer: {
-              // Use elementId for VexFlow Factory (falls back to generated div id)
-              elementId: rendererConfig.elementId || div.id,
-              width: rendererConfig.width,
-              height: rendererConfig.height
-            }
-          });
-          const context = factory.getContext();
-          const Flow = VFNS && (VFNS.Flow || VFNS) || {};
-          const accMode = rendererConfig.accidentalsMode || "auto";
-          const getKeyAccidentalMap = (key) => {
-            const k = (key || "C").trim();
-            const majorSharps = {
-              C: 0,
-              G: 1,
-              D: 2,
-              A: 3,
-              E: 4,
-              B: 5,
-              "F#": 6,
-              "C#": 7
-            };
-            const majorFlats = {
-              C: 0,
-              F: 1,
-              Bb: 2,
-              Eb: 3,
-              Ab: 4,
-              Db: 5,
-              Gb: 6,
-              Cb: 7
-            };
-            const minorSharps = {
-              A: 0,
-              E: 1,
-              B: 2,
-              "F#": 3,
-              "C#": 4,
-              "G#": 5,
-              "D#": 6,
-              "A#": 7
-            };
-            const minorFlats = {
-              A: 0,
-              D: 1,
-              G: 2,
-              C: 3,
-              F: 4,
-              Bb: 5,
-              Eb: 6,
-              Ab: 7
-            };
-            const orderSharps = ["f", "c", "g", "d", "a", "e", "b"];
-            const orderFlats = ["b", "e", "a", "d", "g", "c", "f"];
-            const isMinor = /m(in)?$/i.test(k);
-            const base = k.replace(/m(in)?$/i, "");
-            let count = 0;
-            let type = "natural";
-            if (isMinor && minorSharps[base] !== void 0) {
-              count = minorSharps[base];
-              type = "sharp";
-            } else if (isMinor && minorFlats[base] !== void 0) {
-              count = minorFlats[base];
-              type = "flat";
-            } else if (majorSharps[base] !== void 0) {
-              count = majorSharps[base];
-              type = "sharp";
-            } else if (majorFlats[base] !== void 0) {
-              count = majorFlats[base];
-              type = "flat";
-            }
-            const map = {
-              a: "natural",
-              b: "natural",
-              c: "natural",
-              d: "natural",
-              e: "natural",
-              f: "natural",
-              g: "natural"
-            };
-            if (type === "sharp") {
-              for (let i = 0; i < count; i++) map[orderSharps[i]] = "sharp";
-            }
-            if (type === "flat") {
-              for (let i = 0; i < count; i++) map[orderFlats[i]] = "flat";
-            }
-            return map;
-          };
-          const keyAccMap = getKeyAccidentalMap(vexFlowData.keySignature);
-          const durToTicks = (d) => {
-            const s = String(d).replace(/r/g, "");
-            const map = { w: 32, h: 16, q: 8, "8": 4, "16": 2, "32": 1 };
-            return map[s] || 0;
-          };
-          const parseTS = (ts2) => {
-            const [n, d] = (ts2 || "4/4").split("/").map((x) => parseInt(x, 10));
-            return { n: n || 4, d: d || 4 };
-          };
-          const ts = parseTS(vexFlowData.timeSignature);
-          const measureCapacity = Math.max(1, Math.round(32 * ts.n / ts.d));
-          const ticksToDur = (ticks) => {
-            const inv = { 32: "w", 16: "h", 8: "q", 4: "8", 2: "16", 1: "32" };
-            return inv[ticks] || "q";
-          };
-          const measures = [];
-          let cur = [];
-          let acc = (() => {
-            const notes = vexFlowData.tracks[0].notes || [];
-            const minTime = notes.reduce(
-              (m, n) => Math.min(m, n.time ?? 0),
-              Number.POSITIVE_INFINITY
-            );
-            const base = minTime === Number.POSITIVE_INFINITY ? 0 : minTime;
-            return Math.round(base * 8 % measureCapacity);
-          })();
-          const originalNotes = vexFlowData.tracks[0].notes;
-          const graceBuf = [];
-          for (const nd of originalNotes) {
-            const ticks = durToTicks(nd.duration);
-            const isGrace = !!nd.grace;
-            if (isGrace) {
-              graceBuf.push(nd);
-              continue;
-            }
-            let t = ticks;
-            let firstPart = true;
-            while (t > 0) {
-              const remaining = measureCapacity - acc;
-              const slice = Math.min(t, remaining);
-              const part = { ...nd, duration: ticksToDur(slice) };
-              if (firstPart && graceBuf.length) {
-                part.graceNotes = graceBuf.splice(0, graceBuf.length);
-              }
-              if (!firstPart) part.tieFromPrev = true;
-              if (slice < t) part.tieToNext = true;
-              cur.push(part);
-              acc += slice;
-              t -= slice;
-              firstPart = false;
-              if (acc >= measureCapacity) {
-                measures.push(cur);
-                cur = [];
-                acc = 0;
-              }
-            }
-          }
-          if (cur.length) measures.push(cur);
-          const left = 10;
-          const right = 10;
-          const top = 40;
-          const avail = Math.max(
-            100,
-            (rendererConfig.width || 800) - left - right
-          );
-          const mCount = Math.max(1, measures.length);
-          const mWidth = Math.max(300, Math.floor(avail / mCount));
-          const keyToMidi = (k) => {
-            const m = /^([a-g])(b|#)?\/(-?\d+)$/.exec(k);
-            if (!m) return 60;
-            const letters = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
-            const letter = letters[m[1]];
-            const acc2 = m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0;
-            const octave = parseInt(m[3], 10);
-            return (octave + 1) * 12 + letter + acc2;
-          };
-          const allPitches = [];
-          measures.forEach((ms) => {
-            ms.forEach((n) => {
-              if (n && !n.isRest && Array.isArray(n.keys) && n.keys[0]) {
-                allPitches.push(keyToMidi(String(n.keys[0]).toLowerCase()));
-              }
-            });
-          });
-          const median = allPitches.length ? (() => {
-            const arr = [...allPitches].sort((a, b) => a - b);
-            const mid = arr.length / 2;
-            return arr.length % 2 ? arr[Math.floor(mid)] : (arr[mid - 1] + arr[mid]) / 2;
-          })() : 60;
-          const detectedClef = median < 60 ? "bass" : "treble";
-          const measuresPerLine = rendererConfig.measuresPerLine && rendererConfig.measuresPerLine > 0 ? Math.max(1, Math.floor(rendererConfig.measuresPerLine)) : Math.max(
-            1,
-            Math.floor(
-              avail / Math.max(120, Math.floor(avail / Math.max(1, mCount)))
-            )
-          );
-          const lines = [];
-          for (let i = 0; i < measures.length; i += measuresPerLine) {
-            lines.push(measures.slice(i, i + measuresPerLine));
-          }
-          const systemGap = 80;
-          const allBeams = [];
-          const createdNotes = [];
-          lines.forEach((lineMeasures, sysIndex) => {
-            const y = top + sysIndex * systemGap;
-            const stave = new Flow.Stave(left, y, avail);
-            const normalizeClef = (c) => {
-              const m = (c || "").toString().toLowerCase();
-              const map = {
-                g: "treble",
-                treble: "treble",
-                f: "bass",
-                bass: "bass",
-                c: "alto",
-                alto: "alto",
-                tenor: "tenor",
-                "treble-8vb": "treble-8vb",
-                "treble-8va": "treble-8va",
-                "bass-8vb": "bass-8vb"
-              };
-              return map[m] || "treble";
-            };
-            const clefToUse = normalizeClef(
-              vexFlowData.clef || vexFlowData.tracks && vexFlowData.tracks[0] && vexFlowData.tracks[0].clef || detectedClef
-            );
-            stave.addClef(clefToUse);
-            if (vexFlowData.timeSignature && sysIndex === 0) {
-              stave.addTimeSignature(vexFlowData.timeSignature);
-            }
-            if (vexFlowData.keySignature && vexFlowData.keySignature !== "C" && sysIndex === 0) {
-              stave.addKeySignature(vexFlowData.keySignature);
-            }
-            stave.setContext(context).draw();
-            if (sysIndex === 0) {
-              try {
-                const title = vexFlowData.metadata && vexFlowData.metadata.title;
-                if (title) {
-                  context.save();
-                  context.setFont("bold 16px Arial");
-                  context.fillText(title, left, y - 20);
-                  context.restore();
-                }
-                if (vexFlowData.tempo) {
-                  context.save();
-                  context.setFont("12px Arial");
-                  const tempoText = `\u2669 = ${vexFlowData.tempo}`;
-                  context.fillText(tempoText, left + 200, y - 8);
-                  context.restore();
-                }
-              } catch {
-              }
-            }
-            const tickables = [];
-            lineMeasures.forEach((mNotes, idxInLine) => {
-              const sorted = mNotes.slice().sort(
-                (a, b) => (a.time ?? 0) - (b.time ?? 0)
-              );
-              sorted.forEach((noteData) => {
-                if (noteData.isRest) {
-                  tickables.push(
-                    new Flow.StaveNote({
-                      keys: ["d/5"],
-                      duration: String(noteData.duration).replace(/r?$/, "r")
-                    })
-                  );
-                } else {
-                  const note = new Flow.StaveNote({
-                    keys: noteData.keys.map((k) => k.toLowerCase()),
-                    duration: noteData.duration
-                  });
-                  tickables.push(note);
-                  createdNotes.push({ vf: note, data: noteData });
-                }
-              });
-              if (idxInLine < lineMeasures.length - 1 && Flow.BarNote && Flow.Barline && Flow.Barline.type) {
-                tickables.push(new Flow.BarNote(Flow.Barline.type.SINGLE));
-              }
-            });
-            const voice2 = new Flow.Voice({
-              num_beats: Math.max(1, lineMeasures.length) * measureCapacity,
-              beat_value: 32
-            });
-            if (voice2.setMode && Flow.Voice && Flow.Voice.Mode && Flow.Voice.Mode.SOFT !== void 0) {
-              voice2.setMode(Flow.Voice.Mode.SOFT);
-            } else if (typeof voice2.setStrict === "function") {
-              voice2.setStrict(false);
-            }
-            voice2.addTickables(
-              tickables.filter(
-                (t) => typeof t.getTicks === "function" ? t.getTicks().value() > 0 : true
-              )
-            );
-            const formatter = new Flow.Formatter().joinVoices([voice2]);
-            formatter.format([voice2], avail - 20);
-            voice2.draw(context, stave);
-          });
-          const allTickables = [];
-          measures.forEach((mNotes, idx) => {
-            const tickables = mNotes.slice().sort(
-              (a, b) => (a.time ?? 0) - (b.time ?? 0)
-            ).map((noteData) => {
-              if (noteData.isRest) {
-                return new Flow.StaveNote({
-                  keys: ["d/5"],
-                  duration: String(noteData.duration).replace(/r?$/, "r")
-                });
-              }
-              const note = new Flow.StaveNote({
-                keys: noteData.keys.map((k) => k.toLowerCase()),
-                duration: noteData.duration
-              });
-              if (noteData.graceNotes && Flow.GraceNoteGroup && Flow.GraceNote) {
-                try {
-                  const gnotes = noteData.graceNotes.map(
-                    (g) => new Flow.GraceNote({
-                      keys: (g.keys || []).map(
-                        (kk) => String(kk).toLowerCase()
-                      ),
-                      duration: "16",
-                      slash: true
-                    })
-                  );
-                  const ggroup = new Flow.GraceNoteGroup(gnotes, true);
-                  if (typeof ggroup.beamNotes === "function") {
-                    ggroup.beamNotes();
-                  }
-                  if (typeof ggroup.setContext === "function" && typeof ggroup.attachToNote === "function") {
-                    ggroup.setContext(context);
-                    ggroup.attachToNote(note);
-                  }
-                } catch {
-                }
-              }
-              if (Array.isArray(noteData.ornaments) && noteData.ornaments.length && Flow.GraceNoteGroup && Flow.GraceNote) {
-                const graceNoteOrnaments = noteData.ornaments.filter((orn) => orn.type === "grace_note");
-                if (graceNoteOrnaments.length > 0) {
-                  try {
-                    const allGraceNotes = graceNoteOrnaments.flatMap((orn) => {
-                      if (orn.parameters && orn.parameters.gracePitches) {
-                        return orn.parameters.gracePitches.map(
-                          (pitch) => new Flow.GraceNote({
-                            keys: [String(pitch).toLowerCase()],
-                            duration: "16",
-                            slash: orn.parameters.graceNoteType === "acciaccatura"
-                          })
-                        );
-                      }
-                      return [];
-                    });
-                    if (allGraceNotes.length > 0) {
-                      const ggroup = new Flow.GraceNoteGroup(allGraceNotes, true);
-                      if (typeof ggroup.beamNotes === "function") {
-                        ggroup.beamNotes();
-                      }
-                      if (typeof ggroup.setContext === "function" && typeof ggroup.attachToNote === "function") {
-                        ggroup.setContext(context);
-                        ggroup.attachToNote(note);
-                      }
-                    }
-                  } catch (e) {
-                    console.warn("Failed to render grace note ornaments:", e);
-                  }
-                }
-              }
-              if (Flow.Accidental) {
-                noteData.keys.forEach((origKey, idx2) => {
-                  const k = origKey.toLowerCase();
-                  const m = /^([a-g])(#{1,2}|b{1,2})?\/-?\d+$/.exec(k);
-                  const letter = m ? m[1] : k[0];
-                  const acc2 = m && m[2] ? m[2].includes("#") ? "#" : "b" : "";
-                  const sig = keyAccMap[letter] || "natural";
-                  let glyph = null;
-                  if (acc2 === "#" && sig !== "sharp") {
-                    glyph = "#";
-                  } else if (acc2 === "b" && sig !== "flat") {
-                    glyph = "b";
-                  }
-                  if (glyph) {
-                    if (typeof note.addAccidental === "function") {
-                      note.addAccidental(idx2, new Flow.Accidental(glyph));
-                    } else if (typeof note.addModifier === "function") {
-                      note.addModifier(new Flow.Accidental(glyph), idx2);
-                    }
-                  }
-                });
-              }
-              const articulationMap = {
-                staccato: "a.",
-                accent: "a>",
-                tenuto: "a-",
-                marcato: "a^",
-                legato: "a-"
-                // similar to tenuto for VexFlow
-              };
-              if (Array.isArray(noteData.vfArticulations) && noteData.vfArticulations.length) {
-                noteData.vfArticulations.forEach((code) => {
-                  if (Flow && Flow.Articulation && Flow.Modifier && Flow.Modifier.Position && (typeof note.addArticulation === "function" || typeof note.addModifier === "function")) {
-                    const art = new Flow.Articulation(code);
-                    if (art && typeof art.setPosition === "function") {
-                      art.setPosition(Flow.Modifier.Position.ABOVE);
-                    }
-                    if (typeof note.addArticulation === "function") {
-                      note.addArticulation(0, art);
-                    } else if (typeof note.addModifier === "function") {
-                      note.addModifier(art, 0);
-                    }
-                  }
-                });
-              } else if (Array.isArray(noteData.articulations)) {
-                noteData.articulations.forEach((a) => {
-                  const articulationType = typeof a === "string" ? a : a && a.type;
-                  const code = articulationMap[articulationType] || null;
-                  if (!code) return;
-                  if (Flow && Flow.Articulation && Flow.Modifier && Flow.Modifier.Position && (typeof note.addArticulation === "function" || typeof note.addModifier === "function")) {
-                    const art = new Flow.Articulation(code);
-                    if (art && typeof art.setPosition === "function") {
-                      art.setPosition(Flow.Modifier.Position.ABOVE);
-                    }
-                    if (typeof note.addArticulation === "function") {
-                      note.addArticulation(0, art);
-                    } else if (typeof note.addModifier === "function") {
-                      note.addModifier(art, 0);
-                    }
-                  }
-                });
-              }
-              if (noteData.stroke && Flow && Flow.Stroke) {
-                try {
-                  const dir = (noteData.stroke.direction || "up").toLowerCase();
-                  const style = (noteData.stroke.style || "roll").toLowerCase();
-                  const type = Flow.Stroke.Type && (style === "brush" ? dir === "down" ? Flow.Stroke.Type.BRUSH_DOWN : Flow.Stroke.Type.BRUSH_UP : dir === "down" ? Flow.Stroke.Type.ROLL_DOWN : Flow.Stroke.Type.ROLL_UP);
-                  if (type && typeof note.addStroke === "function") {
-                    note.addStroke(0, new Flow.Stroke(type));
-                  }
-                } catch (_) {
-                }
-              }
-              return note;
-            });
-            tickables.forEach((n, i) => {
-              const d = mNotes[i];
-              if (!d || d.isRest) return;
-              const dotCount = typeof d.dots === "number" ? d.dots : d.dots === true || d.dot === true || d.dotted === true ? 1 : 0;
-              for (let k = 0; k < dotCount; k++) {
-                if (typeof n.addDotToAll === "function") {
-                  n.addDotToAll();
-                } else if (Flow.Dot) {
-                  d.keys.forEach((_, idx2) => {
-                    if (typeof n.addModifier === "function") {
-                      n.addModifier(new Flow.Dot(), idx2);
-                    }
-                  });
-                }
-              }
-              createdNotes.push({ vf: n, data: d });
-            });
-            allTickables.push(...tickables);
-            if (Flow.Beam && typeof Flow.Beam.generateBeams === "function") {
-              const beamables = tickables.filter(
-                (t) => typeof t.isRest !== "function" || !t.isRest()
-              );
-              try {
-                const beams = Flow.Beam.generateBeams(beamables);
-                beams.forEach((b) => b.setContext(context));
-                allBeams.push(...beams);
-              } catch (_) {
-              }
-            }
-            if (idx < measures.length - 1 && Flow.BarNote && Flow.Barline && Flow.Barline.type) {
-              allTickables.push(new Flow.BarNote(Flow.Barline.type.SINGLE));
-            }
-          });
-          const totalTicks = measures.length * measureCapacity;
-          const voice = new Flow.Voice({
-            num_beats: totalTicks,
-            beat_value: 32
-          });
-          if (voice.setMode && Flow.Voice && Flow.Voice.Mode && Flow.Voice.Mode.SOFT !== void 0) {
-            voice.setMode(Flow.Voice.Mode.SOFT);
-          } else if (typeof voice.setStrict === "function") {
-            voice.setStrict(false);
-          }
-          voice.addTickables(
-            allTickables.filter(
-              (t) => typeof t.getTicks === "function" ? t.getTicks().value() > 0 : true
-            )
-          );
-          if (allBeams.length) {
-            allBeams.forEach((b) => {
-              try {
-                b.draw();
-              } catch (_) {
-              }
-            });
-          }
-          try {
-            const details = document.createElement("details");
-            details.style.marginTop = "10px";
-            const summary = document.createElement("summary");
-            summary.textContent = "VexFlow Source";
-            summary.style.cursor = "pointer";
-            details.appendChild(summary);
-            const pre = document.createElement("pre");
-            pre.textContent = JSON.stringify(vexFlowData, null, 2);
-            details.appendChild(pre);
-          } catch (_) {
-          }
-          if (createdNotes.length && Flow.StaveTie) {
-            for (let i = 0; i < createdNotes.length - 1; i++) {
-              const cur2 = createdNotes[i];
-              if (!cur2) continue;
-              const d = cur2.data || {};
-              const isTieStart = !!(d.tieToNext || d.tieStart || d.tie === "start");
-              if (!isTieStart) continue;
-              let next = null;
-              for (let j = i + 1; j < createdNotes.length; j++) {
-                if (createdNotes[j]) {
-                  next = createdNotes[j];
-                  break;
-                }
-              }
-              if (next) {
-                try {
-                  new Flow.StaveTie({
-                    first_note: cur2.vf,
-                    last_note: next.vf,
-                    first_indices: [0],
-                    last_indices: [0]
-                  }).setContext(context).draw();
-                } catch (_) {
-                }
-              }
-            }
-          }
-          if (createdNotes.length && Flow && Flow.Glissando) {
-            for (let i = 0; i < createdNotes.length - 1; i++) {
-              const start = createdNotes[i];
-              if (!start || !start.data || !start.vf) continue;
-              const g = start.data.gliss;
-              if (!g) continue;
-              let end = null;
-              if (g.targetKey) {
-                for (let j = i + 1; j < createdNotes.length; j++) {
-                  const cand = createdNotes[j];
-                  if (cand && cand.data && Array.isArray(cand.data.keys)) {
-                    const hasKey = cand.data.keys.some(
-                      (k) => String(k).toLowerCase() === String(g.targetKey).toLowerCase()
-                    );
-                    if (hasKey) {
-                      end = cand;
-                      break;
-                    }
-                  }
-                }
-              }
-              if (!end) {
-                for (let j = i + 1; j < createdNotes.length; j++) {
-                  if (createdNotes[j]) {
-                    end = createdNotes[j];
-                    break;
-                  }
-                }
-              }
-              if (end && end.vf) {
-                try {
-                  const gl = new Flow.Glissando({
-                    from: start.vf,
-                    to: end.vf,
-                    text: g.text || (g.type === "portamento" ? "port." : "gliss.")
-                  });
-                  if (gl && typeof gl.setContext === "function") {
-                    gl.setContext(context).draw();
-                  }
-                } catch (_) {
-                }
-              }
-            }
-          }
-        } catch (factoryError) {
-          console.warn(
-            "Factory API failed, trying low-level API:",
-            factoryError
-          );
-          const Flow = VFNS && (VFNS.Flow || VFNS.VF || VFNS) || {};
-          const accMode = rendererConfig.accidentalsMode || "auto";
-          const getKeyAccidentalMap = (key) => {
-            const k = (key || "C").trim();
-            const majorSharps = {
-              C: 0,
-              G: 1,
-              D: 2,
-              A: 3,
-              E: 4,
-              B: 5,
-              "F#": 6,
-              "C#": 7
-            };
-            const majorFlats = {
-              C: 0,
-              F: 1,
-              Bb: 2,
-              Eb: 3,
-              Ab: 4,
-              Db: 5,
-              Gb: 6,
-              Cb: 7
-            };
-            const minorSharps = {
-              A: 0,
-              E: 1,
-              B: 2,
-              "F#": 3,
-              "C#": 4,
-              "G#": 5,
-              "D#": 6,
-              "A#": 7
-            };
-            const minorFlats = {
-              A: 0,
-              D: 1,
-              G: 2,
-              C: 3,
-              F: 4,
-              Bb: 5,
-              Eb: 6,
-              Ab: 7
-            };
-            const orderSharps = ["f", "c", "g", "d", "a", "e", "b"];
-            const orderFlats = ["b", "e", "a", "d", "g", "c", "f"];
-            const isMinor = /m(in)?$/i.test(k);
-            const base = k.replace(/m(in)?$/i, "");
-            let count = 0;
-            let type = "natural";
-            if (isMinor && minorSharps[base] !== void 0) {
-              count = minorSharps[base];
-              type = "sharp";
-            } else if (isMinor && minorFlats[base] !== void 0) {
-              count = minorFlats[base];
-              type = "flat";
-            } else if (majorSharps[base] !== void 0) {
-              count = majorSharps[base];
-              type = "sharp";
-            } else if (majorFlats[base] !== void 0) {
-              count = majorFlats[base];
-              type = "flat";
-            }
-            const map = {
-              a: "natural",
-              b: "natural",
-              c: "natural",
-              d: "natural",
-              e: "natural",
-              f: "natural",
-              g: "natural"
-            };
-            if (type === "sharp") {
-              for (let i = 0; i < count; i++) map[orderSharps[i]] = "sharp";
-            }
-            if (type === "flat") {
-              for (let i = 0; i < count; i++) map[orderFlats[i]] = "flat";
-            }
-            return map;
-          };
-          const keyAccMap = getKeyAccidentalMap(vexFlowData.keySignature);
-          const Renderer = Flow && Flow.Renderer || VFNS.Renderer || VFNS.Flow && VFNS.Flow.Renderer;
-          if (!Renderer || !Renderer.Backends) {
-            throw new Error(
-              "VexFlow low-level API not available (Renderer missing)"
-            );
-          }
-          const renderer = new Renderer(
-            div,
-            Renderer.Backends.SVG
-          );
-          renderer.resize(rendererConfig.width, rendererConfig.height);
-          const context = renderer.getContext();
-          const durToTicks = (d) => {
-            const s = String(d).replace(/r/g, "");
-            const map = { w: 32, h: 16, q: 8, "8": 4, "16": 2, "32": 1 };
-            return map[s] || 0;
-          };
-          const parseTS = (ts2) => {
-            const [n, d] = (ts2 || "4/4").split("/").map((x) => parseInt(x, 10));
-            return { n: n || 4, d: d || 4 };
-          };
-          const ts = parseTS(vexFlowData.timeSignature);
-          const measureCapacity = Math.max(1, Math.round(32 * ts.n / ts.d));
-          const ticksToDur = (ticks) => {
-            const inv = { 32: "w", 16: "h", 8: "q", 4: "8", 2: "16", 1: "32" };
-            return inv[ticks] || "q";
-          };
-          const measures = [];
-          let cur = [];
-          let acc = (() => {
-            const notes = vexFlowData.tracks[0].notes || [];
-            const minTime = notes.reduce(
-              (m, n) => Math.min(m, n.time ?? 0),
-              Number.POSITIVE_INFINITY
-            );
-            const base = minTime === Number.POSITIVE_INFINITY ? 0 : minTime;
-            return Math.round(base * 8 % measureCapacity);
-          })();
-          const originalNotes = vexFlowData.tracks[0].notes;
-          const graceBuf = [];
-          for (const nd of originalNotes) {
-            const ticks = durToTicks(nd.duration);
-            const isGrace = !!nd.grace;
-            if (isGrace) {
-              graceBuf.push(nd);
-              continue;
-            }
-            let t = ticks;
-            let firstPart = true;
-            while (t > 0) {
-              const remaining = measureCapacity - acc;
-              const slice = Math.min(t, remaining);
-              const part = { ...nd, duration: ticksToDur(slice) };
-              if (firstPart && graceBuf.length) {
-                part.graceNotes = graceBuf.splice(0, graceBuf.length);
-              }
-              if (!firstPart) part.tieFromPrev = true;
-              if (slice < t) part.tieToNext = true;
-              cur.push(part);
-              acc += slice;
-              t -= slice;
-              firstPart = false;
-              if (acc >= measureCapacity) {
-                measures.push(cur);
-                cur = [];
-                acc = 0;
-              }
-            }
-          }
-          if (cur.length) measures.push(cur);
-          const left = 10;
-          const right = 10;
-          const top = 40;
-          const avail = Math.max(
-            100,
-            (rendererConfig.width || 800) - left - right
-          );
-          const mCount = Math.max(1, measures.length);
-          const mWidth = Math.max(300, Math.floor(avail / mCount));
-          const fallbackKeyToMidi = (k) => {
-            const m = /^([a-g])(b|#)?\/(-?\d+)$/.exec(k);
-            if (!m) return 60;
-            const letters = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
-            const letter = letters[m[1]];
-            const acc2 = m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0;
-            const octave = parseInt(m[3], 10);
-            return (octave + 1) * 12 + letter + acc2;
-          };
-          const fallbackPitches = [];
-          measures.forEach((ms) => {
-            ms.forEach((n) => {
-              if (n && !n.isRest && Array.isArray(n.keys) && n.keys[0]) {
-                fallbackPitches.push(
-                  fallbackKeyToMidi(String(n.keys[0]).toLowerCase())
-                );
-              }
-            });
-          });
-          const fallbackMedian = fallbackPitches.length ? (() => {
-            const arr = [...fallbackPitches].sort((a, b) => a - b);
-            const mid = arr.length / 2;
-            return arr.length % 2 ? arr[Math.floor(mid)] : (arr[mid - 1] + arr[mid]) / 2;
-          })() : 60;
-          const detectedClef = fallbackMedian < 60 ? "bass" : "treble";
-          const measuresPerLine = rendererConfig.measuresPerLine && rendererConfig.measuresPerLine > 0 ? Math.max(1, Math.floor(rendererConfig.measuresPerLine)) : Math.max(
-            1,
-            Math.floor(
-              avail / Math.max(
-                120,
-                Math.floor(avail / Math.max(1, measures.length))
-              )
-            )
-          );
-          const lines = [];
-          for (let i = 0; i < measures.length; i += measuresPerLine) {
-            lines.push(measures.slice(i, i + measuresPerLine));
-          }
-          const systemGap = 80;
-          const allBeams = [];
-          const createdNotes = [];
-          lines.forEach((lineMeasures, sysIndex) => {
-            const y = top + sysIndex * systemGap;
-            const stave = new Flow.Stave(left, y, avail);
-            const normalizeClef = (c) => {
-              const m = (c || "").toString().toLowerCase();
-              const map = {
-                g: "treble",
-                treble: "treble",
-                f: "bass",
-                bass: "bass",
-                c: "alto",
-                alto: "alto",
-                tenor: "tenor",
-                "treble-8vb": "treble-8vb",
-                "treble-8va": "treble-8va",
-                "bass-8vb": "bass-8vb"
-              };
-              return map[m] || "treble";
-            };
-            const clefToUse = normalizeClef(
-              vexFlowData.clef || vexFlowData.tracks && vexFlowData.tracks[0] && vexFlowData.tracks[0].clef || detectedClef
-            );
-            stave.addClef(clefToUse);
-            if (vexFlowData.timeSignature && sysIndex === 0) {
-              stave.addTimeSignature(vexFlowData.timeSignature);
-            }
-            if (vexFlowData.keySignature && vexFlowData.keySignature !== "C" && sysIndex === 0) {
-              stave.addKeySignature(vexFlowData.keySignature);
-            }
-            stave.setContext(context).draw();
-            if (sysIndex === 0) {
-              try {
-                const title = vexFlowData.metadata && vexFlowData.metadata.title;
-                if (title) {
-                  context.save();
-                  context.setFont("bold 16px Arial");
-                  context.fillText(title, left, y - 20);
-                  context.restore();
-                }
-                if (vexFlowData.tempo) {
-                  context.save();
-                  context.setFont("12px Arial");
-                  const tempoText = `\u2669 = ${vexFlowData.tempo}`;
-                  context.fillText(tempoText, left + 200, y - 8);
-                  context.restore();
-                }
-              } catch {
-              }
-            }
-            const tickables = [];
-            lineMeasures.forEach((mNotes, idxInLine) => {
-              const sorted = mNotes.slice().sort(
-                (a, b) => (a.time ?? 0) - (b.time ?? 0)
-              );
-              sorted.forEach((noteData) => {
-                if (noteData.isRest) {
-                  tickables.push(
-                    new Flow.StaveNote({
-                      keys: ["d/5"],
-                      duration: String(noteData.duration).replace(/r?$/, "r")
-                    })
-                  );
-                } else {
-                  const note = new Flow.StaveNote({
-                    keys: noteData.keys.map((k) => k.toLowerCase()),
-                    duration: noteData.duration
-                  });
-                  tickables.push(note);
-                  createdNotes.push({ vf: note, data: noteData });
-                }
-              });
-              if (idxInLine < lineMeasures.length - 1 && Flow.BarNote && Flow.Barline && Flow.Barline.type) {
-                tickables.push(new Flow.BarNote(Flow.Barline.type.SINGLE));
-              }
-            });
-            const voice2 = new Flow.Voice({
-              num_beats: Math.max(1, lineMeasures.length) * measureCapacity,
-              beat_value: 32
-            });
-            if (voice2.setMode && Flow.Voice && Flow.Voice.Mode && Flow.Voice.Mode.SOFT !== void 0) {
-              voice2.setMode(Flow.Voice.Mode.SOFT);
-            } else if (typeof voice2.setStrict === "function") {
-              voice2.setStrict(false);
-            }
-            voice2.addTickables(
-              tickables.filter(
-                (t) => typeof t.getTicks === "function" ? t.getTicks().value() > 0 : true
-              )
-            );
-            const formatter = new Flow.Formatter().joinVoices([voice2]);
-            formatter.format([voice2], avail - 20);
-            voice2.draw(context, stave);
-          });
-          const allTickables = [];
-          measures.forEach((mNotes, idx) => {
-            const tickables = mNotes.slice().sort(
-              (a, b) => (a.time ?? 0) - (b.time ?? 0)
-            ).map((noteData) => {
-              if (noteData.isRest) {
-                return new Flow.StaveNote({
-                  keys: ["d/5"],
-                  duration: String(noteData.duration).replace(/r?$/, "r")
-                });
-              }
-              const note = new Flow.StaveNote({
-                keys: noteData.keys.map((k) => k.toLowerCase()),
-                duration: noteData.duration
-              });
-              if (noteData.graceNotes && Flow.GraceNoteGroup && Flow.GraceNote) {
-                try {
-                  const gnotes = noteData.graceNotes.map(
-                    (g) => new Flow.GraceNote({
-                      keys: (g.keys || []).map(
-                        (kk) => String(kk).toLowerCase()
-                      ),
-                      duration: "16",
-                      slash: true
-                    })
-                  );
-                  const ggroup = new Flow.GraceNoteGroup(gnotes, true);
-                  if (typeof ggroup.beamNotes === "function") {
-                    ggroup.beamNotes();
-                  }
-                  if (typeof ggroup.setContext === "function" && typeof ggroup.attachToNote === "function") {
-                    ggroup.setContext(context);
-                    ggroup.attachToNote(note);
-                  }
-                } catch {
-                }
-              }
-              if (Array.isArray(noteData.ornaments) && noteData.ornaments.length && Flow.GraceNoteGroup && Flow.GraceNote) {
-                const graceNoteOrnaments = noteData.ornaments.filter((orn) => orn.type === "grace_note");
-                if (graceNoteOrnaments.length > 0) {
-                  try {
-                    const allGraceNotes = graceNoteOrnaments.flatMap((orn) => {
-                      if (orn.parameters && orn.parameters.gracePitches) {
-                        return orn.parameters.gracePitches.map(
-                          (pitch) => new Flow.GraceNote({
-                            keys: [String(pitch).toLowerCase()],
-                            duration: "16",
-                            slash: orn.parameters.graceNoteType === "acciaccatura"
-                          })
-                        );
-                      }
-                      return [];
-                    });
-                    if (allGraceNotes.length > 0) {
-                      const ggroup = new Flow.GraceNoteGroup(allGraceNotes, true);
-                      if (typeof ggroup.beamNotes === "function") {
-                        ggroup.beamNotes();
-                      }
-                      if (typeof ggroup.setContext === "function" && typeof ggroup.attachToNote === "function") {
-                        ggroup.setContext(context);
-                        ggroup.attachToNote(note);
-                      }
-                    }
-                  } catch (e) {
-                    console.warn("Failed to render grace note ornaments:", e);
-                  }
-                }
-              }
-              if (Flow.Accidental) {
-                noteData.keys.forEach((origKey, idx2) => {
-                  const k = origKey.toLowerCase();
-                  const m = /^([a-g])(#{1,2}|b{1,2})?\/-?\d+$/.exec(k);
-                  const letter = m ? m[1] : k[0];
-                  const acc2 = m && m[2] ? m[2].includes("#") ? "#" : "b" : "";
-                  const sig = keyAccMap[letter] || "natural";
-                  let glyph = null;
-                  if (acc2 === "#" && sig !== "sharp") {
-                    glyph = "#";
-                  } else if (acc2 === "b" && sig !== "flat") {
-                    glyph = "b";
-                  }
-                  if (glyph) {
-                    if (typeof note.addAccidental === "function") {
-                      note.addAccidental(idx2, new Flow.Accidental(glyph));
-                    } else if (typeof note.addModifier === "function") {
-                      note.addModifier(new Flow.Accidental(glyph), idx2);
-                    }
-                  }
-                });
-              }
-              const articulationMap = {
-                staccato: "a.",
-                accent: "a>",
-                tenuto: "a-",
-                marcato: "a^",
-                legato: "a-"
-                // similar to tenuto for VexFlow
-              };
-              if (Array.isArray(noteData.vfArticulations) && noteData.vfArticulations.length) {
-                noteData.vfArticulations.forEach((code) => {
-                  if (Flow && Flow.Articulation && Flow.Modifier && Flow.Modifier.Position && (typeof note.addArticulation === "function" || typeof note.addModifier === "function")) {
-                    const art = new Flow.Articulation(code);
-                    if (art && typeof art.setPosition === "function") {
-                      art.setPosition(Flow.Modifier.Position.ABOVE);
-                    }
-                    if (typeof note.addArticulation === "function") {
-                      note.addArticulation(0, art);
-                    } else if (typeof note.addModifier === "function") {
-                      note.addModifier(art, 0);
-                    }
-                  }
-                });
-              } else if (Array.isArray(noteData.articulations)) {
-                noteData.articulations.forEach((a) => {
-                  const articulationType = typeof a === "string" ? a : a && a.type;
-                  const code = articulationMap[articulationType] || null;
-                  if (!code) return;
-                  if (Flow && Flow.Articulation && Flow.Modifier && Flow.Modifier.Position && (typeof note.addArticulation === "function" || typeof note.addModifier === "function")) {
-                    const art = new Flow.Articulation(code);
-                    if (art && typeof art.setPosition === "function") {
-                      art.setPosition(Flow.Modifier.Position.ABOVE);
-                    }
-                    if (typeof note.addArticulation === "function") {
-                      note.addArticulation(0, art);
-                    } else if (typeof note.addModifier === "function") {
-                      note.addModifier(art, 0);
-                    }
-                  }
-                });
-              }
-              return note;
-            });
-            tickables.forEach((n, i) => {
-              const d = mNotes[i];
-              if (!d || d.isRest) return;
-              const dotCount = typeof d.dots === "number" ? d.dots : d.dots === true || d.dot === true || d.dotted === true ? 1 : 0;
-              for (let k = 0; k < dotCount; k++) {
-                if (typeof n.addDotToAll === "function") {
-                  n.addDotToAll();
-                } else if (Flow.Dot) {
-                  d.keys.forEach((_, idx2) => {
-                    if (typeof n.addModifier === "function") {
-                      n.addModifier(new Flow.Dot(), idx2);
-                    }
-                  });
-                }
-              }
-              createdNotes.push({ vf: n, data: d });
-            });
-            allTickables.push(...tickables);
-            if (Flow.Beam && typeof Flow.Beam.generateBeams === "function") {
-              const beamables = tickables.filter(
-                (t) => typeof t.isRest !== "function" || !t.isRest()
-              );
-              try {
-                const beams = Flow.Beam.generateBeams(beamables);
-                beams.forEach((b) => b.setContext(context));
-                allBeams.push(...beams);
-              } catch (_) {
-              }
-            }
-            if (idx < measures.length - 1 && Flow.BarNote && Flow.Barline && Flow.Barline.type) {
-              allTickables.push(new Flow.BarNote(Flow.Barline.type.SINGLE));
-            }
-          });
-          const totalTicks = measures.length * measureCapacity;
-          const voice = new Flow.Voice({
-            num_beats: totalTicks,
-            beat_value: 32
-          });
-          if (voice.setMode && Flow.Voice && Flow.Voice.Mode && Flow.Voice.Mode.SOFT !== void 0) {
-            voice.setMode(Flow.Voice.Mode.SOFT);
-          } else if (typeof voice.setStrict === "function") {
-            voice.setStrict(false);
-          }
-          voice.addTickables(
-            allTickables.filter(
-              (t) => typeof t.getTicks === "function" ? t.getTicks().value() > 0 : true
-            )
-          );
-          if (allBeams.length) {
-            allBeams.forEach((b) => {
-              try {
-                b.draw();
-              } catch (_) {
-              }
-            });
-          }
-          if (createdNotes.length && Flow.StaveTie) {
-            for (let i = 0; i < createdNotes.length - 1; i++) {
-              const cur2 = createdNotes[i];
-              if (!cur2) continue;
-              const d = cur2.data || {};
-              const isTieStart = !!(d.tieToNext || d.tieStart || d.tie === "start");
-              if (!isTieStart) continue;
-              let next = null;
-              for (let j = i + 1; j < createdNotes.length; j++) {
-                if (createdNotes[j]) {
-                  next = createdNotes[j];
-                  break;
-                }
-              }
-              if (next) {
-                try {
-                  new Flow.StaveTie({
-                    first_note: cur2.vf,
-                    last_note: next.vf,
-                    first_indices: [0],
-                    last_indices: [0]
-                  }).setContext(context).draw();
-                } catch (_) {
-                }
-              }
-            }
-          }
-        }
-      }
-    };
-  }
-};
-function convertToVexFlow(composition, options = {}) {
-  const converter = new VexFlowConverter();
-  const vexFlowData = converter.convertToVexFlow(composition);
-  if (options.elementId) {
-    const rendererConfig = converter.createRenderer(
-      options.elementId,
-      options.width,
-      options.height
-    );
-    return converter.generateRenderingInstructions(vexFlowData, rendererConfig);
-  }
-  return vexFlowData;
-}
-
-// src/browser/score-renderer.js
-function jmonToMusicXML(composition) {
+// src/converters/verovio.js
+function musicxml(composition) {
   const title = composition.title || composition.metadata?.title || "Untitled";
   const tempo = composition.tempo || 120;
   const timeSignature = composition.timeSignature || "4/4";
@@ -11719,13 +10232,22 @@ function jmonToMusicXML(composition) {
     });
     return { ...track, notes: notesWithTime };
   });
-  const totalDuration = tracksWithTime.reduce((maxDur, track) => {
+  const gridSize = 0.25;
+  const quantizedTracks = tracksWithTime.map((track) => ({
+    ...track,
+    notes: track.notes.map((note) => ({
+      ...note,
+      time: Math.round((note.time || 0) / gridSize) * gridSize,
+      duration: Math.max(gridSize, Math.round((note.duration || 1) / gridSize) * gridSize)
+    }))
+  }));
+  const totalDuration = quantizedTracks.reduce((maxDur, track) => {
     const trackEnd = track.notes.reduce((max, note) => {
       return Math.max(max, (note.time || 0) + (note.duration || 1));
     }, 0);
     return Math.max(maxDur, trackEnd);
   }, 0);
-  const trackMeasures = tracksWithTime.map((track) => {
+  const trackMeasures = quantizedTracks.map((track) => {
     return splitIntoMeasures(track.notes, measureDuration, totalDuration);
   });
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -11795,7 +10317,7 @@ function jmonToMusicXML(composition) {
         xml += '        <sound tempo="${tempo}"/>\n';
         xml += "      </direction>\n";
       }
-      measure.forEach((note) => {
+      measure.forEach((note, noteIdx) => {
         if (note.isRest) {
           xml += "      <note>\n";
           xml += "        <rest/>\n";
@@ -11805,9 +10327,10 @@ function jmonToMusicXML(composition) {
 `;
           xml += "      </note>\n";
         } else if (Array.isArray(note.pitch)) {
+          const isChordContinuation = noteIdx > 0 && !measure[noteIdx - 1].isRest && timeEqual(note.time, measure[noteIdx - 1].time);
           note.pitch.forEach((p, i) => {
             xml += "      <note>\n";
-            if (i > 0) {
+            if (i > 0 || isChordContinuation) {
               xml += "        <chord/>\n";
             }
             const { step, alter, octave } = midiToPitch(p);
@@ -11828,7 +10351,11 @@ function jmonToMusicXML(composition) {
             xml += "      </note>\n";
           });
         } else {
+          const isChordContinuation = noteIdx > 0 && !measure[noteIdx - 1].isRest && timeEqual(note.time, measure[noteIdx - 1].time);
           xml += "      <note>\n";
+          if (isChordContinuation) {
+            xml += "        <chord/>\n";
+          }
           const { step, alter, octave } = midiToPitch(note.pitch);
           xml += "        <pitch>\n";
           xml += `          <step>${step}</step>
@@ -11854,81 +10381,75 @@ function jmonToMusicXML(composition) {
   xml += "</score-partwise>\n";
   return xml;
 }
+function downloadMusicXML(composition, filename = "composition.musicxml") {
+  const xml = musicxml(composition);
+  const blob = new Blob([xml], { type: "application/vnd.recordare.musicxml+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function normalizeTime(value) {
+  return Math.round(value * 1e4) / 1e4;
+}
+function timeEqual(a, b, tolerance = 1e-4) {
+  return Math.abs(a - b) < tolerance;
+}
 function splitIntoMeasures(notes, measureDuration, totalDuration) {
   const measures = [];
   let currentMeasure = [];
-  let measureStartTime = 0;
-  let currentTime = 0;
   const sortedNotes = [...notes].sort((a, b) => (a.time || 0) - (b.time || 0));
-  for (const note of sortedNotes) {
-    const noteTime = note.time || 0;
-    const noteDuration = note.duration || 1;
-    if (noteTime > currentTime + 1e-3) {
-      const restDuration = noteTime - currentTime;
-      if (currentTime + restDuration > measureStartTime + measureDuration) {
-        const restInThisMeasure = measureStartTime + measureDuration - currentTime;
-        if (restInThisMeasure > 1e-3) {
-          currentMeasure.push({ isRest: true, duration: restInThisMeasure });
+  const normalizedNotes = sortedNotes.map((note) => ({
+    ...note,
+    time: normalizeTime(note.time || 0),
+    duration: normalizeTime(note.duration || 1)
+  }));
+  let noteIndex = 0;
+  const numMeasures = Math.ceil(normalizeTime(totalDuration) / measureDuration);
+  for (let measureNum = 0; measureNum < numMeasures; measureNum++) {
+    const measureStart = normalizeTime(measureNum * measureDuration);
+    const measureEnd = normalizeTime(measureStart + measureDuration);
+    currentMeasure = [];
+    let measureTime = measureStart;
+    while (noteIndex < normalizedNotes.length && normalizedNotes[noteIndex].time < measureEnd) {
+      const note = normalizedNotes[noteIndex];
+      if (note.time > measureTime && !timeEqual(note.time, measureTime)) {
+        const restDuration = normalizeTime(note.time - measureTime);
+        if (restDuration > 1e-4) {
+          currentMeasure.push({ isRest: true, duration: restDuration });
         }
-        measures.push(currentMeasure);
-        currentMeasure = [];
-        measureStartTime += measureDuration;
-        currentTime += restInThisMeasure;
-        while (currentTime + 1e-3 < noteTime) {
-          const remaining = noteTime - currentTime;
-          const restDur = Math.min(remaining, measureDuration);
-          currentMeasure.push({ isRest: true, duration: restDur });
-          currentTime += restDur;
-          if (restDur >= measureDuration - 1e-3) {
-            measures.push(currentMeasure);
-            currentMeasure = [];
-            measureStartTime += measureDuration;
-          }
-        }
+        measureTime = note.time;
+      }
+      const noteEnd = normalizeTime(note.time + note.duration);
+      if (noteEnd <= measureEnd || timeEqual(noteEnd, measureEnd)) {
+        currentMeasure.push({ ...note, duration: note.duration });
+        measureTime = noteEnd;
+        noteIndex++;
       } else {
+        const durationInMeasure = normalizeTime(measureEnd - measureTime);
+        if (durationInMeasure > 1e-4) {
+          currentMeasure.push({ ...note, duration: durationInMeasure });
+        }
+        normalizedNotes[noteIndex] = {
+          ...note,
+          time: measureEnd,
+          duration: normalizeTime(note.duration - durationInMeasure)
+        };
+        measureTime = measureEnd;
+        break;
+      }
+    }
+    if (measureTime < measureEnd && !timeEqual(measureTime, measureEnd)) {
+      const restDuration = normalizeTime(measureEnd - measureTime);
+      if (restDuration > 1e-4) {
         currentMeasure.push({ isRest: true, duration: restDuration });
-        currentTime += restDuration;
       }
     }
-    if (currentTime + noteDuration > measureStartTime + measureDuration + 1e-3) {
-      const durationInThisMeasure = measureStartTime + measureDuration - currentTime;
-      if (durationInThisMeasure > 1e-3) {
-        currentMeasure.push({ ...note, duration: durationInThisMeasure });
-      }
+    if (currentMeasure.length > 0) {
       measures.push(currentMeasure);
-      currentMeasure = [];
-      measureStartTime += measureDuration;
-      currentTime += durationInThisMeasure;
-      const remainingDuration = noteDuration - durationInThisMeasure;
-      if (remainingDuration > 1e-3) {
-        currentMeasure.push({ ...note, duration: remainingDuration });
-        currentTime += remainingDuration;
-      }
-    } else {
-      currentMeasure.push(note);
-      currentTime += noteDuration;
     }
-    if (currentTime >= measureStartTime + measureDuration - 1e-3) {
-      measures.push(currentMeasure);
-      currentMeasure = [];
-      measureStartTime += measureDuration;
-    }
-  }
-  while (currentTime < totalDuration - 1e-3) {
-    const remaining = totalDuration - currentTime;
-    const restDur = Math.min(remaining, measureStartTime + measureDuration - currentTime);
-    if (restDur > 1e-3) {
-      currentMeasure.push({ isRest: true, duration: restDur });
-      currentTime += restDur;
-    }
-    if (currentTime >= measureStartTime + measureDuration - 1e-3) {
-      measures.push(currentMeasure);
-      currentMeasure = [];
-      measureStartTime += measureDuration;
-    }
-  }
-  if (currentMeasure.length > 0) {
-    measures.push(currentMeasure);
   }
   return measures;
 }
@@ -12052,9 +10573,12 @@ function createEmptyMusicXML(title, tempo, beatsPerMeasure, beatValue, fifths, m
   xml += "</score-partwise>\n";
   return xml;
 }
+
+// src/browser/score-renderer.js
 async function score(composition, options = {}) {
   const {
     verovio: createVerovioModule,
+    VerovioToolkit,
     width,
     scale = 40
   } = options;
@@ -12066,14 +10590,13 @@ async function score(composition, options = {}) {
   container.appendChild(notationDiv);
   try {
     if (!createVerovioModule) {
-      notationDiv.innerHTML = '<p style="color:#ff6b6b">Verovio library not loaded. Import with: import verovio from "npm:verovio@4.3.1/wasm"</p>';
+      notationDiv.innerHTML = '<p style="color:#ff6b6b">Verovio library not loaded. Import with: import verovio from "npm:verovio@4.3.1/wasm" and import { VerovioToolkit } from "npm:verovio@4.3.1/esm"</p>';
       return container;
     }
     notationDiv.innerHTML = '<p style="color:#888">Initializing Verovio...</p>';
     const VerovioModule = await createVerovioModule();
-    const { VerovioToolkit: VerovioToolkit2 } = await Promise.resolve().then(() => (init_verovio(), verovio_exports));
-    const vrvToolkit = new VerovioToolkit2(VerovioModule);
-    const musicXML = jmonToMusicXML(composition);
+    const vrvToolkit = new VerovioToolkit(VerovioModule);
+    const musicXML = musicxml(composition);
     const renderOptions = {
       scale,
       adjustPageHeight: true,
@@ -12171,15 +10694,13 @@ var jm = {
   // Converters
   converters: {
     midi,
-    downloadMidi,
     midiToJmon,
     tonejs,
     wav,
     downloadWav,
-    abc,
-    downloadABC,
-    supercollider,
-    vexflow: convertToVexFlow
+    musicxml,
+    downloadMusicXML,
+    supercollider
   },
   // Namespaces from algorithms
   theory: algorithms_default.theory,

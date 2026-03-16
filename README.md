@@ -4,14 +4,108 @@ JavaScript music composition toolkit for algorithmic and generative music.
 
 ## Getting Started
 
-### Observable Notebook Kit (Recommended)
+### Node.js
 
-The `userguide/` folder contains interactive HTML notebooks built with [Observable Notebook Kit](https://observablehq.com/framework/notebook-kit):
+We recommend to run jmon/algo in a Observable Notebook Kit environment with Node.js, which you will need to install on your system Node.js will run the code and will allow to install packages with `npm`.
+
+1. Make sure that Node.js is installed on your system
+
+Open a terminal and run the following command:
+
+```
+node --version
+```
+
+If the terminal can't find the command, head up to [https://nodejs.org/](https://nodejs.org/) and install fond out how to install Node.js on your system. If a version number appears, kudos.
+
+2. Create a folder and cd 
+
+Use command lines or your file browser to create a folder for your music project. Copy its path and write `cd ` followed by the path. 
 
 ```bash
-cd userguide
-npx http-server
-# Open http://localhost:8080/01-getting-started.html
+cd /path/of/my/project
+```
+
+3. Install the packages
+
+You'll have to initiate your project and install both `@jmon/algo` and `@observablehq/notebook-kit`.
+
+```bash
+npm init -y
+npm install @jmon/algo @observablehq/notebook-kit
+```
+
+4. Create your notebook
+
+Observable Notebook Kit is a wonderful way to start coding in JavaScript. Create a new html, e.g. `index.html`, file with your favorite text editor ([Zed](https://zed.dev/) is light and fast, [VSCode](https://code.visualstudio.com/) is full of features).
+
+```bash
+<!doctype html>
+<notebook>
+  <title>My Composition</title>
+  <script type="text/markdown">
+    A *markdown* **cell** to annotate your `code`.
+    
+    The following cell loads libraries.
+  </script>
+  <script type="module" pinned>
+    import jm from "@jmon/algo";
+    import * as Tone from "npm:tone";
+    import verovio from "npm:verovio@4.3.1/wasm";
+    import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
+  </script>
+  <script type="text/markdown">
+    Let's start coding!
+  </script>
+  <script type="module">
+    const melody = jm.theory.harmony.Scale.generate("C", "major").map((p, i) => ({
+      pitch: p, duration: 1, time: i, velocity: 0.8
+    }));
+    const comp = { tempo: 120, tracks: [{ label: "Scale", notes: melody }] };
+    display(await jm.score(comp, { verovio, VerovioToolkit }));
+    display(await jm.play(comp, { Tone }));
+  </script>
+</notebook>
+
+```
+
+5. Open your notebook
+
+Start a server with:
+
+```bash
+npx notebooks preview --root .
+```
+
+Servers sounds heavy and complicated, but it's really just allowing you browser to run the files of your local folder. Your terminal will show an unfinished command with a url like http://localhost:5173/. Paste in in a browser and if your notebook is named index.html, it should apear. Else, just head up to http://localhost:5173/my_other_file.html
+
+Each time you update the notebook, your browser updates. Docking the windows helps a lot!
+
+### Deno
+
+If you prefer deno to Node.js,
+
+1. Create deno.json
+
+```json
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@jmon/algo": "jsr:@jmon/algo"
+  }
+}
+```
+
+2. Create you html notebook (same as above)
+
+3. Run the notebook
+
+And run `deno run -A npm:@observablehq/notebook-kit preview --root .`
+
+
+### Userguide
+
+The `userguide/` folder on the repository of this project contains interactive HTML notebooks built with [Observable Notebook Kit](https://observablehq.com/framework/notebook-kit).
 ```
 
 **Available Guides:**
@@ -26,13 +120,9 @@ npx http-server
 - `09-microtuning.html` - Microtonality and tuning systems
 - `live-coding.html` - Live coding environment
 
-### Observable Framework
+## The API
 
-Use with [Observable Framework](https://observablehq.com/framework/) for publishing:
-
-```bash
-npm install @jmon/algo
-```
+A very light example.
 
 ```javascript
 import jm from "@jmon/algo";
@@ -59,7 +149,7 @@ const player = await jm.play(composition, { Tone });
 
 ## JMON Format
 
-Music as JSON objects:
+Je JMON format is a music notation as JSON objects:
 
 ```javascript
 // A note
