@@ -12,6 +12,7 @@ import { musicxml } from "../converters/verovio.js";
  * @param {Object} options - Rendering options
  * @param {Function} [options.verovio] - Verovio WASM module factory (from import verovio from "npm:verovio@4.3.1/wasm")
  * @param {Function} [options.VerovioToolkit] - VerovioToolkit class (from import { VerovioToolkit } from "npm:verovio@4.3.1/esm")
+ * @param {Object} [options.toolkit] - Pre-initialized VerovioToolkit instance (alternative to verovio + VerovioToolkit)
  * @param {number} [options.width] - Staff width in pixels (default: auto)
  * @param {number} [options.scale] - Scale factor for rendering (default: 100)
  * @returns {HTMLElement} DOM element containing the rendered score
@@ -20,6 +21,7 @@ export async function score(composition, options = {}) {
   const {
     verovio: createVerovioModule,
     VerovioToolkit,
+    toolkit,
     width,
     scale = 40,
   } = options;
@@ -35,18 +37,21 @@ export async function score(composition, options = {}) {
   container.appendChild(notationDiv);
 
   try {
-    if (!createVerovioModule) {
+    if (!toolkit && !createVerovioModule) {
       notationDiv.innerHTML = '<p style="color:#ff6b6b">Verovio library not loaded. Import with: import verovio from "npm:verovio@4.3.1/wasm" and import { VerovioToolkit } from "npm:verovio@4.3.1/esm"</p>';
       return container;
     }
 
     notationDiv.innerHTML = '<p style="color:#888">Initializing Verovio...</p>';
 
-    // Initialize Verovio WASM module
-    const VerovioModule = await createVerovioModule();
-
-    // Create toolkit instance
-    const vrvToolkit = new VerovioToolkit(VerovioModule);
+    // Use pre-initialized toolkit or create one from factory
+    let vrvToolkit;
+    if (toolkit) {
+      vrvToolkit = toolkit;
+    } else {
+      const VerovioModule = await createVerovioModule();
+      vrvToolkit = new VerovioToolkit(VerovioModule);
+    }
 
     // Convert JMON to MusicXML
     const musicXML = musicxml(composition);
