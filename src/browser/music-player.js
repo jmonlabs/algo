@@ -9,7 +9,21 @@ import { normalizeAudioGraph } from "../utils/normalize.js";
  * No synth selectors, no downloads - focus on playing JMON compositions
  */
 export function createPlayer(composition, options = {}) {
-  if (!composition || typeof composition !== "object") {
+  if (!composition) {
+    throw new Error("Invalid composition");
+  }
+
+  // Normalize: wrap a plain array of MIDI pitches or note objects into a composition
+  if (Array.isArray(composition)) {
+    const notes = composition.map((item, i) =>
+      typeof item === "number"
+        ? { pitch: item, duration: 1, time: i }
+        : { time: i, duration: 1, ...item }
+    );
+    composition = { tracks: [{ notes }], tempo: 120 };
+  }
+
+  if (typeof composition !== "object") {
     throw new Error("Invalid composition");
   }
 
