@@ -159,6 +159,25 @@ export function createPlayer(composition, options = {}) {
   async function buildSynths() {
     ToneLib = externalTone || window.Tone;
 
+    // Normalize flat ESM exports to namespace shape expected by this player.
+    // When Tone is loaded via ESM (e.g. jsdelivr +esm), Transport is not a
+    // property of the module object — use getTransport() to retrieve it.
+    if (ToneLib && !ToneLib.Transport && typeof ToneLib.getTransport === 'function') {
+      ToneLib = {
+        Transport: ToneLib.getTransport(),
+        start: ToneLib.start,
+        loaded: ToneLib.loaded,
+        Frequency: ToneLib.Frequency,
+        Gain: ToneLib.Gain,
+        Limiter: ToneLib.Limiter,
+        Sampler: ToneLib.Sampler,
+        PolySynth: ToneLib.PolySynth,
+        MonoSynth: ToneLib.MonoSynth,
+        Vibrato: ToneLib.Vibrato,
+        Tremolo: ToneLib.Tremolo,
+      };
+    }
+
     if (!ToneLib) {
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
