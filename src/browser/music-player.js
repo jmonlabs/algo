@@ -179,13 +179,20 @@ export function createPlayer(composition, options = {}) {
     }
 
     if (!ToneLib) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js";
-        script.onload = () => { ToneLib = window.Tone; resolve(); };
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
+      // Try ESM import first — works in Observable and sandboxed environments
+      // where script tag injection is blocked.
+      try {
+        ToneLib = await import("https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm");
+      } catch {
+        // Fall back to UMD script tag (standard browser pages)
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js";
+          script.onload = () => { ToneLib = window.Tone; resolve(); };
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
     }
 
     if (!ToneLib) throw new Error("Failed to load Tone.js");
