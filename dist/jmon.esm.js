@@ -1810,7 +1810,16 @@ __export(music_player_exports, {
   createPlayer: () => createPlayer
 });
 function createPlayer(composition, options = {}) {
-  if (!composition || typeof composition !== "object") {
+  if (!composition) {
+    throw new Error("Invalid composition");
+  }
+  if (Array.isArray(composition)) {
+    const notes = composition.map(
+      (item, i) => typeof item === "number" ? { pitch: item, duration: 1, time: i } : { time: i, duration: 1, ...item }
+    );
+    composition = { tracks: [{ notes }], tempo: 120 };
+  }
+  if (typeof composition !== "object") {
     throw new Error("Invalid composition");
   }
   const { Tone: externalTone = null, autoplay = false } = options;
@@ -1924,17 +1933,36 @@ function createPlayer(composition, options = {}) {
   }
   async function buildSynths() {
     ToneLib = externalTone || window.Tone;
+    if (ToneLib && !ToneLib.Transport && typeof ToneLib.getTransport === "function") {
+      ToneLib = {
+        Transport: ToneLib.getTransport(),
+        start: ToneLib.start,
+        loaded: ToneLib.loaded,
+        Frequency: ToneLib.Frequency,
+        Gain: ToneLib.Gain,
+        Limiter: ToneLib.Limiter,
+        Sampler: ToneLib.Sampler,
+        PolySynth: ToneLib.PolySynth,
+        MonoSynth: ToneLib.MonoSynth,
+        Vibrato: ToneLib.Vibrato,
+        Tremolo: ToneLib.Tremolo
+      };
+    }
     if (!ToneLib) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js";
-        script.onload = () => {
-          ToneLib = window.Tone;
-          resolve();
-        };
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
+      try {
+        ToneLib = await import("https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm");
+      } catch {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js";
+          script.onload = () => {
+            ToneLib = window.Tone;
+            resolve();
+          };
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
     }
     if (!ToneLib) throw new Error("Failed to load Tone.js");
     window.Tone = ToneLib;
@@ -10579,6 +10607,7 @@ async function score(composition, options = {}) {
   const {
     verovio: createVerovioModule,
     VerovioToolkit,
+    toolkit,
     width,
     scale = 40
   } = options;
@@ -10589,13 +10618,20 @@ async function score(composition, options = {}) {
   notationDiv.id = `rendered-score-${Date.now()}`;
   container.appendChild(notationDiv);
   try {
-    if (!createVerovioModule) {
+    if (!toolkit && !createVerovioModule) {
       notationDiv.innerHTML = '<p style="color:#ff6b6b">Verovio library not loaded. Import with: import verovio from "npm:verovio@4.3.1/wasm" and import { VerovioToolkit } from "npm:verovio@4.3.1/esm"</p>';
       return container;
     }
     notationDiv.innerHTML = '<p style="color:#888">Initializing Verovio...</p>';
-    const VerovioModule = await createVerovioModule();
-    const vrvToolkit = new VerovioToolkit(VerovioModule);
+    let vrvToolkit;
+    if (toolkit) {
+      vrvToolkit = toolkit;
+    } else {
+      const factory = typeof createVerovioModule === "function" ? createVerovioModule : createVerovioModule?.default;
+      const Toolkit = typeof VerovioToolkit === "function" ? VerovioToolkit : VerovioToolkit?.default;
+      const VerovioModule = await factory();
+      vrvToolkit = new Toolkit(VerovioModule);
+    }
     const musicXML = musicxml(composition);
     const renderOptions = {
       scale,

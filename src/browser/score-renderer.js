@@ -27,18 +27,19 @@ export async function score(composition, options = {}) {
   } = options;
 
   // Create container
-  const container = document.createElement('div');
-  container.style.width = '100%';
-  container.style.overflow = 'visible';
+  const container = document.createElement("div");
+  container.style.width = "100%";
+  container.style.overflow = "visible";
 
   // Create rendering target
-  const notationDiv = document.createElement('div');
+  const notationDiv = document.createElement("div");
   notationDiv.id = `rendered-score-${Date.now()}`;
   container.appendChild(notationDiv);
 
   try {
     if (!toolkit && !createVerovioModule) {
-      notationDiv.innerHTML = '<p style="color:#ff6b6b">Verovio library not loaded. Import with: import verovio from "npm:verovio@4.3.1/wasm" and import { VerovioToolkit } from "npm:verovio@4.3.1/esm"</p>';
+      notationDiv.innerHTML =
+        '<p style="color:#ff6b6b">Verovio library not loaded. Import with: import verovio from "npm:verovio@4.3.1/wasm" and import { VerovioToolkit } from "npm:verovio@4.3.1/esm"</p>';
       return container;
     }
 
@@ -49,8 +50,17 @@ export async function score(composition, options = {}) {
     if (toolkit) {
       vrvToolkit = toolkit;
     } else {
-      const VerovioModule = await createVerovioModule();
-      vrvToolkit = new VerovioToolkit(VerovioModule);
+      // Support both direct functions and ES module namespace objects (e.g. from dynamic import())
+      const factory =
+        typeof createVerovioModule === "function"
+          ? createVerovioModule
+          : createVerovioModule?.default;
+      const Toolkit =
+        typeof VerovioToolkit === "function"
+          ? VerovioToolkit
+          : VerovioToolkit?.default;
+      const VerovioModule = await factory();
+      vrvToolkit = new Toolkit(VerovioModule);
     }
 
     // Convert JMON to MusicXML
@@ -60,11 +70,11 @@ export async function score(composition, options = {}) {
     const renderOptions = {
       scale: scale,
       adjustPageHeight: true,
-      breaks: 'auto',
+      breaks: "auto",
       pageWidth: width || 2100,
       pageHeight: 2970,
       spacingStaff: 12,
-      spacingSystem: 12
+      spacingSystem: 12,
     };
 
     vrvToolkit.setOptions(renderOptions);
@@ -74,9 +84,8 @@ export async function score(composition, options = {}) {
     const svg = vrvToolkit.renderToSVG(1);
 
     notationDiv.innerHTML = svg;
-
   } catch (error) {
-    console.error('[SCORE] Render error:', error);
+    console.error("[SCORE] Render error:", error);
     notationDiv.innerHTML = `<p style="color:#ff6b6b">Error: ${error.message}</p>`;
   }
 

@@ -1,8 +1,16 @@
 var jm = (() => {
+  var __create = Object.create;
   var __defProp = Object.defineProperty;
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
   var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+    get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+  }) : x)(function(x) {
+    if (typeof require !== "undefined") return require.apply(this, arguments);
+    throw Error('Dynamic require of "' + x + '" is not supported');
+  });
   var __esm = (fn, res) => function __init() {
     return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
   };
@@ -18,6 +26,14 @@ var jm = (() => {
     }
     return to;
   };
+  var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+    // If the importer is in node compatibility mode or this is not an ESM
+    // file that has been converted to a CommonJS file using a Babel-
+    // compatible transform (i.e. "__esModule" has not been set), then set
+    // "default" to the CommonJS "module.exports" for node compatibility.
+    isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+    mod
+  ));
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
   // src/algorithms/visualization/plots/PlotRenderer.js
@@ -1822,7 +1838,16 @@ var jm = (() => {
     createPlayer: () => createPlayer
   });
   function createPlayer(composition, options = {}) {
-    if (!composition || typeof composition !== "object") {
+    if (!composition) {
+      throw new Error("Invalid composition");
+    }
+    if (Array.isArray(composition)) {
+      const notes = composition.map(
+        (item, i) => typeof item === "number" ? { pitch: item, duration: 1, time: i } : { time: i, duration: 1, ...item }
+      );
+      composition = { tracks: [{ notes }], tempo: 120 };
+    }
+    if (typeof composition !== "object") {
       throw new Error("Invalid composition");
     }
     const { Tone: externalTone = null, autoplay = false } = options;
@@ -1936,17 +1961,36 @@ var jm = (() => {
     }
     async function buildSynths() {
       ToneLib = externalTone || window.Tone;
+      if (ToneLib && !ToneLib.Transport && typeof ToneLib.getTransport === "function") {
+        ToneLib = {
+          Transport: ToneLib.getTransport(),
+          start: ToneLib.start,
+          loaded: ToneLib.loaded,
+          Frequency: ToneLib.Frequency,
+          Gain: ToneLib.Gain,
+          Limiter: ToneLib.Limiter,
+          Sampler: ToneLib.Sampler,
+          PolySynth: ToneLib.PolySynth,
+          MonoSynth: ToneLib.MonoSynth,
+          Vibrato: ToneLib.Vibrato,
+          Tremolo: ToneLib.Tremolo
+        };
+      }
       if (!ToneLib) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js";
-          script.onload = () => {
-            ToneLib = window.Tone;
-            resolve();
-          };
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
+        try {
+          ToneLib = await import("https://cdn.jsdelivr.net/npm/tone@14.8.49/+esm");
+        } catch {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js";
+            script.onload = () => {
+              ToneLib = window.Tone;
+              resolve();
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
       }
       if (!ToneLib) throw new Error("Failed to load Tone.js");
       window.Tone = ToneLib;
@@ -10599,6 +10643,7 @@ var jm = (() => {
     const {
       verovio: createVerovioModule,
       VerovioToolkit,
+      toolkit,
       width,
       scale = 40
     } = options;
@@ -10609,13 +10654,20 @@ var jm = (() => {
     notationDiv.id = `rendered-score-${Date.now()}`;
     container.appendChild(notationDiv);
     try {
-      if (!createVerovioModule) {
+      if (!toolkit && !createVerovioModule) {
         notationDiv.innerHTML = '<p style="color:#ff6b6b">Verovio library not loaded. Import with: import verovio from "npm:verovio@4.3.1/wasm" and import { VerovioToolkit } from "npm:verovio@4.3.1/esm"</p>';
         return container;
       }
       notationDiv.innerHTML = '<p style="color:#888">Initializing Verovio...</p>';
-      const VerovioModule = await createVerovioModule();
-      const vrvToolkit = new VerovioToolkit(VerovioModule);
+      let vrvToolkit;
+      if (toolkit) {
+        vrvToolkit = toolkit;
+      } else {
+        const factory = typeof createVerovioModule === "function" ? createVerovioModule : createVerovioModule?.default;
+        const Toolkit = typeof VerovioToolkit === "function" ? VerovioToolkit : VerovioToolkit?.default;
+        const VerovioModule = await factory();
+        vrvToolkit = new Toolkit(VerovioModule);
+      }
       const musicXML = musicxml(composition);
       const renderOptions = {
         scale,
