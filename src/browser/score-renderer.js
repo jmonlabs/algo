@@ -50,15 +50,14 @@ export async function score(composition, options = {}) {
     if (toolkit) {
       vrvToolkit = toolkit;
     } else {
-      // Support both direct functions and ES module namespace objects (e.g. from dynamic import())
-      const factory =
-        typeof createVerovioModule === "function"
-          ? createVerovioModule
-          : createVerovioModule?.default;
-      const Toolkit =
-        typeof VerovioToolkit === "function"
-          ? VerovioToolkit
-          : VerovioToolkit?.default;
+      // Support both direct functions and ES module namespace objects (from dynamic import()).
+      // verovio-module.mjs has a default export; verovio.mjs has a named VerovioToolkit export.
+      const resolve = (val) =>
+        typeof val === "function"
+          ? val
+          : (val?.default ?? val?.VerovioToolkit ?? val);
+      const factory = resolve(createVerovioModule);
+      const Toolkit = resolve(VerovioToolkit);
       const VerovioModule = await factory();
       vrvToolkit = new Toolkit(VerovioModule);
     }

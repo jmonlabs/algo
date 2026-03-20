@@ -10663,8 +10663,9 @@ var jm = (() => {
       if (toolkit) {
         vrvToolkit = toolkit;
       } else {
-        const factory = typeof createVerovioModule === "function" ? createVerovioModule : createVerovioModule?.default;
-        const Toolkit = typeof VerovioToolkit === "function" ? VerovioToolkit : VerovioToolkit?.default;
+        const resolve = (val) => typeof val === "function" ? val : val?.default ?? val?.VerovioToolkit ?? val;
+        const factory = resolve(createVerovioModule);
+        const Toolkit = resolve(VerovioToolkit);
         const VerovioModule = await factory();
         vrvToolkit = new Toolkit(VerovioModule);
       }
