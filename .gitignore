@@ -153,3 +153,4 @@ deno.lock
 # deno.json - REMOVED: now tracked for package registry publishing
 .DS_Store
 
+.compo/

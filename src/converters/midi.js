@@ -80,6 +80,22 @@ function buildMidiFile(composition) {
 
     trackChunks.push(encodeTrack(tempoEvents));
 
+    // Channel assignment: respect track.channel (or track.midiChannel), else
+    // auto-assign sequentially, skipping channel 9 (drums). Accept 1-indexed
+    // `channel: 10` as the conventional GM drum channel and normalize to 9.
+    let autoChannel = 0;
+    const resolveChannel = (track) => {
+        const raw = track.channel ?? track.midiChannel;
+        if (typeof raw === 'number') {
+            if (raw === 10) return 9;           // GM 1-indexed drum channel
+            if (raw >= 0 && raw <= 15) return raw;
+        }
+        if (autoChannel === 9) autoChannel++;   // skip drums slot
+        const c = autoChannel;
+        autoChannel = (autoChannel + 1) % 16;
+        return c;
+    };
+
     // Note tracks
     for (const track of tracksArray) {
         const notesSrc = Array.isArray(track.events) ? track.events
@@ -98,6 +114,8 @@ function buildMidiFile(composition) {
             });
         }
 
+        const channel = resolveChannel(track);
+
         // Add time to notes if missing
         let currentTime = 0;
         const notesWithTime = safeNotes.map(note => {
@@ -107,23 +125,26 @@ function buildMidiFile(composition) {
         });
 
         for (const note of notesWithTime) {
-            const pitch = typeof note.pitch === 'number' ? note.pitch : 60;
-            if (pitch === null || pitch === undefined) continue; // rest
+            if (note.pitch === null || note.pitch === undefined) continue; // rest
+            // Accept scalar pitch or array (chord from Chain branching etc.)
+            const pitches = Array.isArray(note.pitch) ? note.pitch : [note.pitch];
             const velocity = Math.round((note.velocity || 0.8) * 127);
             const startTick = Math.round((note.time || 0) * ticksPerBeat);
             const endTick = Math.round(((note.time || 0) + (note.duration || 1)) * ticksPerBeat);
-            const channel = 0;
 
-            events.push({
-                tick: startTick,
-                sortOrder: 1,
-                bytes: [0x90 | channel, pitch, velocity]
-            });
-            events.push({
-                tick: endTick,
-                sortOrder: 0, // note-off sorts before note-on at same tick
-                bytes: [0x80 | channel, pitch, 0]
-            });
+            for (const p of pitches) {
+                if (typeof p !== 'number') continue;
+                events.push({
+                    tick: startTick,
+                    sortOrder: 1,
+                    bytes: [0x90 | channel, p, velocity]
+                });
+                events.push({
+                    tick: endTick,
+                    sortOrder: 0, // note-off sorts before note-on at same tick
+                    bytes: [0x80 | channel, p, 0]
+                });
+            }
         }
 
         trackChunks.push(encodeTrack(events));
@@ -196,13 +217,198 @@ export class Midi {
 }
 
 /**
- * Convert a JMON composition to a MIDI file download link.
- * No external dependencies required.
+ * Encode a JMON composition as a Standard MIDI File and return the raw bytes.
+ * DOM-free — safe to call from Node, Deno, and notebook kernels.
+ *
+ * @param {Object} composition - The JMON composition
+ * @returns {Uint8Array} The SMF byte stream
+ */
+export function midiBytes(composition) {
+    return buildMidiFile(composition);
+}
+
+/**
+ * Encode a JMON composition as a base64-encoded MIDI file. Useful for
+ * embedding in data: URLs or handing to notebook MIDI players that expect
+ * a string payload. DOM-free.
+ *
+ * @param {Object} composition - The JMON composition
+ * @returns {string} Base64-encoded SMF bytes (no data: prefix)
+ */
+export function midiBase64(composition) {
+    const bytes = buildMidiFile(composition);
+    return bytesToBase64(bytes);
+}
+
+/**
+ * Build a MIME bundle for displaying a MIDI file in a notebook. Includes
+ * both `audio/midi` (for hosts that can render it) and `text/html` (a
+ * data-URL download link, which JupyterLab and most kernels *will* render).
+ * Hand the result to `jm.env.present()` to display inline.
+ *
+ * @param {Object} composition - The JMON composition
+ * @param {Object} [options]
+ * @param {string} [options.filename='composition.mid'] - Download filename
+ * @param {string} [options.label] - Link label; defaults to the filename
+ * @returns {Object} MIME bundle: {audio/midi, text/html, text/plain}
+ *
+ * @example
+ * jm.env.present(jm.converters.midiDisplay(composition));
+ */
+export function midiDisplay(composition, options = {}) {
+    const {
+        filename = "composition.mid",
+        label,
+    } = options;
+    const bytes = buildMidiFile(composition);
+    const b64 = bytesToBase64(bytes);
+    const sizeKb = (bytes.length / 1024).toFixed(1);
+    const linkLabel = label || `⬇ ${filename} (${sizeKb} KB)`;
+    // Inline, no external CSS — works in any kernel that renders text/html.
+    const html =
+        `<a href="data:audio/midi;base64,${b64}" download="${escapeHtml(filename)}" ` +
+        `style="display:inline-block;padding:6px 12px;background:#2b2b2b;color:#fff;` +
+        `border-radius:4px;text-decoration:none;font-family:sans-serif;font-size:13px">` +
+        `${escapeHtml(linkLabel)}</a>`;
+    return {
+        "audio/midi": b64,
+        "text/html": html,
+        "text/plain": `MIDI (${bytes.length} bytes)`,
+    };
+}
+
+function escapeHtml(s) {
+    return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+/**
+ * Build an interactive in-notebook MIDI player. Returns a MIME bundle
+ * whose `text/html` content is an iframe hosting the `html-midi-player`
+ * web component (Magenta + Tone.js, loaded from jsDelivr) pointed at a
+ * `data:audio/midi;base64,...` URL. Gives actual play/pause/seek inside
+ * Jupyter without any extension.
+ *
+ * The player is embedded inside an iframe `srcdoc` for two reasons:
+ *   1. CDN scripts load in a clean document context, avoiding conflicts
+ *      with whatever Jupyter has already loaded in the parent page.
+ *   2. CSP / script restrictions on the parent page don't affect us.
+ *
+ * @param {Object} composition - The JMON composition
+ * @param {Object} [options]
+ * @param {boolean} [options.visualizer=true] - Render the Magenta piano-roll
+ *   visualizer above the player controls.
+ * @param {string} [options.soundFont] - URL of a soundfont. Defaults to
+ *   Magenta's general-MIDI soundfont hosted on Google Cloud Storage.
+ * @param {number} [options.height] - iframe height in pixels. Defaults to
+ *   220 (visualizer + controls) or 80 (controls only).
+ * @returns {Object} MIME bundle: { text/html, audio/midi, text/plain }
+ *
+ * @example
+ * jm.env.present(jm.converters.midiPlayer(composition));
+ */
+export function midiPlayer(composition, options = {}) {
+    const {
+        visualizer = true,
+        soundFont = "https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus",
+        height: iframeHeight = visualizer ? 220 : 80,
+    } = options;
+
+    const bytes = buildMidiFile(composition);
+    const b64 = bytesToBase64(bytes);
+    const dataUrl = `data:audio/midi;base64,${b64}`;
+
+    // html-midi-player bundles tone.js + @magenta/music into one script.
+    // Version 1.5.0 is the current stable as of writing.
+    const playerScript =
+        "https://cdn.jsdelivr.net/combine/" +
+        "npm/tone@14.7.77," +
+        "npm/@magenta/music@1.23.1/es6/core.js," +
+        "npm/focus-visible@5," +
+        "npm/html-midi-player@1.5.0";
+
+    const visualizerEl = visualizer
+        ? `<midi-visualizer type="piano-roll" id="vis" src="${dataUrl}"></midi-visualizer>`
+        : "";
+    const playerEl = `<midi-player src="${dataUrl}" sound-font="${soundFont}"${visualizer ? ' visualizer="#vis"' : ""}></midi-player>`;
+
+    const doc =
+        `<!DOCTYPE html><html><head><meta charset="utf-8">` +
+        `<script src="${playerScript}"></script>` +
+        `<style>` +
+        `body{margin:0;padding:4px;font-family:system-ui,sans-serif;background:transparent}` +
+        `midi-player{display:block;width:100%;margin-top:4px;` +
+        `--midi-player-font-family:system-ui,sans-serif}` +
+        `midi-visualizer{display:block;width:100%;height:120px;` +
+        `--midi-visualizer-active-note-color:#0af}` +
+        `</style></head><body>${visualizerEl}${playerEl}</body></html>`;
+
+    // srcdoc needs double-quotes escaped so we can wrap it in double-quotes.
+    const srcdoc = doc.replace(/"/g, "&quot;");
+    const html =
+        `<iframe srcdoc="${srcdoc}" ` +
+        `style="width:100%;height:${iframeHeight}px;border:none;display:block" ` +
+        `sandbox="allow-scripts allow-same-origin"></iframe>`;
+
+    return {
+        "text/html": html,
+        "audio/midi": b64,
+        "text/plain": `MIDI player (${bytes.length} bytes)`,
+    };
+}
+
+/**
+ * Minimal, dependency-free Uint8Array -> base64.
+ * Works in browsers (btoa), Node (Buffer), and Deno (btoa). We avoid
+ * importing `Buffer` so the core library stays environment-agnostic.
+ */
+function bytesToBase64(bytes) {
+    // btoa is available in browsers and Deno; Node 16+ exposes it too.
+    if (typeof btoa === "function") {
+        // Build a binary string in chunks to avoid blowing the call stack on
+        // large buffers when using String.fromCharCode(...bytes).
+        let binary = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.subarray(i, i + chunkSize);
+            binary += String.fromCharCode.apply(null, chunk);
+        }
+        return btoa(binary);
+    }
+    // Last-resort fallback for hosts without btoa or Buffer.
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let output = "";
+    let i = 0;
+    while (i < bytes.length) {
+        const b1 = bytes[i++];
+        const b2 = i < bytes.length ? bytes[i++] : 0;
+        const b3 = i < bytes.length ? bytes[i++] : 0;
+        const triplet = (b1 << 16) | (b2 << 8) | b3;
+        output += chars[(triplet >> 18) & 0x3f];
+        output += chars[(triplet >> 12) & 0x3f];
+        output += i - 1 > bytes.length ? "=" : chars[(triplet >> 6) & 0x3f];
+        output += i > bytes.length ? "=" : chars[triplet & 0x3f];
+    }
+    return output;
+}
+
+/**
+ * Convert a JMON composition to a MIDI output. In a browser this returns
+ * an `<a>` download link (the original behavior). In headless environments
+ * it returns the raw `Uint8Array` so callers can pipe it to a file or
+ * notebook display helper.
+ *
+ * For an explicit, environment-agnostic API prefer `midiBytes()` or
+ * `midiBase64()`.
  *
  * @param {Object} composition - The JMON composition
  * @param {Object} [options] - Options
- * @param {string} [options.filename='composition.mid'] - Output filename
- * @returns {HTMLAnchorElement} A download link element for the MIDI file
+ * @param {string} [options.filename='composition.mid'] - Filename used for
+ *   the download link text (browser only)
+ * @returns {HTMLAnchorElement|Uint8Array}
  *
  * @example
  * display(jm.converters.midi(composition));
@@ -211,6 +417,12 @@ export class Midi {
 export function midi(composition, options = {}) {
     const { filename = 'composition.mid' } = options;
     const bytes = buildMidiFile(composition);
+
+    // Headless path: no DOM, return the bytes directly.
+    if (typeof document === "undefined" || typeof URL === "undefined" || typeof Blob === "undefined") {
+        return bytes;
+    }
+
     const blob = new Blob([bytes], { type: "audio/midi" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

@@ -9342,9 +9342,84 @@ function buildMidiFile(composition) {
   }
   return new Uint8Array(fileBytes);
 }
+function midiBytes(composition) {
+  return buildMidiFile(composition);
+}
+function midiBase64(composition) {
+  const bytes = buildMidiFile(composition);
+  return bytesToBase64(bytes);
+}
+function midiDisplay(composition, options = {}) {
+  const {
+    filename = "composition.mid",
+    label
+  } = options;
+  const bytes = buildMidiFile(composition);
+  const b64 = bytesToBase64(bytes);
+  const sizeKb = (bytes.length / 1024).toFixed(1);
+  const linkLabel = label || `\u2B07 ${filename} (${sizeKb} KB)`;
+  const html = `<a href="data:audio/midi;base64,${b64}" download="${escapeHtml(filename)}" style="display:inline-block;padding:6px 12px;background:#2b2b2b;color:#fff;border-radius:4px;text-decoration:none;font-family:sans-serif;font-size:13px">${escapeHtml(linkLabel)}</a>`;
+  return {
+    "audio/midi": b64,
+    "text/html": html,
+    "text/plain": `MIDI (${bytes.length} bytes)`
+  };
+}
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function midiPlayer(composition, options = {}) {
+  const {
+    visualizer = true,
+    soundFont = "https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus",
+    height: iframeHeight = visualizer ? 220 : 80
+  } = options;
+  const bytes = buildMidiFile(composition);
+  const b64 = bytesToBase64(bytes);
+  const dataUrl = `data:audio/midi;base64,${b64}`;
+  const playerScript = "https://cdn.jsdelivr.net/combine/npm/tone@14.7.77,npm/@magenta/music@1.23.1/es6/core.js,npm/focus-visible@5,npm/html-midi-player@1.5.0";
+  const visualizerEl = visualizer ? `<midi-visualizer type="piano-roll" id="vis" src="${dataUrl}"></midi-visualizer>` : "";
+  const playerEl = `<midi-player src="${dataUrl}" sound-font="${soundFont}"${visualizer ? ' visualizer="#vis"' : ""}></midi-player>`;
+  const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><script src="${playerScript}"><\/script><style>body{margin:0;padding:4px;font-family:system-ui,sans-serif;background:transparent}midi-player{display:block;width:100%;margin-top:4px;--midi-player-font-family:system-ui,sans-serif}midi-visualizer{display:block;width:100%;height:120px;--midi-visualizer-active-note-color:#0af}</style></head><body>${visualizerEl}${playerEl}</body></html>`;
+  const srcdoc = doc.replace(/"/g, "&quot;");
+  const html = `<iframe srcdoc="${srcdoc}" style="width:100%;height:${iframeHeight}px;border:none;display:block" sandbox="allow-scripts allow-same-origin"></iframe>`;
+  return {
+    "text/html": html,
+    "audio/midi": b64,
+    "text/plain": `MIDI player (${bytes.length} bytes)`
+  };
+}
+function bytesToBase64(bytes) {
+  if (typeof btoa === "function") {
+    let binary = "";
+    const chunkSize = 32768;
+    for (let i2 = 0; i2 < bytes.length; i2 += chunkSize) {
+      const chunk = bytes.subarray(i2, i2 + chunkSize);
+      binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+  }
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let output = "";
+  let i = 0;
+  while (i < bytes.length) {
+    const b1 = bytes[i++];
+    const b2 = i < bytes.length ? bytes[i++] : 0;
+    const b3 = i < bytes.length ? bytes[i++] : 0;
+    const triplet = b1 << 16 | b2 << 8 | b3;
+    output += chars[triplet >> 18 & 63];
+    output += chars[triplet >> 12 & 63];
+    output += i - 1 > bytes.length ? "=" : chars[triplet >> 6 & 63];
+    output += i > bytes.length ? "=" : chars[triplet & 63];
+  }
+  return output;
+}
 function midi(composition, options = {}) {
   const { filename = "composition.mid" } = options;
   const bytes = buildMidiFile(composition);
+  if (typeof document === "undefined" || typeof URL === "undefined" || typeof Blob === "undefined") {
+    return bytes;
+  }
   const blob = new Blob([bytes], { type: "audio/midi" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -10602,15 +10677,229 @@ function createEmptyMusicXML(title, tempo, beatsPerMeasure, beatValue, fifths, m
   return xml;
 }
 
-// src/browser/score-renderer.js
-async function score(composition, options = {}) {
+// src/score.js
+function makeResponsiveSvg(svg) {
+  return svg.replace(/(<svg\b[^>]*?)\s+width="[^"]*"/i, "$1").replace(/(<svg\b[^>]*?)\s+height="[^"]*"/i, "$1").replace(/<svg\b/, '<svg width="100%"');
+}
+function resolveVerovioExport(val) {
+  if (typeof val === "function") return val;
+  if (!val) return val;
+  return val.default ?? val.VerovioToolkit ?? val;
+}
+function withTimeout(promise, ms, label) {
+  if (!ms || ms <= 0) return promise;
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(
+        `${label} timed out after ${ms}ms. This usually means Verovio's WASM loader could not fetch its .wasm binary \u2014 common under Deno's npm: compat layer. Try the pre-built CDN bundle instead: const v = await import("https://www.verovio.org/javascript/5.6.0/verovio-toolkit-wasm.js"); jm.score(comp, { toolkit: new v.default.toolkit() })`
+      ));
+    }, ms);
+  });
+  return Promise.race([
+    promise.finally(() => clearTimeout(timer)),
+    timeout
+  ]);
+}
+async function resolveToolkit({ toolkit, verovio, VerovioToolkit, timeoutMs }) {
+  if (toolkit) return toolkit;
+  if (!verovio || !VerovioToolkit) {
+    throw new Error(
+      'Verovio not provided. Pass either { toolkit } or { verovio, VerovioToolkit }. Two install options:\n  1) Pre-built CDN bundle (recommended for Deno/notebooks):\n     const v = await import("https://www.verovio.org/javascript/5.6.0/verovio-toolkit-wasm.js");\n     jm.score(comp, { toolkit: new v.default.toolkit() });\n  2) npm package (works best in browsers/bundlers):\n     import verovio from "npm:verovio@5.6.0/wasm";\n     import { VerovioToolkit } from "npm:verovio@5.6.0";'
+    );
+  }
+  const factory = resolveVerovioExport(verovio);
+  const Toolkit = resolveVerovioExport(VerovioToolkit);
+  const VerovioModule = await withTimeout(
+    Promise.resolve(factory()),
+    timeoutMs,
+    "Verovio WASM initialization"
+  );
+  return new Toolkit(VerovioModule);
+}
+async function scoreSVG(composition, options = {}) {
   const {
-    verovio: createVerovioModule,
+    verovio,
     VerovioToolkit,
     toolkit,
-    width,
-    scale = 40
+    // Verovio works in "MEI units" — 100 is roughly "reference size".
+    // pageWidth 2100 + scale 60 gives a canvas wide enough for most
+    // melodies to fit on one line, with the music rendered at a readable
+    // size once the responsive wrapper stretches it to the cell width.
+    width = 2100,
+    scale = 60,
+    breaks = "auto",
+    // `header` and `footer` pull in the composition title / copyright
+    // area, which adds ~400 vertical units of mostly-empty space. Strip
+    // them by default — if the caller wants a title rendered, they can
+    // pass `header: "encoded"`.
+    header = "none",
+    footer = "none",
+    // Small margins keep the viewBox tight around the actual music.
+    pageMarginTop = 50,
+    pageMarginBottom = 50,
+    pageMarginLeft = 50,
+    pageMarginRight = 50,
+    includeMEI = false,
+    timeoutMs = 3e4,
+    responsive = true
   } = options;
+  const vrvToolkit = await resolveToolkit({ toolkit, verovio, VerovioToolkit, timeoutMs });
+  const musicXML = musicxml(composition);
+  vrvToolkit.setOptions({
+    scale,
+    // Start from a tiny pageHeight and let `adjustPageHeight` grow it to
+    // fit the actual rendered content. This is more reliable than guessing
+    // a page height upfront — the final viewBox ends up hugging the music.
+    adjustPageHeight: true,
+    breaks,
+    pageWidth: width,
+    pageHeight: 100,
+    pageMarginTop,
+    pageMarginBottom,
+    pageMarginLeft,
+    pageMarginRight,
+    header,
+    footer,
+    spacingStaff: 12,
+    spacingSystem: 12
+  });
+  vrvToolkit.loadData(musicXML);
+  const pageCount = typeof vrvToolkit.getPageCount === "function" ? Math.max(1, vrvToolkit.getPageCount()) : 1;
+  const svgs = [];
+  for (let p = 1; p <= pageCount; p++) {
+    let pageSvg = vrvToolkit.renderToSVG(p);
+    if (responsive) pageSvg = makeResponsiveSvg(pageSvg);
+    svgs.push(pageSvg);
+  }
+  let mei = null;
+  if (includeMEI && typeof vrvToolkit.getMEI === "function") {
+    try {
+      mei = vrvToolkit.getMEI({});
+    } catch (e) {
+      console.warn("[scoreSVG] getMEI failed:", e);
+    }
+  }
+  return { svg: svgs[0], svgs, pages: pageCount, mei, musicxml: musicXML };
+}
+
+// src/env.js
+var env_exports = {};
+__export(env_exports, {
+  JUPYTER_DISPLAY: () => JUPYTER_DISPLAY,
+  displayable: () => displayable,
+  hasAudioContext: () => hasAudioContext,
+  hasDenoJupyter: () => hasDenoJupyter,
+  hasDisplay: () => hasDisplay,
+  hasWindow: () => hasWindow,
+  isBrowser: () => isBrowser,
+  mimeBundle: () => mimeBundle,
+  present: () => present
+});
+function isBrowser() {
+  return typeof document !== "undefined" && typeof document.createElement === "function";
+}
+function hasWindow() {
+  return typeof window !== "undefined";
+}
+function hasAudioContext() {
+  return typeof globalThis !== "undefined" && (typeof globalThis.AudioContext !== "undefined" || typeof globalThis.webkitAudioContext !== "undefined");
+}
+function hasDisplay() {
+  if (hasDenoJupyter()) return true;
+  const d = typeof globalThis !== "undefined" ? globalThis.display : void 0;
+  if (!d) return false;
+  if (typeof d === "function") return true;
+  return typeof d.html === "function" || typeof d.svg === "function" || typeof d.mimeType === "function" || typeof d.mime === "function" || typeof d.text === "function";
+}
+function hasDenoJupyter() {
+  try {
+    return typeof Deno !== "undefined" && Deno.jupyter && typeof Deno.jupyter.display === "function";
+  } catch {
+    return false;
+  }
+}
+var JUPYTER_DISPLAY = /* @__PURE__ */ Symbol.for("Jupyter.display");
+function displayable(bundle) {
+  const wrapper = { ...bundle };
+  Object.defineProperty(wrapper, JUPYTER_DISPLAY, {
+    value: () => bundle,
+    enumerable: false
+  });
+  return wrapper;
+}
+function present(value, opts = {}) {
+  const { mime } = opts;
+  const bundle = toMimeBundle(value, mime);
+  if (hasDenoJupyter() && bundle) {
+    try {
+      Deno.jupyter.display(bundle, { raw: true });
+    } catch (e) {
+      console.warn("[jmon/env] Deno.jupyter.display failed:", e);
+    }
+    return void 0;
+  }
+  const d = typeof globalThis !== "undefined" ? globalThis.display : void 0;
+  if (d) {
+    try {
+      if (bundle) {
+        if (typeof d.mimeType === "function") return d.mimeType(bundle);
+        if (typeof d.mime === "function") return d.mime(bundle);
+        if (bundle["image/svg+xml"] && typeof d.svg === "function") {
+          return d.svg(bundle["image/svg+xml"]);
+        }
+        if (bundle["text/html"] && typeof d.html === "function") {
+          return d.html(bundle["text/html"]);
+        }
+        if (bundle["image/svg+xml"] && typeof d.html === "function") {
+          return d.html(bundle["image/svg+xml"]);
+        }
+        if (typeof d.text === "function" && bundle["text/plain"]) {
+          return d.text(bundle["text/plain"]);
+        }
+      }
+      if (typeof d === "function") return d(value);
+    } catch (e) {
+      console.warn("[jmon/env] display() failed, returning raw value:", e);
+    }
+  }
+  if (bundle) return displayable(bundle);
+  return value;
+}
+function toMimeBundle(value, mime) {
+  if (value && typeof value === "object" && !(value instanceof Uint8Array) && !ArrayBuffer.isView(value) && !isDomNode(value) && Object.keys(value).some((k) => k.includes("/"))) {
+    const bundle = { ...value };
+    if (!bundle["text/plain"]) {
+      bundle["text/plain"] = `[${Object.keys(value).join(", ")}]`;
+    }
+    return bundle;
+  }
+  if (typeof mime === "string" && typeof value === "string") {
+    return {
+      [mime]: value,
+      "text/plain": mime.startsWith("image/") || mime.includes("xml") ? `[${mime}]` : value.slice(0, 200)
+    };
+  }
+  if (typeof value === "string" && /^\s*<(?:svg|html|div|p|table|h\d)/i.test(value)) {
+    return { "text/html": value, "text/plain": "[html]" };
+  }
+  return null;
+}
+function isDomNode(v) {
+  return typeof v === "object" && v !== null && typeof v.nodeType === "number" && typeof v.nodeName === "string";
+}
+function mimeBundle(mime, value, fallbackText) {
+  const bundle = { [mime]: value };
+  if (fallbackText != null) bundle["text/plain"] = fallbackText;
+  return bundle;
+}
+
+// src/browser/score-renderer.js
+async function score(composition, options = {}) {
+  if (!isBrowser()) {
+    const { svg } = await scoreSVG(composition, options);
+    return svg;
+  }
   const container = document.createElement("div");
   container.style.width = "100%";
   container.style.overflow = "visible";
@@ -10618,34 +10907,8 @@ async function score(composition, options = {}) {
   notationDiv.id = `rendered-score-${Date.now()}`;
   container.appendChild(notationDiv);
   try {
-    if (!toolkit && !createVerovioModule) {
-      notationDiv.innerHTML = '<p style="color:#ff6b6b">Verovio library not loaded. Import with: import verovio from "npm:verovio@4.3.1/wasm" and import { VerovioToolkit } from "npm:verovio@4.3.1/esm"</p>';
-      return container;
-    }
     notationDiv.innerHTML = '<p style="color:#888">Initializing Verovio...</p>';
-    let vrvToolkit;
-    if (toolkit) {
-      vrvToolkit = toolkit;
-    } else {
-      const resolve = (val) => typeof val === "function" ? val : val?.default ?? val?.VerovioToolkit ?? val;
-      const factory = resolve(createVerovioModule);
-      const Toolkit = resolve(VerovioToolkit);
-      const VerovioModule = await factory();
-      vrvToolkit = new Toolkit(VerovioModule);
-    }
-    const musicXML = musicxml(composition);
-    const renderOptions = {
-      scale,
-      adjustPageHeight: true,
-      breaks: "auto",
-      pageWidth: width || 2100,
-      pageHeight: 2970,
-      spacingStaff: 12,
-      spacingSystem: 12
-    };
-    vrvToolkit.setOptions(renderOptions);
-    vrvToolkit.loadData(musicXML);
-    const svg = vrvToolkit.renderToSVG(1);
+    const { svg } = await scoreSVG(composition, options);
     notationDiv.innerHTML = svg;
   } catch (error) {
     console.error("[SCORE] Render error:", error);
@@ -10697,6 +10960,14 @@ async function render(jmonObj, options = {}) {
   return player(jmonObj, options);
 }
 function play(jmonObj, options = {}) {
+  if (!isBrowser()) {
+    return (async () => {
+      const modPath = "./notebook-player.js";
+      const { notebookPlayer } = await import(modPath);
+      const bundle = await notebookPlayer(jmonObj, options);
+      return hasDisplay() ? displayable(bundle) : bundle;
+    })();
+  }
   const { Tone: externalTone, autoplay = false, ...otherOptions } = options;
   const playOptions = { Tone: externalTone, autoplay, ...otherOptions };
   const toneAvailable = externalTone || typeof globalThis !== "undefined" && globalThis.Tone || (typeof globalThis.Tone !== "undefined" ? globalThis.Tone : null);
@@ -10716,21 +10987,46 @@ function play(jmonObj, options = {}) {
     return player(jmonObj, playOptions);
   })();
 }
-function score2(jmonObj, options = {}) {
-  if (typeof document === "undefined") {
-    throw new Error("Score rendering requires a DOM environment.");
+async function score2(jmonObj, options = {}) {
+  if (isBrowser()) {
+    return score(jmonObj, options);
   }
-  return score(jmonObj, options);
+  const { svg, svgs, pages } = await scoreSVG(jmonObj, options);
+  if (hasDisplay()) {
+    return displayable({
+      "text/html": wrapScoreHtml(svgs),
+      "image/svg+xml": svg,
+      "text/plain": `[score: ${pages} page${pages === 1 ? "" : "s"}]`
+    });
+  }
+  return svg;
+}
+function wrapScoreHtml(svgs) {
+  const pages = Array.isArray(svgs) ? svgs : [svgs];
+  const pageHtml = pages.map(
+    (s, i) => '<div style="margin:' + (i === 0 ? "0" : "12px 0 0 0") + '">' + s + "</div>"
+  ).join("");
+  return '<div style="width:100%;max-width:100%;overflow-x:auto;line-height:0">' + pageHtml + "</div>";
+}
+function scoreSVG2(jmonObj, options = {}) {
+  return scoreSVG(jmonObj, options);
 }
 var jm = {
   // Core
   render,
   play,
   score: score2,
+  scoreSVG: scoreSVG2,
   validate: validateJmon,
+  // Environment helpers (isBrowser, hasDisplay, present, ...)
+  env: env_exports,
   // Converters
   converters: {
     midi,
+    midiBytes,
+    midiBase64,
+    midiDisplay,
+    midiPlayer,
     midiToJmon,
     tonejs,
     wav,

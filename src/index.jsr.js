@@ -13,6 +13,10 @@ import { JmonValidator } from "./utils/jmon-validator.browser.js";
 import algorithms from "./algorithms/index.js";
 import {
   midi,
+  midiBytes,
+  midiBase64,
+  midiDisplay,
+  midiPlayer,
   midiToJmon,
   supercollider,
   tonejs,
@@ -20,6 +24,71 @@ import {
   musicxml,
 } from "./converters/index.js";
 import * as jmonUtils from "./utils/jmon-utils.js";
+import { scoreSVG } from "./score.js";
+import { notebookPlayer } from "./notebook-player.js";
+import * as env from "./env.js";
+
+/**
+ * Play a composition in a notebook kernel. Spawns the REAL Tone.js player
+ * inside an iframe — full JMON fidelity (per-track synths, audioGraph,
+ * effects, vibrato, glissando, microtuning) is preserved by reusing the
+ * browser music-player code inside the iframe's browser context.
+ *
+ * The caller **must** provide a Tone.js URL via `options.Tone`. jmon/algo
+ * does not pick a CDN for you — same pattern as `jm.score({toolkit})`.
+ *
+ * @param {Object} jmonObj - The JMON composition to play
+ * @param {Object} options
+ * @param {string} options.Tone - **Required.** URL of a Tone.js UMD script
+ * @returns {Promise<Object>} Displayable MIME bundle
+ *
+ * @example
+ * await jm.play(composition, {
+ *   Tone: "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"
+ * });
+ */
+async function play(jmonObj, options = {}) {
+  const bundle = await notebookPlayer(jmonObj, options);
+  return env.hasDisplay() ? env.displayable(bundle) : bundle;
+}
+
+/**
+ * Headless score helper. Renders to SVG and, when running in a notebook
+ * kernel with `globalThis.display`, auto-forwards the SVG to the host.
+ * Returns the SVG string either way.
+ */
+async function score(jmonObj, options = {}) {
+  const { svg, svgs, pages } = await scoreSVG(jmonObj, options);
+  // Return a displayable text/html bundle so we can wrap the SVGs in a
+  // responsive container and stack all pages vertically. Jupyter prefers
+  // text/html over image/svg+xml, so the wrapped version takes precedence;
+  // first-page raw SVG is still included for hosts that prefer it. Use
+  // `jm.scoreSVG()` for the raw string array.
+  if (env.hasDisplay()) {
+    return env.displayable({
+      "text/html": wrapScoreHtml(svgs),
+      "image/svg+xml": svg,
+      "text/plain": `[score: ${pages} page${pages === 1 ? "" : "s"}]`,
+    });
+  }
+  return svg;
+}
+
+function wrapScoreHtml(svgs) {
+  const pages = Array.isArray(svgs) ? svgs : [svgs];
+  const pageHtml = pages
+    .map((s, i) =>
+      '<div style="margin:' +
+      (i === 0 ? "0" : "12px 0 0 0") +
+      '">' + s + "</div>"
+    )
+    .join("");
+  return (
+    '<div style="width:100%;max-width:100%;overflow-x:auto;line-height:0">' +
+    pageHtml +
+    "</div>"
+  );
+}
 
 /**
  * Validates and normalizes a JMON object.
@@ -56,16 +125,28 @@ function validateJmon(obj) {
  * @property {string} VERSION - Library version number
  *
  * @remarks
- * Note: render(), play(), and score() functions are not available in the JSR package.
- * These require the npm package for full browser playback and rendering support.
+ * Note: render() and play() functions are not available in the JSR package.
+ * These require the npm package for full browser playback support.
+ * `score()` and `scoreSVG()` are available and work headlessly — pass a
+ * Verovio toolkit to render notation from Deno/Node/notebook scripts.
  */
 const jm = {
   // Core
   validate: validateJmon,
+  play,
+  score,
+  scoreSVG,
+
+  // Environment helpers (isBrowser, hasDisplay, present, ...)
+  env,
 
   // Converters
   converters: {
     midi,
+    midiBytes,
+    midiBase64,
+    midiDisplay,
+    midiPlayer,
     midiToJmon,
     tonejs,
     wav,

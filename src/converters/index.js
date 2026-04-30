@@ -1,4 +1,4 @@
-export { midi } from "./midi.js";
+export { midi, midiBytes, midiBase64, midiDisplay, midiPlayer } from "./midi.js";
 export { midiToJmon } from "./midi-to-jmon.js";
 export { tonejs } from "./tonejs.js";
 export { wav, downloadWav } from "./wav.js";

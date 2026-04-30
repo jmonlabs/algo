@@ -10,6 +10,10 @@ import { JmonValidator } from "./utils/jmon-validator.browser.js";
 import algorithms from "./algorithms/index.js";
 import {
   midi,
+  midiBytes,
+  midiBase64,
+  midiDisplay,
+  midiPlayer,
   midiToJmon,
   supercollider,
   tonejs,
@@ -20,6 +24,11 @@ import {
 } from "./converters/index.js";
 import * as jmonUtils from "./utils/jmon-utils.js";
 import * as scoreRenderer from "./browser/score-renderer.js";
+import { scoreSVG as pureScoreSVG } from "./score.js";
+import * as env from "./env.js";
+// notebook-player.js uses `import.meta.url` to locate the UMD bundle on
+// disk, which esbuild cannot represent in the UMD output format. We only
+// need it on the headless path, so pull it in via dynamic import below.
 
 // Lazy-load browser player to avoid JSR analyzing CDN imports
 let createPlayer;
@@ -75,40 +84,85 @@ async function render(jmonObj, options = {}) {
 }
 
 /**
- * Play a composition using Tone.js
+ * Play a composition. Single entry point — picks the right backend
+ * automatically based on the environment:
+ *
+ *   - **Browser (with DOM):** Tone.js-backed live player. Preserves the
+ *     full JMON feature set: per-track synths, audioGraph, effects,
+ *     articulations, microtuning, glissando, vibrato. Requires Tone.js
+ *     (either passed in `options.Tone` or auto-loaded from a CDN).
+ *     Returns an `HTMLElement` you can append to the page.
+ *
+ *   - **Notebook / headless (no DOM):** exports the composition to MIDI
+ *     and returns an iframe bundle embedding the `html-midi-player` web
+ *     component (Magenta + Tone.js + GM SoundFont, loaded from a CDN).
+ *     Works in Deno Jupyter, JupyterLab, nteract, Observable, Colab, and
+ *     VS Code notebooks. Note: features that don't round-trip through
+ *     Standard MIDI File (microtuning, custom synths, effects) are lost
+ *     in this path — use the browser path for full fidelity.
  *
  * @param {Object} jmonObj - The JMON composition to play
- * @param {Object} options - Playback options
- * @param {Object} options.Tone - Tone.js library instance (optional, will auto-load if not provided)
- * @param {boolean} [options.autoplay=false] - Whether to start playback immediately
- * @param {boolean} [options.showDebug=false] - Show debug information
- * @param {Object} [options.customInstruments={}] - Custom instrument configurations
- * @param {boolean} [options.autoMultivoice=true] - Enable automatic multivoice splitting
- * @param {number} [options.maxVoices=4] - Maximum number of voices per track
- * @param {boolean} [options.preloadTone=false] - Preload Tone.js even if autoplay is false
- * @returns {Promise<HTMLElement>|HTMLElement} Returns Promise on first call (loading player module) or when async work needed (loading Tone.js, starting AudioContext, autoplay). Returns element synchronously on subsequent calls when Tone is available and autoplay is false.
+ * @param {Object} [options]
+ * @param {Object} [options.Tone] - Tone.js instance (browser path only)
+ * @param {boolean} [options.autoplay=false] - Start playback immediately
+ *   (browser path only)
+ * @param {boolean} [options.visualizer=true] - Show piano-roll visualizer
+ *   (notebook path only)
+ * @param {string} [options.soundFont] - SoundFont URL (notebook path only)
+ * @returns {HTMLElement | Object | Promise<HTMLElement>} Browser path:
+ *   an HTMLElement (or Promise thereof on first load). Notebook path: a
+ *   displayable MIME bundle that the kernel renders inline.
  *
  * @example
- * // First call or when async work needed - use await
- * const player = await jm.play(composition, { Tone, autoplay: false });
+ * // Notebook (one liner, no imports beyond jm)
+ * await jm.play(composition);
  *
  * @example
- * // Subsequent calls with Tone available - synchronous
- * const player2 = jm.play(composition2, { Tone, autoplay: false });
+ * // Browser with Tone.js (Tone is a live module)
+ * import * as Tone from "tone";
+ * document.body.appendChild(await jm.play(composition, { Tone }));
+ *
+ * @example
+ * // Notebook / headless (Tone is a URL string — the iframe loads it)
+ * await jm.play(composition, {
+ *   Tone: "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"
+ * });
  */
 function play(jmonObj, options = {}) {
-  // Extract Tone from options if provided
+  // Headless path (notebook kernel, Deno, Node, anywhere without `document`):
+  // return an iframe that embeds the REAL Tone.js player via the
+  // notebookPlayer helper. The iframe inlines the UMD bundle and runs
+  // `jm.play()` in a browser context where `isBrowser()` is true, so the
+  // full music-player.js code executes — preserving all JMON features
+  // (per-track synths, audioGraph, effects, vibrato, glissando, microtuning).
+  //
+  // This function becomes async on this path because we have to read the
+  // UMD bundle off disk. Callers use `await jm.play(...)` either way.
+  if (!env.isBrowser()) {
+    return (async () => {
+      // Variable specifier prevents esbuild from statically analyzing this
+      // import when building the UMD bundle — notebook-player.js uses
+      // `import.meta.url` which isn't representable in IIFE output. The
+      // file is only ever loaded in Deno/Node runtimes anyway.
+      const modPath = "./notebook-player.js";
+      const { notebookPlayer } = await import(modPath);
+      const bundle = await notebookPlayer(jmonObj, options);
+      return env.hasDisplay() ? env.displayable(bundle) : bundle;
+    })();
+  }
+
+  // Browser path: use the full Tone.js-backed player. This preserves the
+  // JMON feature set that Standard MIDI File can't carry — microtuning,
+  // glissando, vibrato, per-track synths, custom audio graphs — at the
+  // cost of requiring Tone.js to be available (or loadable from a CDN).
   const { Tone: externalTone, autoplay = false, ...otherOptions } = options;
   const playOptions = { Tone: externalTone, autoplay, ...otherOptions };
 
-  // Check if we can return synchronously
   const toneAvailable = externalTone || (typeof globalThis !== 'undefined' && globalThis.Tone) || (typeof globalThis.Tone !== 'undefined' ? globalThis.Tone : null);
   const needsAsync = !toneAvailable || autoplay || playOptions.preloadTone;
 
   if (!needsAsync && toneAvailable) {
-    // Synchronous path: Tone is available and no async initialization needed
     if (!createPlayer) {
-      // Need to load the player module - must be async
       return (async () => {
         const playerModule = await import("./browser/music-player.js");
         createPlayer = playerModule.createPlayer;
@@ -118,7 +172,6 @@ function play(jmonObj, options = {}) {
     return createPlayer(jmonObj, playOptions);
   }
 
-  // Async path: need to load Tone.js, start AudioContext, or autoplay
   return (async () => {
     const player = await __loadPlayer();
     return player(jmonObj, playOptions);
@@ -126,36 +179,91 @@ function play(jmonObj, options = {}) {
 }
 
 /**
- * Render sheet music notation using verovio
+ * Render sheet music notation using Verovio.
+ *
+ * Environment behavior:
+ *   - In a browser (DOM present): returns an `HTMLElement` wrapping the SVG.
+ *   - In a notebook kernel (globalThis.display present): returns the SVG
+ *     string *and* routes it through `present()` so nteract/Deno/Jupyter
+ *     render it inline automatically.
+ *   - In plain Node/Deno (no DOM, no display): returns the SVG string.
  *
  * @param {Object} jmonObj - The JMON composition to render
- * @param {Object} options - Rendering options
- * @param {Function} options.verovio - verovio WASM module factory (import from "npm:verovio@4.3.1/wasm")
- * @param {Function} options.VerovioToolkit - VerovioToolkit class (import { VerovioToolkit } from "npm:verovio@4.3.1/esm")
- * @param {number} [options.width] - Staff width in pixels (default: 2100)
- * @param {number} [options.scale] - Scale factor for rendering (default: 40)
- * @returns {Promise<HTMLElement>} DOM element containing the rendered score
+ * @param {Object} options - Rendering options (see src/score.js scoreSVG)
+ * @returns {Promise<HTMLElement|string>}
  *
  * @example
- * // Basic usage
- * const svg = await jm.score(composition, { verovio, VerovioToolkit });
+ * // Browser (npm bundler)
+ * import verovio from "verovio/wasm";
+ * import { VerovioToolkit } from "verovio";
+ * const el = await jm.score(composition, { verovio, VerovioToolkit });
  *
  * @example
- * // Fixed width mode
- * const svg = await jm.score(composition, { verovio, VerovioToolkit, width: 2100 });
+ * // Deno / notebook — use the self-contained CDN bundle (avoids Deno's
+ * // npm: WASM-loader quirks):
+ * const v = await import("https://www.verovio.org/javascript/5.6.0/verovio-toolkit-wasm.js");
+ * await jm.score(composition, { toolkit: new v.default.toolkit() });
  *
  * @example
- * // With custom dimensions and scale
- * const svg = await jm.score(composition, { verovio, VerovioToolkit, scale: 40 });
+ * // Headless — get the raw SVG string
+ * const { svg } = await jm.scoreSVG(composition, { toolkit });
  */
-function score(jmonObj, options = {}) {
-  // Check for browser environment
-  if (typeof document === "undefined") {
-    throw new Error("Score rendering requires a DOM environment.");
+async function score(jmonObj, options = {}) {
+  // Browser: return the live DOM element (caller decides what to do with it).
+  if (env.isBrowser()) {
+    return scoreRenderer.score(jmonObj, options);
   }
 
-  // Import the score renderer from browser module
-  return scoreRenderer.score(jmonObj, options);
+  // Headless: render every page of the score and return a displayable
+  // wrapper. When the cell's last expression is `await jm.score(...)`,
+  // the kernel sees the Symbol.for("Jupyter.display") on the wrapper and
+  // renders the HTML inline.
+  //
+  // We return `text/html` (not raw image/svg+xml) so we can wrap the SVGs
+  // in a responsive container that stacks multi-page scores vertically.
+  // Jupyter's MIME renderer ranks text/html above image/svg+xml, so this
+  // takes precedence. The first page's raw SVG is still included for
+  // hosts that prefer a single-page vector.
+  const { svg, svgs, pages } = await pureScoreSVG(jmonObj, options);
+  if (env.hasDisplay()) {
+    return env.displayable({
+      "text/html": wrapScoreHtml(svgs),
+      "image/svg+xml": svg,
+      "text/plain": `[score: ${pages} page${pages === 1 ? "" : "s"}]`,
+    });
+  }
+  return svg;
+}
+
+/**
+ * Wrap one or more Verovio-rendered responsive SVGs in a container that
+ * fills the cell width. Each SVG already carries `width="100%"` as an
+ * attribute, so we just need a block-level wrapper with a small vertical
+ * gap between pages for multi-page scores.
+ */
+function wrapScoreHtml(svgs) {
+  const pages = Array.isArray(svgs) ? svgs : [svgs];
+  const pageHtml = pages
+    .map((s, i) =>
+      '<div style="margin:' +
+      (i === 0 ? "0" : "12px 0 0 0") +
+      '">' + s + "</div>"
+    )
+    .join("");
+  return (
+    '<div style="width:100%;max-width:100%;overflow-x:auto;line-height:0">' +
+    pageHtml +
+    "</div>"
+  );
+}
+
+/**
+ * Pure, DOM-free score rendering. Returns `{ svg, mei, musicxml }`.
+ * Use this from Node/Deno scripts, test suites, or anywhere you need
+ * the raw notation payload rather than a DOM element.
+ */
+function scoreSVG(jmonObj, options = {}) {
+  return pureScoreSVG(jmonObj, options);
 }
 
 // Compose the jm API object expected by build and tests
@@ -164,11 +272,19 @@ const jm = {
   render,
   play,
   score,
+  scoreSVG,
   validate: validateJmon,
+
+  // Environment helpers (isBrowser, hasDisplay, present, ...)
+  env,
 
   // Converters
   converters: {
     midi,
+    midiBytes,
+    midiBase64,
+    midiDisplay,
+    midiPlayer,
     midiToJmon,
     tonejs,
     wav,
