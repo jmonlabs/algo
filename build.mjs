@@ -23,7 +23,7 @@ await esbuild.build({
   bundle: true,
   format: "esm",
   outfile: `${outDir}/jmon.esm.js`,
-  external: ["plotly.js", "tone", "vexflow"],
+  external: ["plotly.js", "tone", "vexflow", "module", "fs", "path", "url", "crypto"],
   platform: "browser",
 });
 
@@ -37,7 +37,7 @@ await esbuild.build({
   format: "iife",
   globalName: "jm",
   outfile: `${outDir}/jmon.umd.js`,
-  external: ["plotly.js", "tone", "vexflow"],
+  external: ["plotly.js", "tone", "vexflow", "module", "fs", "path", "url", "crypto"],
   platform: "browser",
 });
 

@@ -292,6 +292,81 @@ export function combineSequences(sequences) {
 }
 
 /**
+ * Transpose all notes by a number of semitones. Handles both single-pitch
+ * notes and chord notes (where `pitch` is an array of MIDI numbers).
+ * @param {Array} notes - JMON notes
+ * @param {number} semitones - Semitones to shift (positive = up)
+ * @returns {Array} Transposed notes
+ */
+export function transpose(notes, semitones) {
+  return notes.map((n) => ({
+    ...n,
+    pitch: Array.isArray(n.pitch)
+      ? n.pitch.map((p) => p + semitones)
+      : n.pitch + semitones,
+  }));
+}
+
+/**
+ * Clip a note sequence to a maximum time. Notes starting after `maxTime`
+ * are dropped; notes overlapping the boundary have their duration trimmed.
+ * @param {Array} notes - JMON notes (numeric `time` field)
+ * @param {number} maxTime - Cutoff time (beats)
+ * @returns {Array} Truncated notes
+ */
+export function truncate(notes, maxTime) {
+  return notes
+    .filter((n) => n.time < maxTime)
+    .map((n) => ({
+      ...n,
+      duration: Math.min(n.duration, maxTime - n.time),
+    }));
+}
+
+/**
+ * Concatenate composition sections into a flat per-label note map.
+ *
+ * Each section is `{ tracks: [{ label, notes }], duration?: number }`.
+ * Tracks with the same label across sections are merged into one stream
+ * with note times offset by the cumulative duration of preceding sections.
+ * Section duration falls back to the latest note end-time if not provided.
+ *
+ * Tempos are NOT rescaled — sections must share a tempo, or the caller
+ * must pre-rescale times.
+ *
+ * @example
+ * const merged = concatSections([sectionA, sectionB, sectionC]);
+ * const piece = {
+ *   tempo: 120,
+ *   tracks: [
+ *     { label: "Drums", notes: merged.Drums },
+ *     { label: "Bass", notes: merged.Bass },
+ *   ],
+ * };
+ *
+ * @param {Array} sections - Sections to concatenate in order
+ * @returns {Object} Map of label → flat array of time-offset notes
+ */
+export function concatSections(sections) {
+  const merged = {};
+  let offset = 0;
+  for (const sec of sections) {
+    for (const track of sec.tracks) {
+      if (!merged[track.label]) merged[track.label] = [];
+      for (const n of track.notes) {
+        merged[track.label].push({ ...n, time: n.time + offset });
+      }
+    }
+    const computed = Math.max(
+      0,
+      ...sec.tracks.flatMap((t) => t.notes.map((n) => n.time + n.duration)),
+    );
+    offset += sec.duration ?? computed;
+  }
+  return merged;
+}
+
+/**
  * Extract timing information from notes
  * @param {Array} notes - JMON notes
  * @returns {Object} Timing statistics
