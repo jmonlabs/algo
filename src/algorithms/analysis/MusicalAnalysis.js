@@ -337,6 +337,113 @@ export class MusicalAnalysis {
   }
 
   /**
+   * Sorted onset times extracted from notes
+   * @param {JMonNote[]} notes - Array of notes
+   * @returns {number[]} Sorted onset times
+   */
+  static onsets(notes) {
+    return notes
+      .map((note) =>
+        typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+      )
+      .sort((a, b) => a - b);
+  }
+
+  /**
+   * Density per fixed-size time window (vector form of `density`)
+   * @param {JMonNote[]} notes - Array of notes
+   * @param {number} [windowSize=1] - Window size in time units
+   * @returns {number[]} Note count per window, from min to max time
+   */
+  static densityCurve(notes, windowSize = 1) {
+    if (notes.length === 0) return [];
+
+    const times = notes.map((note) =>
+      typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+    );
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const numWindows = Math.max(
+      1,
+      Math.floor((maxTime - minTime) / windowSize) + 1,
+    );
+    const curve = new Array(numWindows).fill(0);
+
+    for (const t of times) {
+      const idx = Math.min(
+        Math.floor((t - minTime) / windowSize),
+        numWindows - 1,
+      );
+      curve[idx]++;
+    }
+
+    return curve;
+  }
+
+  /**
+   * Mean velocity per fixed-size time window
+   * @param {JMonNote[]} notes - Array of notes (with optional `velocity` field)
+   * @param {number} [windowSize=1] - Window size in time units
+   * @returns {number[]} Mean velocity per window (0 for empty windows)
+   */
+  static velocityEnvelope(notes, windowSize = 1) {
+    if (notes.length === 0) return [];
+
+    const times = notes.map((note) =>
+      typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+    );
+    const velocities = notes.map((note) =>
+      typeof note.velocity === "number" ? note.velocity : 1
+    );
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const numWindows = Math.max(
+      1,
+      Math.floor((maxTime - minTime) / windowSize) + 1,
+    );
+    const sums = new Array(numWindows).fill(0);
+    const counts = new Array(numWindows).fill(0);
+
+    for (let i = 0; i < notes.length; i++) {
+      const idx = Math.min(
+        Math.floor((times[i] - minTime) / windowSize),
+        numWindows - 1,
+      );
+      sums[idx] += velocities[i];
+      counts[idx]++;
+    }
+
+    return sums.map((sum, i) => (counts[i] > 0 ? sum / counts[i] : 0));
+  }
+
+  /**
+   * Rhythmic signature: normalized histogram of onset positions within
+   * a unit-1 cycle. With `bins=16` and time in bars, this gives a
+   * 16th-note grid profile of where notes tend to land.
+   * Useful as a compact rhythm fingerprint to bias a follow/diverge
+   * drummer.
+   * @param {JMonNote[]} notes - Array of notes
+   * @param {number} [bins=16] - Number of bins per cycle
+   * @returns {number[]} Probability distribution across bins (sums to 1, or all zeros if empty)
+   */
+  static rhythmicSignature(notes, bins = 16) {
+    const histogram = new Array(bins).fill(0);
+    if (notes.length === 0) return histogram;
+
+    for (const note of notes) {
+      const t = typeof note.time === "number"
+        ? note.time
+        : parseFloat(note.time) || 0;
+      const phase = ((t % 1) + 1) % 1;
+      const idx = Math.min(Math.floor(phase * bins), bins - 1);
+      histogram[idx]++;
+    }
+
+    const total = histogram.reduce((s, v) => s + v, 0);
+    return total === 0 ? histogram : histogram.map((v) => v / total);
+  }
+
+  /**
    * Comprehensive analysis of a musical sequence
    * @param {JMonNote[]} notes - Array of notes to analyze
    * @param {AnalysisOptions} [options={}] - Analysis options

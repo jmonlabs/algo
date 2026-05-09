@@ -23,6 +23,8 @@ import {
   downloadMusicXML,
 } from "./converters/index.js";
 import * as jmonUtils from "./utils/jmon-utils.js";
+import { drumKits, registerDrumKit, getDrumKit } from "./utils/drumkits.js";
+import * as audioGraphModule from "./audioGraph/index.js";
 import * as scoreRenderer from "./browser/score-renderer.js";
 import { scoreSVG as pureScoreSVG } from "./score.js";
 import * as env from "./env.js";
@@ -310,6 +312,16 @@ const jm = {
     JmonValidator,
   },
 
+  // audioGraph — pre-built fragments to splice into a piece's audioGraph.
+  // Master mastering chains: jm.audioGraph.master.lush, .warm, .dark, etc.
+  // Splice manually with vanilla JS:
+  //   piece.audioGraph = [
+  //     ...piece.audioGraph.map(n => n.target === "destination"
+  //       ? { ...n, target: "master_lowshelf" } : n),
+  //     ...jm.audioGraph.master.lush,
+  //   ];
+  audioGraph: audioGraphModule,
+
   // Instruments (optional; may be undefined in non-browser builds)
   instruments: {
     // Lazy loader to initialize GM instrument helpers on demand
@@ -322,6 +334,11 @@ const jm = {
     createGMInstrumentNode,
     findGMProgramByName,
     getPopularInstruments,
+    // Drum kits — registry is mutable, register custom kits with
+    // jm.instruments.registerDrumKit(name, { baseUrl, samples }).
+    drumKits,
+    registerDrumKit,
+    getDrumKit,
   },
 
   VERSION: "1.0.0",

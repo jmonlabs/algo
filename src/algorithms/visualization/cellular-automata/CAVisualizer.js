@@ -52,7 +52,7 @@ export class CAVisualizer {
       title = 'CA Generation',
       width = 600,
       height = 100,
-      // colorScheme = 'binary' // supprimé car inutilisé
+      // colorScheme = 'binary' // removed (unused)
     } = options;
 
     const plotData = {

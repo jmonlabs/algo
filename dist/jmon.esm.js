@@ -580,7 +580,7 @@ var init_CAVisualizer = __esm({
           title = "CA Generation",
           width = 600,
           height = 100
-          // colorScheme = 'binary' // supprimé car inutilisé
+          // colorScheme = 'binary' // removed (unused)
         } = options;
         const plotData = {
           x: generation.map((_, i) => i),
@@ -1250,12 +1250,6 @@ var init_audio = __esm({
 });
 
 // src/utils/normalize.js
-var normalize_exports = {};
-__export(normalize_exports, {
-  midiToNoteName: () => midiToNoteName,
-  normalizeAudioGraph: () => normalizeAudioGraph,
-  normalizeSamplerUrlsToNoteNames: () => normalizeSamplerUrlsToNoteNames
-});
 function midiToNoteName(midiLike) {
   const n = typeof midiLike === "string" ? parseInt(midiLike, 10) : midiLike;
   if (!Number.isFinite(n)) return String(midiLike);
@@ -1704,12 +1698,83 @@ var init_gm_instruments = __esm({
   }
 });
 
+// src/utils/drumkits.js
+function registerDrumKit(name, kit) {
+  if (!kit || typeof kit !== "object") {
+    throw new Error("registerDrumKit: kit must be an object with baseUrl and samples");
+  }
+  if (typeof kit.baseUrl !== "string" || !kit.baseUrl) {
+    throw new Error("registerDrumKit: kit.baseUrl is required");
+  }
+  if (!kit.samples || typeof kit.samples !== "object") {
+    throw new Error("registerDrumKit: kit.samples is required (map midi -> filename)");
+  }
+  drumKits[name] = kit;
+}
+function getDrumKit(name) {
+  return drumKits[name];
+}
+function parseDrumKitSpec(synthSpec) {
+  if (typeof synthSpec !== "string" || !synthSpec.startsWith("drumkit:")) {
+    return null;
+  }
+  const name = synthSpec.slice("drumkit:".length);
+  const kit = drumKits[name];
+  if (!kit) {
+    return { name, kit: null };
+  }
+  return { name, kit };
+}
+var drumKits;
+var init_drumkits = __esm({
+  "src/utils/drumkits.js"() {
+    drumKits = {
+      /**
+       * Tone.js's own acoustic kit. CORS-friendly (GitHub Pages).
+       * Sparse coverage: only kick, snare, hihat, and 3 toms — no openhat,
+       * crash, ride, clap, or rim. The Drummer's `ambient` preset uses just
+       * kick/snare/hihat so this kit is sufficient for most use cases.
+       * Source: https://github.com/Tonejs/audio/tree/master/drum-samples/acoustic-kit
+       */
+      acoustic: {
+        baseUrl: "https://tonejs.github.io/audio/drum-samples/acoustic-kit/",
+        samples: {
+          36: "kick.mp3",
+          38: "snare.mp3",
+          42: "hihat.mp3",
+          46: "hihat.mp3",
+          // shared with closed (only one hihat sample in this kit)
+          41: "tom1.mp3",
+          47: "tom2.mp3",
+          50: "tom3.mp3"
+        }
+      },
+      /**
+       * Tone.js's R8-style kit (Roland TR-808-ish). Same caveat: only the
+       * sounds listed in the source. Adjust if you find more.
+       */
+      r8: {
+        baseUrl: "https://tonejs.github.io/audio/drum-samples/R8/",
+        samples: {
+          36: "kick.mp3",
+          38: "snare.mp3",
+          42: "hihat.mp3",
+          46: "hihat.mp3",
+          41: "tom1.mp3",
+          47: "tom2.mp3",
+          50: "tom3.mp3"
+        }
+      }
+    };
+  }
+});
+
 // src/constants/audio-effects.js
 var audio_effects_exports = {};
 __export(audio_effects_exports, {
   ADVANCED_EFFECTS: () => ADVANCED_EFFECTS,
   ALL_AUDIO_GRAPH_TYPES: () => ALL_AUDIO_GRAPH_TYPES,
-  ALL_EFFECTS: () => ALL_EFFECTS,
+  ALL_EFFECTS: () => ALL_EFFECTS2,
   DELAY_EFFECTS: () => DELAY_EFFECTS,
   DISTORTION_EFFECTS: () => DISTORTION_EFFECTS,
   DYNAMICS_EFFECTS: () => DYNAMICS_EFFECTS,
@@ -1718,9 +1783,10 @@ __export(audio_effects_exports, {
   REVERB_EFFECTS: () => REVERB_EFFECTS,
   SPECIAL_NODE_TYPES: () => SPECIAL_NODE_TYPES,
   SYNTHESIZER_TYPES: () => SYNTHESIZER_TYPES,
+  UTILITY_NODES: () => UTILITY_NODES,
   default: () => audio_effects_default
 });
-var REVERB_EFFECTS, DELAY_EFFECTS, MODULATION_EFFECTS, DISTORTION_EFFECTS, DYNAMICS_EFFECTS, FILTER_EFFECTS, ADVANCED_EFFECTS, ALL_EFFECTS, SYNTHESIZER_TYPES, SPECIAL_NODE_TYPES, ALL_AUDIO_GRAPH_TYPES, audio_effects_default;
+var REVERB_EFFECTS, DELAY_EFFECTS, MODULATION_EFFECTS, DISTORTION_EFFECTS, DYNAMICS_EFFECTS, FILTER_EFFECTS, ADVANCED_EFFECTS, UTILITY_NODES, ALL_EFFECTS2, SYNTHESIZER_TYPES, SPECIAL_NODE_TYPES, ALL_AUDIO_GRAPH_TYPES, audio_effects_default;
 var init_audio_effects = __esm({
   "src/constants/audio-effects.js"() {
     REVERB_EFFECTS = [
@@ -1760,14 +1826,21 @@ var init_audio_effects = __esm({
       "PitchShift",
       "StereoWidener"
     ];
-    ALL_EFFECTS = [
+    UTILITY_NODES = [
+      "Gain",
+      "Volume",
+      "Channel",
+      "EQ3"
+    ];
+    ALL_EFFECTS2 = [
       ...REVERB_EFFECTS,
       ...DELAY_EFFECTS,
       ...MODULATION_EFFECTS,
       ...DISTORTION_EFFECTS,
       ...DYNAMICS_EFFECTS,
       ...FILTER_EFFECTS,
-      ...ADVANCED_EFFECTS
+      ...ADVANCED_EFFECTS,
+      ...UTILITY_NODES
     ];
     SYNTHESIZER_TYPES = [
       "Synth",
@@ -1785,7 +1858,7 @@ var init_audio_effects = __esm({
     ];
     ALL_AUDIO_GRAPH_TYPES = [
       ...SYNTHESIZER_TYPES,
-      ...ALL_EFFECTS,
+      ...ALL_EFFECTS2,
       ...SPECIAL_NODE_TYPES
     ];
     audio_effects_default = {
@@ -1796,11 +1869,88 @@ var init_audio_effects = __esm({
       DYNAMICS_EFFECTS,
       FILTER_EFFECTS,
       ADVANCED_EFFECTS,
-      ALL_EFFECTS,
+      UTILITY_NODES,
+      ALL_EFFECTS: ALL_EFFECTS2,
       SYNTHESIZER_TYPES,
       SPECIAL_NODE_TYPES,
       ALL_AUDIO_GRAPH_TYPES
     };
+  }
+});
+
+// src/browser/synth-factory.js
+function resolveConnectTarget(track, audioGraph, graphNodes, fallbackTarget) {
+  if (track && track.output) {
+    if (graphNodes && graphNodes[track.output]) return graphNodes[track.output];
+    console.warn(`[track ${track.label || ""}] output "${track.output}" not found in audioGraph`);
+  }
+  if (audioGraph && audioGraph.length > 0 && graphNodes) {
+    const defaultNode = audioGraph.find((n) => n.default === true);
+    if (defaultNode && graphNodes[defaultNode.id]) return graphNodes[defaultNode.id];
+    const targetedIds = new Set(audioGraph.map((n) => n.target).filter(Boolean));
+    const effectEntry = audioGraph.find(
+      (n) => ALL_EFFECTS2.includes(n.type) && !targetedIds.has(n.id)
+    );
+    if (effectEntry && graphNodes[effectEntry.id]) return graphNodes[effectEntry.id];
+  }
+  return fallbackTarget;
+}
+function createTrackSynth(track, ToneLib, sharedSynth = null) {
+  if (sharedSynth && (!track || track.synth === void 0)) {
+    return { synth: sharedSynth, isLoadable: false, isShared: true };
+  }
+  const synthSpec = track && track.synth;
+  if (typeof synthSpec === "number") {
+    const urls = generateSamplerUrls(synthSpec);
+    return {
+      synth: new ToneLib.Sampler({ urls, baseUrl: "" }),
+      isLoadable: true,
+      isShared: false
+    };
+  }
+  if (typeof synthSpec === "string") {
+    const drumKitSpec = parseDrumKitSpec(synthSpec);
+    if (drumKitSpec) {
+      if (!drumKitSpec.kit) {
+        console.warn(`Unknown drumkit "${drumKitSpec.name}". Falling back to PolySynth.`);
+        return { synth: new ToneLib.PolySynth(), isLoadable: false, isShared: false };
+      }
+      const urls = {};
+      for (const [midi2, file] of Object.entries(drumKitSpec.kit.samples)) {
+        urls[midiToNoteName(parseInt(midi2, 10))] = file;
+      }
+      return {
+        synth: new ToneLib.Sampler({ urls, baseUrl: drumKitSpec.kit.baseUrl }),
+        isLoadable: true,
+        isShared: false
+      };
+    }
+    try {
+      return { synth: new ToneLib[synthSpec](), isLoadable: false, isShared: false };
+    } catch {
+      return { synth: new ToneLib.PolySynth(), isLoadable: false, isShared: false };
+    }
+  }
+  if (typeof synthSpec === "object" && synthSpec !== null) {
+    const synthType = synthSpec.type || "PolySynth";
+    const opts = synthSpec.options || {};
+    try {
+      if (synthType === "Sampler") {
+        return { synth: new ToneLib.Sampler(opts), isLoadable: true, isShared: false };
+      }
+      return { synth: new ToneLib[synthType](opts), isLoadable: false, isShared: false };
+    } catch {
+      return { synth: new ToneLib.PolySynth(), isLoadable: false, isShared: false };
+    }
+  }
+  return { synth: new ToneLib.PolySynth(), isLoadable: false, isShared: false };
+}
+var init_synth_factory = __esm({
+  "src/browser/synth-factory.js"() {
+    init_gm_instruments();
+    init_drumkits();
+    init_normalize();
+    init_audio_effects();
   }
 });
 
@@ -2013,62 +2163,27 @@ function createPlayer(composition, options = {}) {
       } catch (e) {
         console.warn("Failed to compile articulations:", e);
       }
-      let synth;
-      const synthSpec = originalTrack.synth;
       const synthRef = originalTrack.synthRef;
-      const graphSynthId = synthRef || (composition.audioGraph || []).find(
+      const implicitSynthId = (composition.audioGraph || []).find(
         (n) => SYNTHESIZER_TYPES.includes(n.type)
       )?.id;
-      const graphSynth = graphSynthId && graphNodes[graphSynthId];
-      let connectTarget = masterGain;
-      if (composition.audioGraph && !graphSynth) {
-        const targetedIds = new Set((composition.audioGraph || []).map((n) => n.target).filter(Boolean));
-        const effectEntry = composition.audioGraph.find(
-          (n) => ALL_EFFECTS.includes(n.type) && !targetedIds.has(n.id)
-        );
-        if (effectEntry && graphNodes[effectEntry.id]) {
-          connectTarget = graphNodes[effectEntry.id];
-        }
-      }
-      if (graphSynth && !synthSpec) {
-        synth = graphSynth;
-      } else if (typeof synthSpec === "number") {
-        const urls = generateSamplerUrls(synthSpec);
-        synth = new ToneLib.Sampler({ urls, baseUrl: "" });
-        synth.connect(connectTarget);
-      } else if (typeof synthSpec === "string") {
-        try {
-          synth = new ToneLib[synthSpec]();
-          synth.connect(connectTarget);
-        } catch {
-          synth = new ToneLib.PolySynth();
-          synth.connect(connectTarget);
-        }
-      } else if (typeof synthSpec === "object" && synthSpec !== null) {
-        const synthType = synthSpec.type || "PolySynth";
-        try {
-          const opts = synthSpec.options || {};
-          if (synthType === "Sampler") {
-            synth = new ToneLib.Sampler(opts);
-          } else {
-            synth = new ToneLib[synthType](opts);
-          }
-          synth.connect(connectTarget);
-        } catch (e) {
-          synth = new ToneLib.PolySynth();
-          synth.connect(connectTarget);
-        }
-      } else {
-        synth = new ToneLib.PolySynth();
-        synth.connect(connectTarget);
-      }
+      const sharedSynthId = synthRef || implicitSynthId;
+      const sharedSynth = sharedSynthId ? graphNodes[sharedSynthId] : null;
+      const connectTarget = resolveConnectTarget(
+        originalTrack,
+        sharedSynth ? null : composition.audioGraph,
+        graphNodes,
+        masterGain
+      );
+      const { synth, isShared } = createTrackSynth(originalTrack, ToneLib, sharedSynth);
+      if (!isShared) synth.connect(connectTarget);
       activeSynths.push(synth);
       const vibratoMods = modulations.filter((m) => m.type === "pitch" && m.subtype === "vibrato");
       const tremoloMods = modulations.filter((m) => m.type === "amplitude" && m.subtype === "tremolo");
       let vibratoEffect = null;
       let tremoloEffect = null;
       if (vibratoMods.length > 0 || tremoloMods.length > 0) {
-        synth.disconnect();
+        if (!isShared) synth.disconnect();
         if (vibratoMods.length > 0) {
           const dv = vibratoMods[0];
           vibratoEffect = new ToneLib.Vibrato({ frequency: dv.rate || 5, depth: (dv.depth || 50) / 100 });
@@ -2084,13 +2199,13 @@ function createPlayer(composition, options = {}) {
         if (vibratoEffect && tremoloEffect) {
           synth.connect(vibratoEffect);
           vibratoEffect.connect(tremoloEffect);
-          tremoloEffect.connect(masterGain);
+          tremoloEffect.connect(connectTarget);
         } else if (vibratoEffect) {
           synth.connect(vibratoEffect);
-          vibratoEffect.connect(masterGain);
+          vibratoEffect.connect(connectTarget);
         } else if (tremoloEffect) {
           synth.connect(tremoloEffect);
-          tremoloEffect.connect(masterGain);
+          tremoloEffect.connect(connectTarget);
         }
       }
       return { synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN };
@@ -2276,9 +2391,9 @@ var init_music_player = __esm({
   "src/browser/music-player.js"() {
     init_tonejs();
     init_audio();
-    init_gm_instruments();
     init_audio_effects();
     init_normalize();
+    init_synth_factory();
   }
 });
 
@@ -4664,6 +4779,7 @@ __export(jmon_utils_exports, {
   offsetNotes: () => offsetNotes,
   recalculateTiming: () => recalculateTiming,
   shiftTime: () => shiftTime,
+  sustained: () => sustained,
   timeToBeats: () => timeToBeats,
   transpose: () => transpose,
   truncate: () => truncate,
@@ -4830,6 +4946,14 @@ function recalculateTiming(notes, startTime = 0) {
 }
 function combineSequences(sequences) {
   return sequences.flat();
+}
+function sustained(pitch, totalDur, startTime = 0, vel = 0.4, step = 4) {
+  const notes = [];
+  for (let t = 0; t < totalDur; t += step) {
+    const dur = Math.min(step, totalDur - t);
+    notes.push({ pitch, duration: dur, time: startTime + t, velocity: vel });
+  }
+  return notes;
 }
 function transpose(notes, semitones) {
   return notes.map((n) => ({
@@ -8140,6 +8264,485 @@ function phaseShift(pattern, cycles, shiftPerCycle = 0.125) {
   return { voice1, voice2 };
 }
 
+// src/algorithms/generative/drummer/drum-map.js
+var DEFAULT_DRUM_MAP = {
+  kick: 36,
+  snare: 38,
+  hihat: 42,
+  openhat: 46,
+  ride: 51,
+  crash: 49,
+  tom_low: 41,
+  tom_mid: 47,
+  tom_high: 50,
+  clap: 39,
+  rim: 37
+};
+
+// src/algorithms/generative/drummer/presets.js
+var presets = {
+  // Boom-bap kick + backbeat snare + 16th hi-hat. The classic.
+  "hip-hop": {
+    name: "hip-hop",
+    steps: 16,
+    patterns: {
+      kick: [0.95, 0, 0, 0, 0, 0, 0.35, 0, 0.85, 0, 0.25, 0, 0, 0, 0.15, 0],
+      snare: [0, 0, 0, 0, 0.9, 0, 0, 0.15, 0, 0, 0, 0, 0.9, 0, 0, 0.2],
+      hihat: [0.7, 0.4, 0.65, 0.4, 0.7, 0.4, 0.65, 0.4, 0.7, 0.4, 0.65, 0.4, 0.7, 0.4, 0.65, 0.4],
+      openhat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.25, 0]
+    },
+    velocities: { kick: 1, snare: 0.95, hihat: 0.5, openhat: 0.7 }
+  },
+  // Classic 4/4, 8th-note feel. Kick on 1+3, snare on 2+4.
+  rock: {
+    name: "rock",
+    steps: 16,
+    patterns: {
+      kick: [0.95, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0.95, 0, 0, 0, 0, 0, 0, 0, 0.95, 0, 0, 0.1],
+      hihat: [0.7, 0, 0.55, 0, 0.7, 0, 0.55, 0, 0.7, 0, 0.55, 0, 0.7, 0, 0.55, 0]
+    },
+    velocities: { kick: 1, snare: 0.95, hihat: 0.55 }
+  },
+  // Driving four-on-the-floor kick, hard snare, crash on 1.
+  punk: {
+    name: "punk",
+    steps: 16,
+    patterns: {
+      kick: [0.95, 0, 0, 0, 0.85, 0, 0, 0, 0.95, 0, 0, 0, 0.85, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0.95, 0, 0, 0, 0, 0, 0, 0, 0.95, 0, 0, 0.15],
+      hihat: [0.85, 0, 0.65, 0, 0.85, 0, 0.65, 0, 0.85, 0, 0.65, 0, 0.85, 0, 0.65, 0],
+      crash: [0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    velocities: { kick: 1, snare: 1, hihat: 0.6, crash: 0.85 }
+  },
+  // Double-kick gallops, hard backbeat, dense hi-hat, crash accents.
+  metal: {
+    name: "metal",
+    steps: 16,
+    patterns: {
+      kick: [0.9, 0.25, 0.5, 0.25, 0, 0.25, 0.5, 0.25, 0.9, 0.25, 0.5, 0.25, 0, 0.25, 0.5, 0.25],
+      snare: [0, 0, 0, 0, 0.95, 0, 0, 0.15, 0, 0, 0, 0, 0.95, 0, 0, 0.2],
+      hihat: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6],
+      crash: [0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    velocities: { kick: 1, snare: 1, hihat: 0.65, crash: 0.9 }
+  },
+  // Slow, structured heartbeat. Kick on 1 and 3 (steps 0, 8), snare backbeat
+  // on 2 and 4 (steps 4, 12) but sparse so it doesn't dominate, gentle 8th-note
+  // hihat as time-keeper, occasional openhat anticipation. Predictable enough
+  // to feel like a pattern; soft enough to feel ambient.
+  // Pair with low density (0.4-0.7), low complexity (0), high humanize.
+  ambient: {
+    name: "ambient",
+    steps: 16,
+    patterns: {
+      kick: [0.95, 0, 0, 0, 0, 0, 0, 0, 0.85, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0.15],
+      hihat: [0.5, 0, 0.4, 0, 0.5, 0, 0.4, 0, 0.5, 0, 0.4, 0, 0.5, 0, 0.4, 0],
+      openhat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.3, 0]
+    },
+    velocities: { kick: 0.85, snare: 0.7, hihat: 0.4, openhat: 0.55 }
+  },
+  // Shuffle base, kick 1+3, snare backbeat. Pair with swing 0.5+.
+  blues: {
+    name: "blues",
+    steps: 16,
+    patterns: {
+      kick: [0.9, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0.2, 0],
+      snare: [0, 0, 0, 0, 0.9, 0, 0, 0.2, 0, 0, 0, 0, 0.9, 0, 0, 0],
+      hihat: [0.7, 0, 0.5, 0, 0.7, 0, 0.5, 0, 0.7, 0, 0.5, 0, 0.7, 0, 0.5, 0]
+    },
+    velocities: { kick: 0.95, snare: 0.85, hihat: 0.55 }
+  },
+  // Ride-driven swing, foot hi-hat on 2+4, feathered kick, snare ghosts.
+  jazz: {
+    name: "jazz",
+    steps: 16,
+    patterns: {
+      kick: [0.4, 0, 0, 0, 0, 0, 0, 0, 0.35, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0.1, 0, 0.4, 0, 0.1, 0, 0, 0, 0.1, 0, 0.4, 0, 0.1, 0],
+      ride: [0.85, 0, 0.6, 0, 0.85, 0, 0.65, 0.35, 0.85, 0, 0.6, 0, 0.85, 0, 0.65, 0.35],
+      hihat: [0, 0, 0, 0, 0.4, 0, 0, 0, 0, 0, 0, 0, 0.4, 0, 0, 0]
+    },
+    velocities: { kick: 0.6, snare: 0.45, ride: 0.65, hihat: 0.55 }
+  },
+  // Complex, displaced backbeat, anticipations. Pair with fillFrequency: 4.
+  progrock: {
+    name: "progrock",
+    steps: 16,
+    patterns: {
+      kick: [0.9, 0, 0, 0.25, 0, 0, 0.35, 0, 0.9, 0, 0, 0, 0, 0.25, 0, 0],
+      snare: [0, 0, 0, 0, 0.85, 0, 0, 0.25, 0, 0, 0.15, 0, 0.85, 0, 0, 0.3],
+      hihat: [0.6, 0.35, 0.55, 0.35, 0.6, 0.35, 0.55, 0.35, 0.6, 0.35, 0.55, 0.35, 0.6, 0.35, 0.55, 0.35],
+      crash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.2]
+    },
+    velocities: { kick: 0.95, snare: 0.9, hihat: 0.55, crash: 0.85 }
+  },
+  // Low-density, off-grid, unpredictable. Vary seed for different feels.
+  experimental: {
+    name: "experimental",
+    steps: 16,
+    patterns: {
+      kick: [0.3, 0.15, 0.2, 0, 0.15, 0.2, 0, 0.15, 0.3, 0, 0.15, 0.2, 0, 0.15, 0.2, 0.15],
+      snare: [0.1, 0, 0.25, 0, 0.15, 0.15, 0, 0.2, 0, 0.25, 0.1, 0.2, 0, 0.15, 0.15, 0],
+      hihat: [0.3, 0.25, 0.3, 0.25, 0.3, 0.25, 0.3, 0.25, 0.3, 0.25, 0.3, 0.25, 0.3, 0.25, 0.3, 0.25],
+      clap: [0, 0, 0, 0.2, 0, 0, 0, 0.15, 0, 0, 0, 0.2, 0, 0, 0, 0.15],
+      rim: [0, 0.15, 0, 0, 0, 0.1, 0, 0, 0.15, 0, 0, 0.1, 0, 0, 0.15, 0]
+    },
+    velocities: { kick: 0.7, snare: 0.6, hihat: 0.45, clap: 0.7, rim: 0.65 }
+  },
+  // Syncopated kick, displaced backbeat, polyrhythmic feel.
+  mathrock: {
+    name: "mathrock",
+    steps: 16,
+    patterns: {
+      kick: [0.9, 0, 0, 0.35, 0.25, 0, 0.65, 0, 0, 0, 0.85, 0, 0, 0.35, 0, 0],
+      snare: [0, 0, 0.1, 0, 0, 0, 0, 0.85, 0, 0.25, 0, 0, 0.15, 0, 0, 0.65],
+      hihat: [0.7, 0.5, 0.65, 0.5, 0.7, 0.5, 0.65, 0.5, 0.7, 0.5, 0.65, 0.5, 0.7, 0.5, 0.65, 0.5],
+      rim: [0, 0, 0, 0, 0, 0.15, 0, 0, 0, 0, 0, 0.15, 0, 0, 0, 0]
+    },
+    velocities: { kick: 0.95, snare: 0.9, hihat: 0.55, rim: 0.7 }
+  },
+  // Bossa kick (1 + and-of-2), sidestick clave, constant soft hi-hat/shaker.
+  bossanova: {
+    name: "bossanova",
+    steps: 16,
+    patterns: {
+      kick: [0.9, 0, 0, 0, 0, 0, 0.85, 0, 0, 0, 0.9, 0, 0, 0, 0.85, 0],
+      rim: [0.85, 0, 0, 0.8, 0, 0, 0.85, 0, 0, 0.8, 0, 0, 0.85, 0, 0.8, 0],
+      hihat: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    },
+    velocities: { kick: 0.85, rim: 0.75, hihat: 0.4 }
+  },
+  // Syncopated, ghost notes everywhere, "less is more" kick.
+  funk: {
+    name: "funk",
+    steps: 16,
+    patterns: {
+      kick: [0.95, 0, 0, 0, 0, 0, 0.25, 0, 0.35, 0, 0, 0, 0, 0, 0.15, 0],
+      snare: [0, 0, 0.2, 0, 0.9, 0, 0.15, 0.1, 0, 0.25, 0, 0.1, 0.9, 0, 0.2, 0],
+      hihat: [0.7, 0.35, 0.65, 0.35, 0.7, 0.35, 0.65, 0.35, 0.7, 0.35, 0.65, 0.35, 0.7, 0.35, 0.65, 0.35],
+      openhat: [0, 0, 0, 0, 0, 0, 0.2, 0, 0, 0, 0, 0, 0, 0, 0.2, 0]
+    },
+    velocities: { kick: 1, snare: 0.95, hihat: 0.55, openhat: 0.7 }
+  },
+  // One-drop: kick + snare hit together on beat 3, no kick on 1.
+  reggae: {
+    name: "reggae",
+    steps: 16,
+    patterns: {
+      kick: [0, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0.15],
+      hihat: [0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0],
+      rim: [0.35, 0, 0, 0, 0.4, 0, 0, 0, 0, 0, 0, 0, 0.4, 0, 0, 0]
+    },
+    velocities: { kick: 0.95, snare: 0.9, hihat: 0.6, rim: 0.6 }
+  },
+  // Four-on-the-floor electronic, claps on 2+4, off-beat open hi-hat.
+  house: {
+    name: "house",
+    steps: 16,
+    patterns: {
+      kick: [0.95, 0, 0, 0, 0.95, 0, 0, 0, 0.95, 0, 0, 0, 0.95, 0, 0, 0],
+      clap: [0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0],
+      hihat: [0.45, 0, 0, 0, 0.45, 0, 0, 0, 0.45, 0, 0, 0, 0.45, 0, 0, 0],
+      openhat: [0, 0, 0.65, 0, 0, 0, 0.65, 0, 0, 0, 0.65, 0, 0, 0, 0.65, 0]
+    },
+    velocities: { kick: 1, clap: 0.9, hihat: 0.5, openhat: 0.65 }
+  },
+  // Amen-break style: kick on 1 and step 10, snare backbeat with chops.
+  dnb: {
+    name: "dnb",
+    steps: 16,
+    patterns: {
+      kick: [0.95, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.85, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0.9, 0, 0, 0.2, 0, 0, 0, 0, 0.9, 0, 0.35, 0],
+      hihat: [0.6, 0.55, 0.6, 0.55, 0.6, 0.55, 0.6, 0.55, 0.6, 0.55, 0.6, 0.55, 0.6, 0.55, 0.6, 0.55]
+    },
+    velocities: { kick: 1, snare: 0.95, hihat: 0.5 }
+  },
+  // Slower hip-hop with dub-feel space, 8th hi-hat instead of 16ths.
+  triphop: {
+    name: "triphop",
+    steps: 16,
+    patterns: {
+      kick: [0.9, 0, 0, 0, 0, 0, 0.15, 0, 0.85, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0.1],
+      hihat: [0.5, 0, 0.35, 0, 0.5, 0, 0.35, 0, 0.5, 0, 0.35, 0, 0.5, 0, 0.35, 0],
+      openhat: [0, 0, 0, 0, 0, 0, 0.25, 0, 0, 0, 0, 0, 0, 0, 0.25, 0]
+    },
+    velocities: { kick: 0.9, snare: 0.85, hihat: 0.45, openhat: 0.6 }
+  },
+  // Polyrhythmic Tony Allen-inspired: snare on 3, kick + rim + clap interplay.
+  afrobeat: {
+    name: "afrobeat",
+    steps: 16,
+    patterns: {
+      kick: [0.85, 0, 0, 0.25, 0, 0, 0.65, 0, 0, 0.35, 0, 0, 0.8, 0, 0, 0.25],
+      snare: [0, 0, 0.25, 0, 0, 0.15, 0, 0, 0.85, 0, 0, 0.15, 0, 0, 0.25, 0],
+      hihat: [0.6, 0.4, 0.55, 0.4, 0.6, 0.4, 0.55, 0.4, 0.6, 0.4, 0.55, 0.4, 0.6, 0.4, 0.55, 0.4],
+      rim: [0, 0, 0, 0.3, 0, 0, 0, 0.2, 0, 0, 0, 0.3, 0, 0, 0, 0.2],
+      clap: [0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0, 0, 0, 0.3, 0, 0, 0]
+    },
+    velocities: { kick: 0.95, snare: 0.85, hihat: 0.55, rim: 0.6, clap: 0.65 }
+  },
+  // Chopped, displaced, unpredictable. Dense per bar, irregular placement.
+  breakbeat: {
+    name: "breakbeat",
+    steps: 16,
+    patterns: {
+      kick: [0.85, 0, 0, 0.25, 0, 0.15, 0, 0, 0.35, 0, 0.65, 0, 0, 0.25, 0, 0.15],
+      snare: [0, 0, 0, 0, 0.85, 0, 0.25, 0, 0, 0.15, 0, 0.25, 0.8, 0, 0, 0.35],
+      hihat: [0.55, 0.45, 0.55, 0.45, 0.55, 0.45, 0.55, 0.45, 0.55, 0.45, 0.55, 0.45, 0.55, 0.45, 0.55, 0.45],
+      rim: [0, 0, 0.15, 0, 0, 0, 0, 0.15, 0, 0.15, 0, 0, 0, 0.15, 0, 0]
+    },
+    velocities: { kick: 0.95, snare: 0.9, hihat: 0.55, rim: 0.65 }
+  },
+  // Generic shuffle, between blues and swing. Pair with swing 0.5+.
+  shuffle: {
+    name: "shuffle",
+    steps: 16,
+    patterns: {
+      kick: [0.9, 0, 0, 0, 0, 0, 0, 0.15, 0.85, 0, 0, 0, 0, 0, 0.25, 0],
+      snare: [0, 0, 0, 0, 0.85, 0, 0, 0.15, 0, 0, 0, 0, 0.85, 0, 0, 0.15],
+      hihat: [0.65, 0, 0.5, 0, 0.65, 0, 0.5, 0, 0.65, 0, 0.5, 0, 0.65, 0, 0.5, 0]
+    },
+    velocities: { kick: 0.95, snare: 0.9, hihat: 0.55 }
+  }
+};
+function getPreset(name) {
+  if (!(name in presets)) {
+    const available = Object.keys(presets).join(", ");
+    throw new Error(
+      `Unknown drummer preset: "${name}". Available: ${available}`
+    );
+  }
+  return presets[name];
+}
+
+// src/algorithms/generative/drummer/drummer.js
+function makeRand(seed) {
+  let state = seed | 0;
+  return () => {
+    state = state + 1831565813 | 0;
+    let t = state;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function positionsForMeter(meter) {
+  const eq = (a, b) => Math.abs(a - b) < 0.01;
+  if (eq(meter, 4)) return { kicks: [0, 2], snares: [1, 3] };
+  if (eq(meter, 7)) return { kicks: [0, 3, 5], snares: [3] };
+  if (eq(meter, 3.5)) return { kicks: [0, 1.5, 2.5], snares: [1.5] };
+  if (eq(meter, 5)) return { kicks: [0, 3], snares: [1, 4] };
+  if (eq(meter, 6)) return { kicks: [0, 3], snares: [1.5, 4.5] };
+  if (eq(meter, 3)) return { kicks: [0], snares: [1] };
+  if (eq(meter, 9)) return { kicks: [0, 3, 6], snares: [3, 6] };
+  if (eq(meter, 11)) return { kicks: [0, 4, 7, 9], snares: [4, 9] };
+  if (meter >= 4) {
+    return { kicks: [0, Math.floor(meter / 2)], snares: [1, Math.floor(meter) - 1] };
+  }
+  if (meter >= 2) return { kicks: [0], snares: [1] };
+  return { kicks: [0], snares: [] };
+}
+function findAnticipationBars(leader, bars, barDuration, threshold) {
+  const density = new Array(bars).fill(0);
+  for (const note of leader) {
+    const bar = Math.floor(note.time / barDuration);
+    if (bar >= 0 && bar < bars) density[bar]++;
+  }
+  const fillBars = /* @__PURE__ */ new Set();
+  for (let i = 1; i < bars; i++) {
+    const prev = Math.max(1, density[i - 1]);
+    const cur = Math.max(1, density[i]);
+    const ratio = cur / prev;
+    if (ratio >= threshold || ratio <= 1 / threshold) {
+      fillBars.add(i - 1);
+    }
+  }
+  return fillBars;
+}
+function drummer(options = {}) {
+  const {
+    style = "rock",
+    intensity = 0.7,
+    bars = 16,
+    sections = null,
+    variation = "live",
+    leader = null,
+    humanize = 0.12,
+    seed = 42,
+    fillEvery = 4,
+    anticipate = true,
+    anticipateThreshold = 1.5,
+    drumMap = DEFAULT_DRUM_MAP
+  } = options;
+  if ((variation === "follow" || variation === "diverge") && !leader) {
+    throw new Error(`drummer: variation "${variation}" requires \`leader\``);
+  }
+  const effectiveSeed = variation === "live" ? Math.floor(Math.random() * 1e9) : seed;
+  const rand = makeRand(effectiveSeed);
+  if (Array.isArray(sections) && sections.length > 0) {
+    return composeFromSections(sections, { intensity, humanize, drumMap, rand, variation, style });
+  }
+  return composeBars({ bars, intensity, humanize, drumMap, rand, variation, style, leader, fillEvery, anticipate, anticipateThreshold });
+}
+function composeFromSections(sections, ctx) {
+  const { intensity, humanize, drumMap, rand, variation, style } = ctx;
+  const preset = getPreset(style);
+  const v = preset.velocities || {};
+  const kVel = (v.kick ?? 0.9) * intensity;
+  const sVel = (v.snare ?? 0.85) * intensity;
+  const hVel = (v.hihat ?? 0.5) * intensity;
+  const ohVel = (v.openhat ?? 0.6) * intensity;
+  const out = [];
+  let cursor = 0;
+  const makeNote = (pitch, time, velocity) => {
+    const tj = humanize * (rand() - 0.5) * 0.1;
+    const vj = humanize * (rand() - 0.5) * 0.4;
+    return {
+      pitch,
+      duration: 0.4,
+      time: Math.max(0, time + tj),
+      velocity: Math.max(0, Math.min(1, velocity + vj))
+    };
+  };
+  for (const section of sections) {
+    const { meter, bars } = section;
+    const { kicks, snares } = positionsForMeter(meter);
+    for (let bar = 0; bar < bars; bar++) {
+      const t0 = cursor + bar * meter;
+      for (const k of kicks) out.push(makeNote(drumMap.kick, t0 + k, kVel));
+      for (const s of snares) out.push(makeNote(drumMap.snare, t0 + s, sVel));
+      for (let h = 0; h < meter; h += 0.5) {
+        const accent = kicks.some((k) => Math.abs(k - h) < 0.05);
+        out.push(makeNote(drumMap.hihat, t0 + h, accent ? hVel * 1.3 : hVel * 0.8));
+      }
+      if (variation === "live") {
+        if (rand() < 0.3 && meter >= 3) {
+          const ghostPos = snares.length > 0 ? snares[Math.floor(rand() * snares.length)] + 0.5 : meter / 2;
+          if (ghostPos < meter && !snares.includes(ghostPos)) {
+            out.push(makeNote(drumMap.snare, t0 + ghostPos, sVel * 0.35));
+          }
+        }
+        if (rand() < 0.2 && meter >= 4) {
+          out.push(makeNote(drumMap.kick, t0 + (meter - 1.25), kVel * 0.7));
+        }
+        if (rand() < 0.25) {
+          out.push(makeNote(drumMap.openhat, t0 + (meter - 0.5), ohVel));
+        }
+      }
+    }
+    cursor += bars * meter;
+  }
+  out.sort((a, b) => a.time - b.time);
+  return out;
+}
+function composeBars(ctx) {
+  const { bars, intensity, humanize, drumMap, rand, variation, style, leader, fillEvery, anticipate, anticipateThreshold } = ctx;
+  const preset = getPreset(style);
+  const v = preset.velocities || {};
+  const kVel = (v.kick ?? 0.9) * intensity;
+  const sVel = (v.snare ?? 0.85) * intensity;
+  const hVel = (v.hihat ?? 0.5) * intensity;
+  const ohVel = (v.openhat ?? 0.6) * intensity;
+  const stepDuration = 0.25;
+  const stepsPerBar = 16;
+  const barDuration = stepsPerBar * stepDuration;
+  const makeNote = (pitch, time, velocity) => ({
+    pitch,
+    duration: stepDuration * 0.8,
+    time: Math.max(0, time + humanize * (rand() - 0.5) * stepDuration * 0.5),
+    velocity: Math.max(0, Math.min(1, velocity + humanize * (rand() - 0.5)))
+  });
+  const fixedBar = (t0) => {
+    const out = [];
+    out.push(makeNote(drumMap.kick, t0, kVel));
+    out.push(makeNote(drumMap.kick, t0 + 8 * stepDuration, kVel * 0.95));
+    out.push(makeNote(drumMap.snare, t0 + 4 * stepDuration, sVel));
+    out.push(makeNote(drumMap.snare, t0 + 12 * stepDuration, sVel));
+    for (let s = 0; s < 16; s += 2) {
+      out.push(makeNote(drumMap.hihat, t0 + s * stepDuration, hVel * 0.8));
+    }
+    return out;
+  };
+  const grooveBar = (t0) => {
+    const out = [];
+    out.push(makeNote(drumMap.kick, t0, kVel));
+    out.push(makeNote(drumMap.kick, t0 + 8 * stepDuration, kVel * 0.95));
+    if (rand() < 0.3) out.push(makeNote(drumMap.kick, t0 + 11 * stepDuration, kVel * 0.78));
+    if (rand() < 0.15) out.push(makeNote(drumMap.kick, t0 + 2 * stepDuration, kVel * 0.73));
+    out.push(makeNote(drumMap.snare, t0 + 4 * stepDuration, sVel));
+    out.push(makeNote(drumMap.snare, t0 + 12 * stepDuration, sVel));
+    if (rand() < 0.4) out.push(makeNote(drumMap.snare, t0 + 7 * stepDuration, sVel * 0.32));
+    if (rand() < 0.4) out.push(makeNote(drumMap.snare, t0 + 11 * stepDuration, sVel * 0.32));
+    if (rand() < 0.2) out.push(makeNote(drumMap.snare, t0 + 14 * stepDuration, sVel * 0.27));
+    for (let s = 0; s < 16; s += 2) {
+      const accented = s === 0 || s === 8;
+      out.push(makeNote(drumMap.hihat, t0 + s * stepDuration, accented ? hVel * 1.3 : hVel * 0.8));
+    }
+    if (rand() < 0.25) {
+      out.push(makeNote(drumMap.openhat, t0 + 14 * stepDuration, ohVel));
+    }
+    return out;
+  };
+  const fillBar = (t0) => {
+    const out = [];
+    const toms = [drumMap.tom_low, drumMap.tom_mid, drumMap.tom_high];
+    for (let s = 0; s < 12; s++) {
+      const tom = toms[Math.floor(s / 4)];
+      out.push(makeNote(tom, t0 + s * stepDuration, kVel * 0.83));
+    }
+    out.push(makeNote(drumMap.snare, t0 + 12 * stepDuration, sVel));
+    out.push(makeNote(drumMap.snare, t0 + 13 * stepDuration, sVel * 0.9));
+    out.push(makeNote(drumMap.kick, t0 + 14 * stepDuration, kVel));
+    out.push(makeNote(drumMap.snare, t0 + 15 * stepDuration, sVel));
+    return out;
+  };
+  let notes = [];
+  if (variation === "fixed") {
+    for (let bar = 0; bar < bars; bar++) notes.push(...fixedBar(bar * barDuration));
+  } else {
+    const anticipatedFills = anticipate && leader ? findAnticipationBars(leader, bars, barDuration, anticipateThreshold) : /* @__PURE__ */ new Set();
+    for (let bar = 0; bar < bars; bar++) {
+      const t0 = bar * barDuration;
+      const isLast = bar === bars - 1;
+      const isAnticipated = anticipatedFills.has(bar);
+      const isScheduled = !isLast && fillEvery > 0 && (bar + 1) % fillEvery === 0;
+      const isFill = !isLast && (isAnticipated || anticipatedFills.size === 0 && isScheduled);
+      notes.push(...isFill ? fillBar(t0) : grooveBar(t0));
+    }
+  }
+  if (variation === "follow" || variation === "diverge") {
+    const totalDuration = bars * barDuration;
+    notes = notes.filter((n) => n.pitch !== drumMap.hihat && n.pitch !== drumMap.openhat);
+    if (variation === "follow") {
+      for (const n of leader) {
+        if (n.time < totalDuration) notes.push(makeNote(drumMap.hihat, n.time, hVel));
+      }
+    } else {
+      const tolerance = stepDuration / 2;
+      const leaderTimes = leader.map((n) => n.time);
+      for (let bar = 0; bar < bars; bar++) {
+        for (let s = 0; s < 16; s += 2) {
+          const t = bar * barDuration + s * stepDuration;
+          const onLeader = leaderTimes.some((lt) => Math.abs(lt - t) < tolerance);
+          if (!onLeader) {
+            const accented = s === 0 || s === 8;
+            notes.push(makeNote(drumMap.hihat, t, accented ? hVel * 1.2 : hVel * 0.8));
+          }
+        }
+      }
+    }
+  }
+  notes.sort((a, b) => a.time - b.time);
+  return notes;
+}
+drummer.presets = presets;
+
 // src/algorithms/processors/Corruptor.js
 var PerlinNoise = class {
   constructor(seed = Math.random()) {
@@ -8755,6 +9358,97 @@ var MusicalAnalysis = class {
     return variance;
   }
   /**
+   * Sorted onset times extracted from notes
+   * @param {JMonNote[]} notes - Array of notes
+   * @returns {number[]} Sorted onset times
+   */
+  static onsets(notes) {
+    return notes.map(
+      (note) => typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+    ).sort((a, b) => a - b);
+  }
+  /**
+   * Density per fixed-size time window (vector form of `density`)
+   * @param {JMonNote[]} notes - Array of notes
+   * @param {number} [windowSize=1] - Window size in time units
+   * @returns {number[]} Note count per window, from min to max time
+   */
+  static densityCurve(notes, windowSize = 1) {
+    if (notes.length === 0) return [];
+    const times = notes.map(
+      (note) => typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+    );
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const numWindows = Math.max(
+      1,
+      Math.floor((maxTime - minTime) / windowSize) + 1
+    );
+    const curve = new Array(numWindows).fill(0);
+    for (const t of times) {
+      const idx = Math.min(
+        Math.floor((t - minTime) / windowSize),
+        numWindows - 1
+      );
+      curve[idx]++;
+    }
+    return curve;
+  }
+  /**
+   * Mean velocity per fixed-size time window
+   * @param {JMonNote[]} notes - Array of notes (with optional `velocity` field)
+   * @param {number} [windowSize=1] - Window size in time units
+   * @returns {number[]} Mean velocity per window (0 for empty windows)
+   */
+  static velocityEnvelope(notes, windowSize = 1) {
+    if (notes.length === 0) return [];
+    const times = notes.map(
+      (note) => typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+    );
+    const velocities = notes.map(
+      (note) => typeof note.velocity === "number" ? note.velocity : 1
+    );
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const numWindows = Math.max(
+      1,
+      Math.floor((maxTime - minTime) / windowSize) + 1
+    );
+    const sums = new Array(numWindows).fill(0);
+    const counts = new Array(numWindows).fill(0);
+    for (let i = 0; i < notes.length; i++) {
+      const idx = Math.min(
+        Math.floor((times[i] - minTime) / windowSize),
+        numWindows - 1
+      );
+      sums[idx] += velocities[i];
+      counts[idx]++;
+    }
+    return sums.map((sum, i) => counts[i] > 0 ? sum / counts[i] : 0);
+  }
+  /**
+   * Rhythmic signature: normalized histogram of onset positions within
+   * a unit-1 cycle. With `bins=16` and time in bars, this gives a
+   * 16th-note grid profile of where notes tend to land.
+   * Useful as a compact rhythm fingerprint to bias a follow/diverge
+   * drummer.
+   * @param {JMonNote[]} notes - Array of notes
+   * @param {number} [bins=16] - Number of bins per cycle
+   * @returns {number[]} Probability distribution across bins (sums to 1, or all zeros if empty)
+   */
+  static rhythmicSignature(notes, bins = 16) {
+    const histogram = new Array(bins).fill(0);
+    if (notes.length === 0) return histogram;
+    for (const note of notes) {
+      const t = typeof note.time === "number" ? note.time : parseFloat(note.time) || 0;
+      const phase = (t % 1 + 1) % 1;
+      const idx = Math.min(Math.floor(phase * bins), bins - 1);
+      histogram[idx]++;
+    }
+    const total = histogram.reduce((s, v) => s + v, 0);
+    return total === 0 ? histogram : histogram.map((v) => v / total);
+  }
+  /**
    * Comprehensive analysis of a musical sequence
    * @param {JMonNote[]} notes - Array of notes to analyze
    * @param {AnalysisOptions} [options={}] - Analysis options
@@ -9243,7 +9937,8 @@ var generative = {
     Process: MinimalismProcess,
     Tintinnabuli,
     phaseShift
-  }
+  },
+  drummer: Object.assign(drummer, { presets })
   // Note: GaussianProcessRegressor removed to avoid @tangent.to/ds dependency
   // Import it separately if needed: import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
 };
@@ -10075,7 +10770,9 @@ init_tonejs();
 
 // src/converters/wav.js
 init_audio();
-init_gm_instruments();
+init_synth_factory();
+init_audio_effects();
+init_normalize();
 function wav(composition, options = {}) {
   return {
     sampleRate: options.sampleRate || 44100,
@@ -10086,8 +10783,7 @@ function wav(composition, options = {}) {
   };
 }
 async function downloadWav(composition, Tone, filename = "composition.wav", duration) {
-  const { normalizeAudioGraph: normalizeAudioGraph2 } = await Promise.resolve().then(() => (init_normalize(), normalize_exports));
-  normalizeAudioGraph2(composition);
+  normalizeAudioGraph(composition);
   const maxTime = composition.tracks?.reduce((max, track) => {
     const events = track.events || track.notes || [];
     const trackMax = events.reduce((tMax, note) => {
@@ -10117,27 +10813,24 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
     const trackSynths = [];
     const samplers = [];
     tracks.forEach((track, trackIndex) => {
-      const synthRef = track.synthRef;
       const trackModulations = compiledModulations[trackIndex] || [];
-      let synth = null;
-      const gmProgram = typeof track.synth === "number" ? track.synth : track.instrument;
-      if (synthRef && graphInstruments && graphInstruments[synthRef]) {
-        synth = graphInstruments[synthRef];
-      } else if (gmProgram !== void 0) {
-        const urls = generateSamplerUrls(gmProgram);
-        synth = new Tone.Sampler({
-          urls,
-          baseUrl: ""
-        }).toDestination();
-        samplers.push(synth);
-        console.log(`[WAV] Creating Sampler for GM instrument ${gmProgram}`);
-      } else {
-        const synthType = track.synth || "PolySynth";
-        try {
-          synth = new Tone[synthType]().toDestination();
-        } catch (e) {
-          synth = new Tone.PolySynth().toDestination();
-        }
+      const synthRef = track.synthRef;
+      const implicitSynthId = (composition.audioGraph || []).find(
+        (n) => SYNTHESIZER_TYPES.includes(n.type)
+      )?.id;
+      const sharedSynthId = synthRef || implicitSynthId;
+      const sharedSynth = sharedSynthId && graphInstruments ? graphInstruments[sharedSynthId] : null;
+      const connectTarget = resolveConnectTarget(
+        track,
+        sharedSynth ? null : composition.audioGraph,
+        graphInstruments || {},
+        null
+      );
+      const { synth, isLoadable, isShared } = createTrackSynth(track, Tone, sharedSynth);
+      if (isLoadable) samplers.push(synth);
+      if (!isShared) {
+        if (connectTarget) synth.connect(connectTarget);
+        else synth.toDestination();
       }
       const vibratoMods = trackModulations.filter(
         (m) => m.type === "pitch" && m.subtype === "vibrato"
@@ -10148,9 +10841,7 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
       let vibratoEffect = null;
       let tremoloEffect = null;
       if (vibratoMods.length > 0 || tremoloMods.length > 0) {
-        if (!synthRef || !graphInstruments?.[synthRef]) {
-          synth.disconnect();
-        }
+        if (!isShared) synth.disconnect();
         if (vibratoMods.length > 0) {
           const defaultVibrato = vibratoMods[0];
           vibratoEffect = new Tone.Vibrato({
@@ -10167,16 +10858,20 @@ async function downloadWav(composition, Tone, filename = "composition.wav", dura
           }).start();
           tremoloEffect.wet.value = 0;
         }
+        const tail = (node) => {
+          if (connectTarget) node.connect(connectTarget);
+          else node.toDestination();
+        };
         if (vibratoEffect && tremoloEffect) {
           synth.connect(vibratoEffect);
           vibratoEffect.connect(tremoloEffect);
-          tremoloEffect.toDestination();
+          tail(tremoloEffect);
         } else if (vibratoEffect) {
           synth.connect(vibratoEffect);
-          vibratoEffect.toDestination();
+          tail(vibratoEffect);
         } else if (tremoloEffect) {
           synth.connect(tremoloEffect);
-          tremoloEffect.toDestination();
+          tail(tremoloEffect);
         }
       }
       trackSynths.push({ synth, vibratoEffect, tremoloEffect });
@@ -10273,7 +10968,7 @@ async function buildAudioGraphInstruments(composition, Tone) {
     return null;
   }
   const map = {};
-  const { SYNTHESIZER_TYPES: SYNTHESIZER_TYPES2, ALL_EFFECTS: ALL_EFFECTS2 } = await Promise.resolve().then(() => (init_audio_effects(), audio_effects_exports));
+  const { SYNTHESIZER_TYPES: SYNTHESIZER_TYPES2, ALL_EFFECTS: ALL_EFFECTS3 } = await Promise.resolve().then(() => (init_audio_effects(), audio_effects_exports));
   try {
     composition.audioGraph.forEach((node) => {
       const { id, type, options = {} } = node;
@@ -10286,7 +10981,7 @@ async function buildAudioGraphInstruments(composition, Tone) {
           console.warn(`Failed to create ${type}, using PolySynth:`, e);
           instrument = new Tone.PolySynth();
         }
-      } else if (ALL_EFFECTS2.includes(type)) {
+      } else if (ALL_EFFECTS3.includes(type)) {
         try {
           instrument = new Tone[type](options);
         } catch (e) {
@@ -10742,6 +11437,218 @@ function createEmptyMusicXML(title, tempo, beatsPerMeasure, beatValue, fifths, m
   xml += "</score-partwise>\n";
   return xml;
 }
+
+// src/index.js
+init_drumkits();
+
+// src/audioGraph/index.js
+var audioGraph_exports = {};
+__export(audioGraph_exports, {
+  master: () => master,
+  masterPresetNames: () => masterPresetNames
+});
+
+// src/mastering/presets.js
+var PRESETS = {
+  /**
+   * dark — low-shelf boost, high-shelf cut, long reverb, narrow image.
+   * Dark, confined. Good for drones and deep ambient.
+   */
+  dark: {
+    eq: { lowShelf: 2, highShelf: -3 },
+    saturation: { drive: 0.3, wet: 0.25 },
+    bitcrusher: null,
+    chorus: null,
+    compressor: { threshold: -20, ratio: 3 },
+    stereo: { width: 0.4 },
+    reverb: { decay: 8, wet: 0.5 },
+    delay: null,
+    limiter: { threshold: -2 }
+  },
+  /**
+   * light — high-shelf boost, short reverb, wide image.
+   * Airy, bright. Good for solo piano and clear vocals.
+   */
+  light: {
+    eq: { lowShelf: -1, highShelf: 2 },
+    saturation: null,
+    bitcrusher: null,
+    chorus: null,
+    compressor: { threshold: -18, ratio: 2 },
+    stereo: { width: 0.8 },
+    reverb: { decay: 1.5, wet: 0.3 },
+    delay: null,
+    limiter: { threshold: -2 }
+  },
+  /**
+   * warm — bass-friendly EQ, soft saturation, medium reverb + delay.
+   * Warm, organic. Good for acoustic ensembles.
+   */
+  warm: {
+    eq: { lowShelf: 1.5, highShelf: -1 },
+    saturation: { drive: 0.15, wet: 0.18 },
+    bitcrusher: null,
+    chorus: null,
+    compressor: { threshold: -18, ratio: 2.5 },
+    stereo: { width: 0.7 },
+    reverb: { decay: 5, wet: 0.4 },
+    delay: { time: "8n.", feedback: 0.22, wet: 0.16 },
+    limiter: { threshold: -2 }
+  },
+  /**
+   * cinematic — huge reverb, wide stereo, medium saturation.
+   * Grandiose, film-score feel. Good for orchestral ensembles.
+   */
+  cinematic: {
+    eq: { lowShelf: 0, highShelf: 0 },
+    saturation: { drive: 0.2, wet: 0.2 },
+    bitcrusher: null,
+    chorus: null,
+    compressor: { threshold: -16, ratio: 2.5 },
+    stereo: { width: 0.9 },
+    reverb: { decay: 12, wet: 0.55 },
+    delay: { time: "4n.", feedback: 0.18, wet: 0.18 },
+    limiter: { threshold: -1.5 }
+  },
+  /**
+   * intimate — minimal reverb, narrow stereo, soft compression.
+   * Close, dry, almost untreated. Good for intimate solo piano.
+   */
+  intimate: {
+    eq: { lowShelf: 0, highShelf: -1 },
+    saturation: null,
+    bitcrusher: null,
+    chorus: null,
+    compressor: { threshold: -20, ratio: 2 },
+    stereo: { width: 0.5 },
+    reverb: { decay: 1, wet: 0.2 },
+    delay: null,
+    limiter: { threshold: -3 }
+  },
+  /**
+   * broadcast — tight compression, no reverb, ceiling −1dB.
+   * Radio-ready, flat, punchy.
+   */
+  broadcast: {
+    eq: { lowShelf: 0, highShelf: 0 },
+    saturation: { drive: 0.1, wet: 0.1 },
+    bitcrusher: null,
+    chorus: null,
+    compressor: { threshold: -14, ratio: 4 },
+    stereo: { width: 0.6 },
+    reverb: null,
+    delay: null,
+    limiter: { threshold: -1 }
+  },
+  /**
+   * vinyl — light bit-crush, sharp high cut, near-mono.
+   * Analog lo-fi, vintage 33-rpm feel.
+   */
+  vinyl: {
+    eq: { lowShelf: 0, highShelf: -3 },
+    saturation: { drive: 0.2, wet: 0.25 },
+    bitcrusher: { bits: 8, wet: 0.15 },
+    chorus: null,
+    compressor: { threshold: -16, ratio: 3 },
+    stereo: { width: 0.4 },
+    reverb: { decay: 1.5, wet: 0.15 },
+    delay: null,
+    limiter: { threshold: -2 }
+  },
+  /**
+   * lush — chorus, smiley EQ, ping-pong delay, wide stereo.
+   * Modern pop, dream-pop, shoegaze.
+   */
+  lush: {
+    eq: { lowShelf: 1, highShelf: 1 },
+    saturation: { drive: 0.15, wet: 0.15 },
+    bitcrusher: null,
+    chorus: { frequency: 1.5, depth: 0.4, wet: 0.2 },
+    compressor: { threshold: -18, ratio: 2.5 },
+    stereo: { width: 0.85 },
+    reverb: { decay: 4, wet: 0.4 },
+    delay: { time: "8n", feedback: 0.25, wet: 0.2 },
+    limiter: { threshold: -2 }
+  }
+};
+var PRESET_NAMES = Object.keys(PRESETS);
+
+// src/audioGraph/master.js
+function buildChain(p, intensity = 1) {
+  const stages = [];
+  const push = (id, type, options) => stages.push({ id, type, options });
+  if (p.eq && p.eq.lowShelf) {
+    push("master_lowshelf", "Filter", {
+      type: "lowshelf",
+      frequency: 250,
+      gain: p.eq.lowShelf * intensity
+    });
+  }
+  if (p.eq && p.eq.highShelf) {
+    push("master_highshelf", "Filter", {
+      type: "highshelf",
+      frequency: 8e3,
+      gain: p.eq.highShelf * intensity
+    });
+  }
+  if (p.saturation) {
+    push("master_saturate", "Distortion", {
+      distortion: p.saturation.drive,
+      wet: p.saturation.wet * intensity,
+      oversample: "2x"
+    });
+  }
+  if (p.bitcrusher) {
+    push("master_bitcrush", "BitCrusher", {
+      bits: p.bitcrusher.bits,
+      wet: p.bitcrusher.wet * intensity
+    });
+  }
+  if (p.chorus) {
+    push("master_chorus", "Chorus", {
+      frequency: p.chorus.frequency,
+      depth: p.chorus.depth,
+      wet: p.chorus.wet * intensity
+    });
+  }
+  if (p.compressor) {
+    push("master_comp", "Compressor", {
+      threshold: p.compressor.threshold,
+      ratio: p.compressor.ratio,
+      attack: 0.05,
+      release: 0.25,
+      knee: 6
+    });
+  }
+  if (p.stereo) {
+    push("master_wide", "StereoWidener", { width: p.stereo.width });
+  }
+  if (p.reverb) {
+    push("master_reverb", "Reverb", {
+      decay: p.reverb.decay,
+      wet: p.reverb.wet * intensity,
+      preDelay: 0.03
+    });
+  }
+  if (p.delay) {
+    push("master_delay", "FeedbackDelay", {
+      delayTime: p.delay.time,
+      feedback: p.delay.feedback,
+      wet: p.delay.wet * intensity
+    });
+  }
+  if (p.limiter) {
+    push("master_limit", "Limiter", { threshold: p.limiter.threshold });
+  }
+  for (let i = 0; i < stages.length; i++) {
+    stages[i].target = i < stages.length - 1 ? stages[i + 1].id : "destination";
+  }
+  return stages;
+}
+var master = Object.fromEntries(
+  PRESET_NAMES.map((name) => [name, buildChain(PRESETS[name], 1)])
+);
+var masterPresetNames = PRESET_NAMES;
 
 // node_modules/.deno/verovio@5.7.0/node_modules/verovio/dist/verovio-module.mjs
 var createVerovioModule = /* @__PURE__ */ (() => {
@@ -14202,6 +15109,15 @@ var jm = {
     ...jmon_utils_exports,
     JmonValidator
   },
+  // audioGraph — pre-built fragments to splice into a piece's audioGraph.
+  // Master mastering chains: jm.audioGraph.master.lush, .warm, .dark, etc.
+  // Splice manually with vanilla JS:
+  //   piece.audioGraph = [
+  //     ...piece.audioGraph.map(n => n.target === "destination"
+  //       ? { ...n, target: "master_lowshelf" } : n),
+  //     ...jm.audioGraph.master.lush,
+  //   ];
+  audioGraph: audioGraph_exports,
   // Instruments (optional; may be undefined in non-browser builds)
   instruments: {
     // Lazy loader to initialize GM instrument helpers on demand
@@ -14213,7 +15129,12 @@ var jm = {
     generateSamplerUrls: generateSamplerUrls2,
     createGMInstrumentNode: createGMInstrumentNode2,
     findGMProgramByName: findGMProgramByName2,
-    getPopularInstruments: getPopularInstruments2
+    getPopularInstruments: getPopularInstruments2,
+    // Drum kits — registry is mutable, register custom kits with
+    // jm.instruments.registerDrumKit(name, { baseUrl, samples }).
+    drumKits,
+    registerDrumKit,
+    getDrumKit
   },
   VERSION: "1.0.0"
 };

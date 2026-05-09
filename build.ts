@@ -22,25 +22,11 @@ await esbuild.build({
   bundle: true,
   format: "esm",
   outfile: `${outDir}/jmon.esm.js`,
-  external: ["plotly.js", "tone", "vexflow", "@tangent.to/ds"],
+  external: ["plotly.js", "tone", "vexflow", "@tangent.to/ds", "module"],
   platform: "browser",
 });
 
 console.log("✅ ESM bundle created: dist/jmon.esm.js");
-
-// Build UMD bundle
-console.log("📦 Building UMD bundle...");
-await esbuild.build({
-  entryPoints: [entryPoint],
-  bundle: true,
-  format: "iife",
-  globalName: "jm",
-  outfile: `${outDir}/jmon.umd.js`,
-  external: ["plotly.js", "tone", "vexflow", "@tangent.to/ds"],
-  platform: "browser",
-});
-
-console.log("✅ UMD bundle created: dist/jmon.umd.js");
 
 esbuild.stop();
 console.log("✨ Build complete!");

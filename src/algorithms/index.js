@@ -13,6 +13,7 @@ import { Darwin } from './generative/genetic/index.js';
 import { RandomWalk, Chain, Phasor, PhasorSystem } from './generative/walks/index.js';
 import { Mandelbrot, Julia, BurningShip, Fractal, LogisticMap } from './generative/fractals/index.js';
 import { MinimalismProcess, Tintinnabuli, phaseShift } from './generative/minimalism/index.js';
+import { drummer, presets as drummerPresets } from './generative/drummer/index.js';
 // GaussianProcessRegressor is NOT imported here to avoid @tangent.to/ds dependency
 // Users who need it must import it directly:
 // import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
@@ -84,7 +85,8 @@ export const generative = {
         Process: MinimalismProcess,
         Tintinnabuli,
         phaseShift
-    }
+    },
+    drummer: Object.assign(drummer, { presets: drummerPresets })
     // Note: GaussianProcessRegressor removed to avoid @tangent.to/ds dependency
     // Import it separately if needed: import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
 };

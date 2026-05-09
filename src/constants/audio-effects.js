@@ -53,6 +53,15 @@ export const ADVANCED_EFFECTS = [
   "StereoWidener"
 ];
 
+// Utility nodes — routing / level control (not really effects but
+// supported as audioGraph nodes for per-track buses, sub-mixes, etc.)
+export const UTILITY_NODES = [
+  "Gain",
+  "Volume",
+  "Channel",
+  "EQ3"
+];
+
 // All supported effects (combined)
 export const ALL_EFFECTS = [
   ...REVERB_EFFECTS,
@@ -61,7 +70,8 @@ export const ALL_EFFECTS = [
   ...DISTORTION_EFFECTS,
   ...DYNAMICS_EFFECTS,
   ...FILTER_EFFECTS,
-  ...ADVANCED_EFFECTS
+  ...ADVANCED_EFFECTS,
+  ...UTILITY_NODES
 ];
 
 // Synthesizer types
@@ -97,6 +107,7 @@ export default {
   DYNAMICS_EFFECTS,
   FILTER_EFFECTS,
   ADVANCED_EFFECTS,
+  UTILITY_NODES,
   ALL_EFFECTS,
   SYNTHESIZER_TYPES,
   SPECIAL_NODE_TYPES,

@@ -1,6 +1,8 @@
 /* JMON WAV - WAV audio generation from JMON format */
 import { compileEvents } from "../algorithms/audio/index.js";
-import { generateSamplerUrls } from "../utils/gm-instruments.js";
+import { createTrackSynth, resolveConnectTarget } from "../browser/synth-factory.js";
+import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
+import { normalizeAudioGraph } from "../utils/normalize.js";
 
 // ...existing code...
 export function wav(composition, options = {}) {
@@ -27,8 +29,6 @@ export function wav(composition, options = {}) {
  * await jm.converters.downloadWav(composition, Tone, "my-song.wav");
  */
 export async function downloadWav(composition, Tone, filename = "composition.wav", duration) {
-	// Normalize audioGraph format before processing
-	const { normalizeAudioGraph } = await import("../utils/normalize.js");
 	normalizeAudioGraph(composition);
 
 	// Calculate duration from composition if not provided
@@ -68,33 +68,33 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 			}
 		});
 
-		// Phase 1: Create synths and effects for each track
+		// Phase 1: Create synths and effects for each track via the shared
+		// factory. Routing matches the live player exactly: track.output >
+		// audioGraph default node > heuristic > destination.
 		const trackSynths = [];
 		const samplers = [];
 		tracks.forEach((track, trackIndex) => {
-			const synthRef = track.synthRef;
 			const trackModulations = compiledModulations[trackIndex] || [];
 
-			// Determine which synth/sampler to use
-			let synth = null;
-			const gmProgram = typeof track.synth === "number" ? track.synth : track.instrument;
-			if (synthRef && graphInstruments && graphInstruments[synthRef]) {
-				synth = graphInstruments[synthRef];
-			} else if (gmProgram !== undefined) {
-				const urls = generateSamplerUrls(gmProgram);
-				synth = new Tone.Sampler({
-					urls,
-					baseUrl: ""
-				}).toDestination();
-				samplers.push(synth);
-				console.log(`[WAV] Creating Sampler for GM instrument ${gmProgram}`);
-			} else {
-				const synthType = track.synth || "PolySynth";
-				try {
-					synth = new Tone[synthType]().toDestination();
-				} catch (e) {
-					synth = new Tone.PolySynth().toDestination();
-				}
+			const synthRef = track.synthRef;
+			const implicitSynthId = (composition.audioGraph || []).find(
+				n => SYNTHESIZER_TYPES.includes(n.type)
+			)?.id;
+			const sharedSynthId = synthRef || implicitSynthId;
+			const sharedSynth = sharedSynthId && graphInstruments ? graphInstruments[sharedSynthId] : null;
+
+			const connectTarget = resolveConnectTarget(
+				track,
+				sharedSynth ? null : composition.audioGraph,
+				graphInstruments || {},
+				null,
+			);
+
+			const { synth, isLoadable, isShared } = createTrackSynth(track, Tone, sharedSynth);
+			if (isLoadable) samplers.push(synth);
+			if (!isShared) {
+				if (connectTarget) synth.connect(connectTarget);
+				else synth.toDestination();
 			}
 
 			// Check for vibrato/tremolo modulations
@@ -109,9 +109,7 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 			let tremoloEffect = null;
 
 			if (vibratoMods.length > 0 || tremoloMods.length > 0) {
-				if (!synthRef || !graphInstruments?.[synthRef]) {
-					synth.disconnect();
-				}
+				if (!isShared) synth.disconnect();
 
 				if (vibratoMods.length > 0) {
 					const defaultVibrato = vibratoMods[0];
@@ -131,16 +129,21 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 					tremoloEffect.wet.value = 0;
 				}
 
+				const tail = (node) => {
+					if (connectTarget) node.connect(connectTarget);
+					else node.toDestination();
+				};
+
 				if (vibratoEffect && tremoloEffect) {
 					synth.connect(vibratoEffect);
 					vibratoEffect.connect(tremoloEffect);
-					tremoloEffect.toDestination();
+					tail(tremoloEffect);
 				} else if (vibratoEffect) {
 					synth.connect(vibratoEffect);
-					vibratoEffect.toDestination();
+					tail(vibratoEffect);
 				} else if (tremoloEffect) {
 					synth.connect(tremoloEffect);
-					tremoloEffect.toDestination();
+					tail(tremoloEffect);
 				}
 			}
 

@@ -1,8 +1,8 @@
 import { tonejs } from "../converters/tonejs.js";
 import { compileEvents } from "../algorithms/audio/index.js";
-import { generateSamplerUrls } from "../utils/gm-instruments.js";
-import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
+import { SYNTHESIZER_TYPES } from "../constants/audio-effects.js";
 import { normalizeAudioGraph } from "../utils/normalize.js";
+import { createTrackSynth, resolveConnectTarget } from "./synth-factory.js";
 
 /**
  * Simplified Music Player - Just playback with articulations
@@ -271,54 +271,23 @@ export function createPlayer(composition, options = {}) {
         console.warn("Failed to compile articulations:", e);
       }
 
-      // Create synth
-      let synth;
-      const synthSpec = originalTrack.synth;
+      // Synth + routing via the shared factory (kept identical to wav.js)
       const synthRef = originalTrack.synthRef;
-
-      const graphSynthId = synthRef || (composition.audioGraph || []).find(
+      const implicitSynthId = (composition.audioGraph || []).find(
         n => SYNTHESIZER_TYPES.includes(n.type)
       )?.id;
-      const graphSynth = graphSynthId && graphNodes[graphSynthId];
+      const sharedSynthId = synthRef || implicitSynthId;
+      const sharedSynth = sharedSynthId ? graphNodes[sharedSynthId] : null;
 
-      let connectTarget = masterGain;
-      if (composition.audioGraph && !graphSynth) {
-        const targetedIds = new Set((composition.audioGraph || []).map(n => n.target).filter(Boolean));
-        const effectEntry = composition.audioGraph.find(
-          n => ALL_EFFECTS.includes(n.type) && !targetedIds.has(n.id)
-        );
-        if (effectEntry && graphNodes[effectEntry.id]) {
-          connectTarget = graphNodes[effectEntry.id];
-        }
-      }
+      const connectTarget = resolveConnectTarget(
+        originalTrack,
+        sharedSynth ? null : composition.audioGraph,
+        graphNodes,
+        masterGain,
+      );
 
-      if (graphSynth && !synthSpec) {
-        synth = graphSynth;
-      } else if (typeof synthSpec === 'number') {
-        const urls = generateSamplerUrls(synthSpec);
-        synth = new ToneLib.Sampler({ urls, baseUrl: "" });
-        synth.connect(connectTarget);
-      } else if (typeof synthSpec === 'string') {
-        try { synth = new ToneLib[synthSpec](); synth.connect(connectTarget); }
-        catch { synth = new ToneLib.PolySynth(); synth.connect(connectTarget); }
-      } else if (typeof synthSpec === 'object' && synthSpec !== null) {
-        const synthType = synthSpec.type || 'PolySynth';
-        try {
-          const opts = synthSpec.options || {};
-          if (synthType === 'Sampler') {
-            synth = new ToneLib.Sampler(opts);
-          } else {
-            synth = new ToneLib[synthType](opts);
-          }
-          synth.connect(connectTarget);
-        } catch (e) {
-          synth = new ToneLib.PolySynth();
-          synth.connect(connectTarget);
-        }
-      } else {
-        synth = new ToneLib.PolySynth();
-        synth.connect(connectTarget);
-      }
+      const { synth, isShared } = createTrackSynth(originalTrack, ToneLib, sharedSynth);
+      if (!isShared) synth.connect(connectTarget);
 
       activeSynths.push(synth);
 
@@ -330,7 +299,7 @@ export function createPlayer(composition, options = {}) {
       let tremoloEffect = null;
 
       if (vibratoMods.length > 0 || tremoloMods.length > 0) {
-        synth.disconnect();
+        if (!isShared) synth.disconnect();
 
         if (vibratoMods.length > 0) {
           const dv = vibratoMods[0];
@@ -349,13 +318,13 @@ export function createPlayer(composition, options = {}) {
         if (vibratoEffect && tremoloEffect) {
           synth.connect(vibratoEffect);
           vibratoEffect.connect(tremoloEffect);
-          tremoloEffect.connect(masterGain);
+          tremoloEffect.connect(connectTarget);
         } else if (vibratoEffect) {
           synth.connect(vibratoEffect);
-          vibratoEffect.connect(masterGain);
+          vibratoEffect.connect(connectTarget);
         } else if (tremoloEffect) {
           synth.connect(tremoloEffect);
-          tremoloEffect.connect(masterGain);
+          tremoloEffect.connect(connectTarget);
         }
       }
 

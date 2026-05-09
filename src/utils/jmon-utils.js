@@ -292,6 +292,41 @@ export function combineSequences(sequences) {
 }
 
 /**
+ * Build a long held tone by re-attacking the same pitch every `step` beats.
+ *
+ * GM samplers (acoustic instruments, strings, organs, etc.) don't loop —
+ * the sample plays once and decays naturally, even if you ask for a 30-beat
+ * note. The result is unintended silence in the middle of supposedly held
+ * notes. This helper splits a long sustain into shorter re-attacks so the
+ * sample stays audible while preserving the perceived "tied" feel.
+ *
+ * @example
+ * // Drone D2 held for 24 beats, re-attacked every 4 beats
+ * const drone = sustained(38, 24, 0, 0.4);
+ *
+ * @example
+ * // String pad on a chord, each note re-attacked every 6 beats
+ * const pad = chordPitches.flatMap((p) =>
+ *   sustained(p, totalDur, startTime, 0.25, 6)
+ * );
+ *
+ * @param {number} pitch - MIDI pitch
+ * @param {number} totalDur - Total duration to fill (beats)
+ * @param {number} [startTime=0] - When the held tone begins (beats)
+ * @param {number} [vel=0.4] - Velocity for each attack
+ * @param {number} [step=4] - Re-attack interval (beats). Smaller = more attacks
+ * @returns {Array} Array of JMON notes covering `[startTime, startTime+totalDur)`
+ */
+export function sustained(pitch, totalDur, startTime = 0, vel = 0.4, step = 4) {
+  const notes = [];
+  for (let t = 0; t < totalDur; t += step) {
+    const dur = Math.min(step, totalDur - t);
+    notes.push({ pitch, duration: dur, time: startTime + t, velocity: vel });
+  }
+  return notes;
+}
+
+/**
  * Transpose all notes by a number of semitones. Handles both single-pitch
  * notes and chord notes (where `pitch` is an array of MIDI numbers).
  * @param {Array} notes - JMON notes

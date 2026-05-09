@@ -228,6 +228,10 @@
               "Freeverb",
               "StereoWidener",
               "MidSideCompressor",
+              "Gain",
+              "Volume",
+              "Channel",
+              "EQ3",
               "Destination"
             ],
             "description": "Type of audio node (Synth, Sampler, Effect, etc.)."
@@ -239,6 +243,10 @@
           "target": {
             "type": "string",
             "description": "Target node for audio routing."
+          },
+          "default": {
+            "type": "boolean",
+            "description": "If true, this node is the master entry: tracks without explicit `output` route here. Use to disambiguate multi-bus audioGraphs (e.g., per-track effect chains)."
           },
           "presetRef": {
             "type": "string",
@@ -719,7 +727,7 @@
             "oneOf": [
               {
                 "type": "string",
-                "description": "Synth type name (e.g., 'PolySynth', 'MonoSynth') or audioGraph node ID reference"
+                "description": "Synth type name (e.g., 'PolySynth', 'MonoSynth'), audioGraph node ID reference, or 'drumkit:<name>' to use a sample-based drum kit (registered via jm.instruments.registerDrumKit)."
               },
               {
                 "type": "number",
@@ -771,6 +779,10 @@
             "enum": ["treble", "bass", "alto", "tenor", "percussion"],
             "default": "treble",
             "description": "Clef for notation rendering of this track (treble/G clef, bass/F clef, alto/C clef, etc.)."
+          },
+          "output": {
+            "type": "string",
+            "description": "audioGraph node id this track routes into (per-track effect chain / mixer bus). When set, the track's audio output connects to the named node instead of the default first-effect entry. Use to give each track its own gain, EQ, or effect chain."
           },
           "notes": {
             "type": "array",
