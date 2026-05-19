@@ -277,6 +277,16 @@ const jm = {
   scoreSVG,
   validate: validateJmon,
 
+  // Key context — set tonic/mode once and produce harmony objects
+  // (Scale, Voice, Ornament, Progression, chord(s)) without repeating
+  // `{tonic, mode}` at every call site.
+  //
+  //   const k = jm.key('C', 'major');
+  //   k.scale().generate({ length: 8 });
+  //   k.voice({ measureLength: 4, output: 'track' }).generate(melody);
+  //   k.ornament({ type: 'trill', parameters: { by: 1 } }).apply(notes, 0);
+  key: (tonic, mode) => algorithms.theory.harmony.key(tonic, mode),
+
   // Environment helpers (isBrowser, hasDisplay, present, ...)
   env,
 

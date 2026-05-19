@@ -124,6 +124,13 @@ export class Ornament {
     /**
      * Create a new ornament instance with validation
      * @param {Object} options - Ornament configuration
+     * @param {string} options.type - Ornament type (e.g. 'trill', 'mordent', 'turn').
+     * @param {Object} [options.parameters] - Ornament-specific parameters.
+     * @param {string} [options.tonic] - Tonic for scale-aware pitch selection.
+     * @param {string} [options.mode] - Mode for scale-aware pitch selection.
+     * @param {Object} [options.key] - A `Key` context (from `jm.key(...)`)
+     *   that supplies both `tonic` and `mode` in one shot. Explicit
+     *   `tonic`/`mode` on the options object override the key's values.
      */
     constructor(options) {
         const ornamentDef = ORNAMENT_TYPES[options.type];
@@ -137,9 +144,14 @@ export class Ornament {
             ...options.parameters
         };
 
-        if (options.tonic && options.mode) {
-            this.tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(options.tonic);
-            this.scale = this.generateScale(options.tonic, options.mode);
+        // Accept tonic/mode either explicitly or via a Key context.
+        const k = options.key && typeof options.key === 'object' ? options.key : null;
+        const tonic = options.tonic || (k ? k.tonic : undefined);
+        const mode = options.mode || (k ? k.mode : undefined);
+
+        if (tonic && mode) {
+            this.tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(tonic);
+            this.scale = this.generateScale(tonic, mode);
         } else {
             this.scale = null;
         }

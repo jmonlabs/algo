@@ -108,7 +108,24 @@ display(await jm.play(chordPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 3. Ornaments
+## 3. Key context — say `{tonic, mode}` once
+
+When several harmony classes share the same key, repeating `{tonic: 'C', mode: 'major'}` at every constructor gets noisy. `jm.key(tonic, mode)` returns a small **key context** that pre-applies tonic and mode to `Scale`, `Voice`, `Ornament`, `Progression`, and `chord(s)`. You can still override any field per-call.
+
+```js
+const k = jm.key("C", "major");
+
+k.scale().generate({ length: 8 });                       // C major scale
+k.voice({ measureLength: 4, output: "track" });          // C-major voice
+k.ornament({ type: "trill", parameters: { by: 1 } });    // scale-aware trill
+k.progression().generate(["I", "IV", "V", "I"]);         // C-major progression
+k.chord(60);                                             // [60, 64, 67]
+k.chords([60, 62, 64]);                                  // three chords
+```
+
+The constructors still accept `{tonic, mode}` directly (no breaking change) — `jm.key()` is purely a call-site convenience. The examples below use it where it makes the snippet shorter.
+
+## 4. Ornaments
 
 Ornaments are decorative embellishments that add expression and complexity to melodies. The `Ornament` class provides various ornament types.
 
@@ -123,11 +140,15 @@ const testNotes = [
   { pitch: 64, duration: 2, time: 2, velocity: 0.8 },
   { pitch: 67, duration: 2, time: 4, velocity: 0.8 }
 ];
+
+// One key context, reused by every ornament/voice/progression that needs it below.
+const cKey = jm.key("C", "major");
+
 display(testNotes);
   </script>
 
   <script type="text/markdown">
-### 3.1 Grace note (acciaccatura)
+### 4.1 Grace note (acciaccatura)
 
 A grace note is a quick ornamental note played just before the main note.
   </script>
@@ -155,20 +176,21 @@ display(await jm.play(graceNotePiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-### 3.2 Trill
+### 4.2 Trill
 
 A trill rapidly alternates between the main note and an adjacent note.
   </script>
 
   <script type="module" pinned>
-const trillOrnament = new jm.theory.harmony.Ornament({
+// Compare with the explicit form:
+//   new jm.theory.harmony.Ornament({ type:'trill', tonic:'C', mode:'major', parameters:{...} })
+// The key context drops the tonic/mode boilerplate.
+const trillOrnament = cKey.ornament({
   type: 'trill',
   parameters: {
     by: 2,           // Trill to note 2 steps up
     trillRate: 0.25  // 16th notes
-  },
-  tonic: 'C',
-  mode: 'major'
+  }
 });
 const withTrill = trillOrnament.apply([...testNotes], 0);
 
@@ -185,19 +207,17 @@ display(await jm.play(trillPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-### 3.3 Mordent
+### 4.3 Mordent
 
 A mordent is a quick alternation with an adjacent note and back.
   </script>
 
   <script type="module" pinned>
-const mordentOrnament = new jm.theory.harmony.Ornament({
+const mordentOrnament = cKey.ornament({
   type: 'mordent',
   parameters: {
     by: -1  // Mordent down one step
-  },
-  tonic: 'C',
-  mode: 'major'
+  }
 });
 const withMordent = mordentOrnament.apply([...testNotes], 0);
 
@@ -213,17 +233,13 @@ display(await jm.play(mordentPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-### 3.4 Turn
+### 4.4 Turn
 
 A turn ornament creates a four-note pattern around the main note.
   </script>
 
   <script type="module" pinned>
-const turnOrnament = new jm.theory.harmony.Ornament({
-  type: 'turn',
-  tonic: 'C',
-  mode: 'major'
-});
+const turnOrnament = cKey.ornament({ type: 'turn' });
 const withTurn = turnOrnament.apply([...testNotes], 0);
 
 display(`With turn: ${withTurn.length} notes (4-note pattern)`);
@@ -238,20 +254,18 @@ display(await jm.play(turnPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-### 3.5 Arpeggio
+### 4.5 Arpeggio
 
 An arpeggio breaks a chord into a sequence of individual notes.
   </script>
 
   <script type="module" pinned>
-const arpeggioOrnament = new jm.theory.harmony.Ornament({
+const arpeggioOrnament = cKey.ornament({
   type: 'arpeggio',
   parameters: {
     arpeggioDegrees: [0, 2, 4, 2],  // Triad up and down
     direction: 'up'
-  },
-  tonic: 'C',
-  mode: 'major'
+  }
 });
 const withArpeggio = arpeggioOrnament.apply([...testNotes], 0);
 
@@ -267,7 +281,7 @@ display(await jm.play(arpeggioPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 4. Voice leading
+## 5. Voice leading
 
 The `Voice` class helps create harmonic accompaniment from melodies by generating chords at measure boundaries.
   </script>
@@ -281,10 +295,8 @@ const melody = [
   { pitch: 65, duration: 1, time: 3, velocity: 0.8 }
 ];
 
-// Create a voice generator
-const voice = new jm.theory.harmony.Voice({
-  tonic: "C",
-  mode: "major",
+// Reuse the C major context from above — no need to repeat tonic/mode.
+const voice = cKey.voice({
   measureLength: 4,
   output: 'track'
 });
@@ -309,18 +321,19 @@ display(await jm.play(harmonizedPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 5. Chord progressions
+## 6. Chord progressions
 
-Generate random chord progressions using the circle of fifths or other intervallic relationships.
+Generate random chord progressions using the circle of fifths or other intervallic relationships. You can also pass roman numerals (`['I', 'IV', 'V', 'I']`) for diatonic progressions.
   </script>
 
   <script type="module" pinned>
-// Generate random progression using circle of fifths
-const progression = new jm.theory.harmony.Progression({
-  root: 'C4',
-  interval: 'P5',
+// Generate a progression on the circle of fifths.
+// `radius: [major, minor, diminished]` controls how many candidates of
+// each quality the progression draws from.
+const progression = cKey.progression({
+  circleOf: 'P5',
   type: 'chords',
-  degrees: [3, 3, 1]
+  radius: [3, 3, 1]
 });
 const chordProgression = progression.generate(8, 5); // 8 chords, seed 5
 
@@ -346,9 +359,9 @@ display(await jm.play(progressionPiece, { Tone }));
   </script>
 
   <script type="text/markdown">
-## 6. Complete example: Twinkle with harmony
+## 7. Complete example: Twinkle with harmony
 
-Let's put it all together by adding harmony and ornaments to "Twinkle Twinkle Little Star".
+Let's put it all together by adding harmony and ornaments to "Twinkle Twinkle Little Star". One `jm.key()` call covers both the voicing and the trill.
   </script>
 
   <script type="module" pinned>
@@ -370,26 +383,18 @@ const twinkle = [
   { pitch: 60, duration: 2, time: 14, velocity: 0.8 }   // C
 ];
 
-// Add chords
-const twinkleVoice = new jm.theory.harmony.Voice({
-  tonic: "C",
-  mode: "major",
-  measureLength: 4,
-  output: 'track'
-});
+// Set the key once — voicing and ornament both pick it up.
+const twinkleKey = jm.key("C", "major");
 
-const twinkleChords = twinkleVoice.generate(twinkle).map(note => ({
-  ...note,
-  velocity: 0.5
-}));
+const twinkleChords = twinkleKey
+  .voice({ measureLength: 4, output: 'track' })
+  .generate(twinkle)
+  .map(note => ({ ...note, velocity: 0.5 }));
 
 // Add trill to the long note (index 6)
-const ornamentedTwinkle = new jm.theory.harmony.Ornament({
-  type: 'trill',
-  parameters: { by: 1, trillRate: 0.25 },
-  tonic: 'C',
-  mode: 'major'
-}).apply(twinkle, 6);
+const ornamentedTwinkle = twinkleKey
+  .ornament({ type: 'trill', parameters: { by: 1, trillRate: 0.25 } })
+  .apply(twinkle, 6);
 
 // Create complete composition
 const twinkleComplete = {

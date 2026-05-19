@@ -29,7 +29,9 @@ export class Voice extends MusicTheoryConstants {
     /**
      * Constructs all the necessary attributes for the voice object
      * @param {Object} options - Configuration options
-     * @param {string} [options.tonic='C'] - The tonic note of the scale (alias: 'key')
+     * @param {string} [options.tonic='C'] - The tonic note of the scale
+     * @param {string|Object} [options.key] - Either a tonic string (alias of `tonic`)
+     *   or a `Key` context (from `jm.key(...)`) that provides both `tonic` and `mode`.
      * @param {string} [options.mode='major'] - The scale mode (e.g., 'major', 'minor', 'dorian')
      * @param {Array<number>} [options.degrees=[0, 2, 4]] - Relative degrees for chord formation (triad by default)
      * @param {number} [options.measureLength=4] - Length of a measure in beats (for root extraction)
@@ -43,16 +45,19 @@ export class Voice extends MusicTheoryConstants {
         const {
             tonic,
             key,
-            mode = 'major',
+            mode,
             degrees = [0, 2, 4],
             measureLength = 4,
             extractRoots = true,
             transpose = 0,
             output = 'chords'
         } = options;
-        
-        this.tonic = key || tonic || 'C';
-        this.mode = mode;
+
+        // `key` can be a string alias for tonic, or a Key context carrying
+        // both tonic and mode. Explicit `tonic`/`mode` always win.
+        const keyIsContext = key && typeof key === 'object';
+        this.tonic = tonic || (keyIsContext ? key.tonic : key) || 'C';
+        this.mode = mode || (keyIsContext ? key.mode : undefined) || 'major';
         this.degrees = degrees;
         this.measureLength = measureLength;
         this.extractRoots = extractRoots;
