@@ -132,6 +132,45 @@ export class Chain {
   }
 
   /**
+   * Generate a single clean walk — no branching, no merging, no null
+   * padding. Convenience for the common case where you just want one
+   * melodic line and don't want to deal with the `[branches]` shape or
+   * filter out nulls.
+   *
+   * Equivalent to forcing `branchingProbability = 0` and
+   * `mergingProbability = 0` for this call only; the configured
+   * probabilities on the instance are restored afterwards.
+   *
+   * @param {number} length - Length of the walk
+   * @param {number} [seed] - Random seed for reproducibility
+   * @returns {Array<number>} A flat array of walk values
+   *
+   * @example
+   * ```js
+   * const chain = new jm.generative.walks.Chain({
+   *   walkRange: [0, 7],
+   *   walkStart: 3,
+   *   walkProbability: [-1, 0, 1],
+   *   roundTo: 0
+   * });
+   * const walk = chain.line(16, 42);  // [3, 4, 4, 3, 2, 3, 4, ...]
+   * ```
+   */
+  line(length, seed) {
+    const prevBranch = this.branchingProbability;
+    const prevMerge = this.mergingProbability;
+    this.branchingProbability = 0;
+    this.mergingProbability = 0;
+    try {
+      const walks = this.generate(length, seed);
+      return (walks[0] || []).filter(v => v !== null);
+    } finally {
+      this.branchingProbability = prevBranch;
+      this.mergingProbability = prevMerge;
+    }
+  }
+
+  /**
    * Generate a single step according to the probability distribution
    */
   generateStep(randomFunc = Math.random) {

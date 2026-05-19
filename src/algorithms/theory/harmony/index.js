@@ -6,11 +6,13 @@ import { Articulation } from "./Articulation.js";
 import { chordify, chordifyMany } from "./Chordify.js";
 import { Arpeggiate, arpeggiate } from "./Arpeggiate.js";
 import { Strum, strum } from "./Strum.js";
+import { Key, key } from "./Key.js";
 
 // Export both as namespace and individual exports
 export {
   Arpeggiate,
   Articulation,
+  Key,
   Ornament,
   Progression,
   Scale,
@@ -19,6 +21,7 @@ export {
   arpeggiate,
   chordify,
   chordifyMany,
+  key,
   strum,
 };
 
@@ -31,6 +34,8 @@ export default {
   Ornament,
   Articulation,
   Strum,
+  Key,
+  key,
   arpeggiate,
   chordify,
   chordifyMany,
