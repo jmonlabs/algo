@@ -1465,9 +1465,9 @@ function generateSamplerUrls(gmProgram, baseUrl = CDN_SOURCES[0], noteRange = [2
       for (let midi2 = minNote; midi2 <= maxNote; midi2 += 4) {
         selectedMidis.push(midi2);
       }
-      [60, 64, 67].forEach((key) => {
-        if (key >= minNote && key <= maxNote && !selectedMidis.includes(key)) {
-          selectedMidis.push(key);
+      [60, 64, 67].forEach((key2) => {
+        if (key2 >= minNote && key2 <= maxNote && !selectedMidis.includes(key2)) {
+          selectedMidis.push(key2);
         }
       });
       break;
@@ -3233,8 +3233,8 @@ function cdeToMidi(pitch) {
 function midiToCde(midi2) {
   const pitches = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const octave = Math.floor(midi2 / 12) - 1;
-  const key = midi2 % 12;
-  return pitches[key] + octave.toString();
+  const key2 = midi2 % 12;
+  return pitches[key2] + octave.toString();
 }
 function noOverlap(notes, adjust = "offsets") {
   const adjustedNotes = [];
@@ -3607,7 +3607,9 @@ var Voice = class extends MusicTheoryConstants {
   /**
    * Constructs all the necessary attributes for the voice object
    * @param {Object} options - Configuration options
-   * @param {string} [options.tonic='C'] - The tonic note of the scale (alias: 'key')
+   * @param {string} [options.tonic='C'] - The tonic note of the scale
+   * @param {string|Object} [options.key] - Either a tonic string (alias of `tonic`)
+   *   or a `Key` context (from `jm.key(...)`) that provides both `tonic` and `mode`.
    * @param {string} [options.mode='major'] - The scale mode (e.g., 'major', 'minor', 'dorian')
    * @param {Array<number>} [options.degrees=[0, 2, 4]] - Relative degrees for chord formation (triad by default)
    * @param {number} [options.measureLength=4] - Length of a measure in beats (for root extraction)
@@ -3619,16 +3621,17 @@ var Voice = class extends MusicTheoryConstants {
     super();
     const {
       tonic,
-      key,
-      mode = "major",
+      key: key2,
+      mode,
       degrees = [0, 2, 4],
       measureLength = 4,
       extractRoots = true,
       transpose: transpose2 = 0,
       output = "chords"
     } = options;
-    this.tonic = key || tonic || "C";
-    this.mode = mode;
+    const keyIsContext = key2 && typeof key2 === "object";
+    this.tonic = tonic || (keyIsContext ? key2.tonic : key2) || "C";
+    this.mode = mode || (keyIsContext ? key2.mode : void 0) || "major";
     this.degrees = degrees;
     this.measureLength = measureLength;
     this.extractRoots = extractRoots;
@@ -3869,6 +3872,13 @@ var Ornament = class _Ornament {
   /**
    * Create a new ornament instance with validation
    * @param {Object} options - Ornament configuration
+   * @param {string} options.type - Ornament type (e.g. 'trill', 'mordent', 'turn').
+   * @param {Object} [options.parameters] - Ornament-specific parameters.
+   * @param {string} [options.tonic] - Tonic for scale-aware pitch selection.
+   * @param {string} [options.mode] - Mode for scale-aware pitch selection.
+   * @param {Object} [options.key] - A `Key` context (from `jm.key(...)`)
+   *   that supplies both `tonic` and `mode` in one shot. Explicit
+   *   `tonic`/`mode` on the options object override the key's values.
    */
   constructor(options) {
     const ornamentDef = ORNAMENT_TYPES[options.type];
@@ -3880,9 +3890,12 @@ var Ornament = class _Ornament {
       ...ornamentDef.defaultParams,
       ...options.parameters
     };
-    if (options.tonic && options.mode) {
-      this.tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(options.tonic);
-      this.scale = this.generateScale(options.tonic, options.mode);
+    const k = options.key && typeof options.key === "object" ? options.key : null;
+    const tonic = options.tonic || (k ? k.tonic : void 0);
+    const mode = options.mode || (k ? k.mode : void 0);
+    if (tonic && mode) {
+      this.tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(tonic);
+      this.scale = this.generateScale(tonic, mode);
     } else {
       this.scale = null;
     }
@@ -4747,6 +4760,62 @@ function strum(track, options = {}) {
   return strummer.generate(track);
 }
 
+// src/algorithms/theory/harmony/Key.js
+var Key = class {
+  /**
+   * @param {string|Object} tonic - Tonic note ('C', 'D#', 'Bb') or an
+   *   options object `{ tonic, mode }` (also accepts `{ key, mode }`).
+   * @param {string} [mode='major'] - Scale mode (ignored if `tonic` is
+   *   an options object).
+   */
+  constructor(tonic, mode) {
+    if (tonic && typeof tonic === "object" && !Array.isArray(tonic)) {
+      this.tonic = tonic.tonic ?? tonic.key ?? "C";
+      this.mode = tonic.mode ?? mode ?? "major";
+    } else {
+      this.tonic = tonic ?? "C";
+      this.mode = mode ?? "major";
+    }
+  }
+  /** Merge this key's tonic/mode with the caller's options (caller wins). */
+  _opts(extra = {}) {
+    return { tonic: this.tonic, mode: this.mode, ...extra };
+  }
+  /** @returns {Scale} */
+  scale(options = {}) {
+    return new Scale(this._opts(options));
+  }
+  /** @returns {Voice} */
+  voice(options = {}) {
+    return new Voice(this._opts(options));
+  }
+  /** @returns {Ornament} */
+  ornament(options = {}) {
+    return new Ornament(this._opts(options));
+  }
+  /** @returns {Progression} */
+  progression(options = {}) {
+    return new Progression(this._opts(options));
+  }
+  /**
+   * Build a chord on a single pitch — wraps `chordify`.
+   * @returns {Array<number>}
+   */
+  chord(pitch, options = {}) {
+    return chordify(pitch, this._opts(options));
+  }
+  /**
+   * Build chords for many pitches — wraps `chordifyMany`.
+   * @returns {Array<Array<number>>}
+   */
+  chords(pitches, options = {}) {
+    return chordifyMany(pitches, this._opts(options));
+  }
+};
+function key(tonic, mode) {
+  return new Key(tonic, mode);
+}
+
 // src/algorithms/theory/harmony/index.js
 var harmony_default = {
   Arpeggiate,
@@ -4756,6 +4825,8 @@ var harmony_default = {
   Ornament,
   Articulation,
   Strum,
+  Key,
+  key,
   arpeggiate,
   chordify,
   chordifyMany,
@@ -4863,7 +4934,7 @@ function normalizeNotes(notes) {
         // Preserve other properties
         ...Object.fromEntries(
           Object.entries(note).filter(
-            ([key]) => !["time", "offset"].includes(key)
+            ([key2]) => !["time", "offset"].includes(key2)
           )
         )
       };
@@ -6046,8 +6117,8 @@ var MusicalIndex = class {
     const metrics2 = other.calculateAll(scale, measureLength);
     let totalSimilarity = 0;
     let count = 0;
-    for (const [key, value1] of Object.entries(metrics1)) {
-      const value2 = metrics2[key];
+    for (const [key2, value1] of Object.entries(metrics1)) {
+      const value2 = metrics2[key2];
       if (typeof value1 === "number" && typeof value2 === "number") {
         const maxVal = Math.max(Math.abs(value1), Math.abs(value2), 1);
         const similarity = 1 - Math.abs(value1 - value2) / maxVal;
@@ -6928,6 +6999,44 @@ var Chain = class {
       currentPositions = this.handleMerging(walks, currentPositions, step, randomFunc);
     }
     return walks;
+  }
+  /**
+   * Generate a single clean walk — no branching, no merging, no null
+   * padding. Convenience for the common case where you just want one
+   * melodic line and don't want to deal with the `[branches]` shape or
+   * filter out nulls.
+   *
+   * Equivalent to forcing `branchingProbability = 0` and
+   * `mergingProbability = 0` for this call only; the configured
+   * probabilities on the instance are restored afterwards.
+   *
+   * @param {number} length - Length of the walk
+   * @param {number} [seed] - Random seed for reproducibility
+   * @returns {Array<number>} A flat array of walk values
+   *
+   * @example
+   * ```js
+   * const chain = new jm.generative.walks.Chain({
+   *   walkRange: [0, 7],
+   *   walkStart: 3,
+   *   walkProbability: [-1, 0, 1],
+   *   roundTo: 0
+   * });
+   * const walk = chain.line(16, 42);  // [3, 4, 4, 3, 2, 3, 4, ...]
+   * ```
+   */
+  line(length, seed) {
+    const prevBranch = this.branchingProbability;
+    const prevMerge = this.mergingProbability;
+    this.branchingProbability = 0;
+    this.mergingProbability = 0;
+    try {
+      const walks = this.generate(length, seed);
+      return (walks[0] || []).filter((v) => v !== null);
+    } finally {
+      this.branchingProbability = prevBranch;
+      this.mergingProbability = prevMerge;
+    }
   }
   /**
    * Generate a single step according to the probability distribution
@@ -10498,7 +10607,7 @@ var MidiToJmon = class _MidiToJmon {
    * @param {string|number} scale - 'major'/'minor' or 0/1 (0=major, 1=minor)
    * @returns {string} Key signature like "C", "G", "Dm"
    */
-  midiKeySignatureToString(key, scale) {
+  midiKeySignatureToString(key2, scale) {
     const isMinor = scale === "minor" || scale === 1 || scale === true;
     const majorKeys = [
       "C",
@@ -10539,11 +10648,11 @@ var MidiToJmon = class _MidiToJmon {
       "Ab"
     ];
     let keyName;
-    if (key >= 0) {
-      const index = Math.min(key, 7);
+    if (key2 >= 0) {
+      const index = Math.min(key2, 7);
       keyName = isMinor ? minorKeys[index] : majorKeys[index];
     } else {
-      const index = Math.min(Math.abs(key), 7);
+      const index = Math.min(Math.abs(key2), 7);
       keyName = isMinor ? minorKeys[8 + index] : majorKeys[8 + index];
     }
     return isMinor ? `${keyName}m` : keyName;
@@ -11346,7 +11455,7 @@ function getDurationType(duration) {
   return "32nd";
 }
 function parseKeySignature(keySignature) {
-  const key = keySignature.replace(/[-_]?(major|minor|m)$/i, "").trim().toUpperCase();
+  const key2 = keySignature.replace(/[-_]?(major|minor|m)$/i, "").trim().toUpperCase();
   const isMinor = /[-_]?(minor|m)$/i.test(keySignature);
   const fifthsMap = {
     "C": 0,
@@ -11366,7 +11475,7 @@ function parseKeySignature(keySignature) {
     "CB": -7
   };
   return {
-    fifths: fifthsMap[key] || 0,
+    fifths: fifthsMap[key2] || 0,
     mode: isMinor ? "minor" : "major"
   };
 }
@@ -11650,7 +11759,7 @@ var master = Object.fromEntries(
 );
 var masterPresetNames = PRESET_NAMES;
 
-// node_modules/.deno/verovio@5.7.0/node_modules/verovio/dist/verovio-module.mjs
+// node_modules/verovio/dist/verovio-module.mjs
 var createVerovioModule = /* @__PURE__ */ (() => {
   return (async function(moduleArg = {}) {
     var moduleRtn;
@@ -12334,9 +12443,9 @@ var createVerovioModule = /* @__PURE__ */ (() => {
       attr.blocks = Math.ceil(attr.size / attr.blksize);
       return attr;
     }, setattr(node, attr) {
-      for (const key of ["mode", "atime", "mtime", "ctime"]) {
-        if (attr[key] != null) {
-          node[key] = attr[key];
+      for (const key2 of ["mode", "atime", "mtime", "ctime"]) {
+        if (attr[key2] != null) {
+          node[key2] = attr[key2];
         }
       }
       if (attr.size !== void 0) {
@@ -13720,9 +13829,9 @@ var createVerovioModule = /* @__PURE__ */ (() => {
       } } });
       var stream_ops = {};
       var keys = Object.keys(node.stream_ops);
-      keys.forEach((key) => {
-        var fn = node.stream_ops[key];
-        stream_ops[key] = (...args) => {
+      keys.forEach((key2) => {
+        var fn = node.stream_ops[key2];
+        stream_ops[key2] = (...args) => {
           FS.forceLoadFile(node);
           return fn(...args);
         };
@@ -14493,7 +14602,7 @@ var createVerovioModule = /* @__PURE__ */ (() => {
 })();
 var verovio_module_default = createVerovioModule;
 
-// node_modules/.deno/verovio@5.7.0/node_modules/verovio/dist/verovio.mjs
+// node_modules/verovio/dist/verovio.mjs
 var createEmscriptenProxy = (VerovioModule) => {
   return new Proxy({}, {
     get: (target, method) => {
@@ -15078,6 +15187,15 @@ var jm = {
   score: score2,
   scoreSVG: scoreSVG2,
   validate: validateJmon,
+  // Key context — set tonic/mode once and produce harmony objects
+  // (Scale, Voice, Ornament, Progression, chord(s)) without repeating
+  // `{tonic, mode}` at every call site.
+  //
+  //   const k = jm.key('C', 'major');
+  //   k.scale().generate({ length: 8 });
+  //   k.voice({ measureLength: 4, output: 'track' }).generate(melody);
+  //   k.ornament({ type: 'trill', parameters: { by: 1 } }).apply(notes, 0);
+  key: (tonic, mode) => algorithms_default.theory.harmony.key(tonic, mode),
   // Environment helpers (isBrowser, hasDisplay, present, ...)
   env: env_exports,
   // Converters
