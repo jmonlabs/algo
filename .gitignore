@@ -82,6 +82,10 @@ out
 .nuxt
 #dist
 
+# notebook-kit build output (userguide chapters) and Pages assembly dir
+userguide/dist
+_site
+
 # Gatsby files
 .cache/
 # Comment in the public line in if your project uses Gatsby and not Next.js
