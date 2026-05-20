@@ -91,7 +91,7 @@ function withTimeout(promise, ms, label) {
 //      browser-side jmon/algo loads from jsDelivr).
 let _bundledToolkitPromise = null;
 
-async function loadBundledToolkit(timeoutMs) {
+function loadBundledToolkit(timeoutMs) {
   if (_bundledToolkitPromise) return _bundledToolkitPromise;
   _bundledToolkitPromise = withTimeout(
     (async () => {

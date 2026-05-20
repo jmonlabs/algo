@@ -63,9 +63,9 @@ function escapeAttr(html) {
  *   Defaults to `https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js`.
  *   Pin to `@v1.1.0` or a commit SHA for a stable version.
  * @param {boolean} [options.autoplay=false] - Start playback immediately
- * @returns {Promise<Object>} MIME bundle: { text/html, text/plain }
+ * @returns {Object} MIME bundle: { text/html, text/plain }
  */
-export async function notebookPlayer(composition, options = {}) {
+export function notebookPlayer(composition, options = {}) {
   const {
     Tone: toneUrl,
     height = 160,
