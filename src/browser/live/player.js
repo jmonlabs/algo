@@ -52,6 +52,24 @@ const trackSynthTags = new Map();
 // Survives synth rebuilds so per-track pan stays sticky across hot swaps.
 const trackPanners = new Map();
 
+// Staging cache for the next pattern's synths. When a pattern arrives that
+// changes a track's synth spec, we build the new synth into staging and start
+// loading its samples in parallel — the active loop keeps playing the old
+// synth while loading proceeds. Once loaded, the swap promotes staging into
+// the active cache so the new pattern doesn't lose its first notes.
+const stagingSynths = new Map();
+const stagingSynthTags = new Map();
+
+// Sequence number so a late-arriving applyPattern doesn't overwrite a newer
+// one. Each applyPattern bumps this; after the async `await` it checks
+// whether it's still the active token before committing.
+let applyToken = 0;
+
+// Maximum time we'll hold a swap waiting for samples. If a CDN fetch hangs,
+// it's better to swap with silent first notes than to leave the user stuck
+// hearing the previous loop forever.
+const SAMPLE_LOAD_TIMEOUT_MS = 8000;
+
 // Last MIDI program / pan sent on each channel, so we only emit a control
 // change when the value actually moves.
 const channelPrograms = new Map();
@@ -117,31 +135,97 @@ function synthSpecTag(spec) {
   return `obj:${JSON.stringify(spec)}`;
 }
 
+function getOrCreatePanner(label) {
+  let panner = trackPanners.get(label);
+  if (!panner) {
+    panner = new Tone.Panner(0).toDestination();
+    trackPanners.set(label, panner);
+  }
+  return panner;
+}
+
+// Build (and connect) a fresh synth for a track using the shared factory.
+// Returns { synth, loaded } — loaded is a promise that resolves when sample
+// data is ready (or immediately for non-Sampler synths).
+function buildTrackSynth(label, spec) {
+  const panner = getOrCreatePanner(label);
+  const { synth } = createTrackSynth({ synth: spec }, Tone);
+  synth.connect(panner);
+  // Tone.Sampler exposes .loaded as a Promise that resolves once all sample
+  // URLs are fetched and decoded. Non-Sampler synths don't have it; treat as
+  // already loaded.
+  const loaded = (synth && typeof synth.loaded?.then === "function")
+    ? synth.loaded
+    : Promise.resolve();
+  return { synth, loaded };
+}
+
 function getSynth(trackLabel, trackSynthSpec) {
   const key = trackLabel || "_default";
   const tag = synthSpecTag(trackSynthSpec);
   if (trackSynthTags.get(key) === tag) {
     return trackSynths.get(key);
   }
-  // Spec changed (or first time) — tear down the old synth, keep the panner
-  // so per-track pan and downstream routing survive the swap.
+  // Fallback path — staging+promote should normally have installed the right
+  // synth before the active session references this spec. If we get here
+  // (spec drift, unstaged track), build inline. Old synth gets disposed; a
+  // brief silence on this track is the trade for not throwing.
   const oldSynth = trackSynths.get(key);
   if (oldSynth && typeof oldSynth.dispose === "function") {
     try { oldSynth.dispose(); } catch (_) {}
   }
-  let panner = trackPanners.get(key);
-  if (!panner) {
-    panner = new Tone.Panner(0).toDestination();
-    trackPanners.set(key, panner);
-  }
-  // Delegate to the shared factory so number → GM Sampler, string →
-  // drumkit/synth-type, object → inline synth — identical to what wav.js and
-  // music-player.js do offline.
-  const { synth } = createTrackSynth({ synth: trackSynthSpec }, Tone);
-  synth.connect(panner);
+  const { synth } = buildTrackSynth(key, trackSynthSpec);
   trackSynths.set(key, synth);
   trackSynthTags.set(key, tag);
   return synth;
+}
+
+// Walk the upcoming pattern's tracks; for any whose synth spec differs from
+// what's currently cached, build the new synth into staging and collect its
+// load promise. Resolves once every staged sampler has finished loading (or
+// the global timeout fires).
+async function prepareStaging(tracks) {
+  disposeStaging();
+  const pending = [];
+  for (const track of (tracks || [])) {
+    const label = track.label || "_default";
+    const tag = synthSpecTag(track.synth);
+    if (trackSynthTags.get(label) === tag) continue; // unchanged — reuse active
+    const { synth, loaded } = buildTrackSynth(label, track.synth);
+    stagingSynths.set(label, synth);
+    stagingSynthTags.set(label, tag);
+    pending.push(loaded);
+  }
+  if (pending.length === 0) return;
+  // Race the load against a timeout so a stuck CDN can't hang the player.
+  const timeout = new Promise((r) => setTimeout(r, SAMPLE_LOAD_TIMEOUT_MS));
+  await Promise.race([Promise.all(pending).catch(() => {}), timeout]);
+}
+
+// Move staging → active. Old active synths get disposed (their panners
+// survive — panner is per-track, not per-synth, so per-track pan persists).
+function promoteStaging() {
+  for (const [label, newSynth] of stagingSynths) {
+    const oldSynth = trackSynths.get(label);
+    trackSynths.set(label, newSynth);
+    trackSynthTags.set(label, stagingSynthTags.get(label));
+    if (oldSynth && oldSynth !== newSynth && typeof oldSynth.dispose === "function") {
+      try { oldSynth.dispose(); } catch (_) {}
+    }
+  }
+  stagingSynths.clear();
+  stagingSynthTags.clear();
+}
+
+// Tear down any unpromoted staging (e.g. a superseded applyPattern).
+function disposeStaging() {
+  for (const [, s] of stagingSynths) {
+    if (typeof s.dispose === "function") {
+      try { s.dispose(); } catch (_) {}
+    }
+  }
+  stagingSynths.clear();
+  stagingSynthTags.clear();
 }
 
 function syncTrackPans() {
@@ -245,6 +329,9 @@ function scheduleIteration(startBeat) {
   const triggerAt = Math.max(startBeat, boundary - LOOKAHEAD_BEATS);
   const boundaryId = Tone.Transport.schedule((time) => {
     if (pendingPattern && pendingMode === "next-loop") {
+      // Staging samplers finished loading before applyPattern returned, so
+      // promotion is just a cache swap here (no waiting).
+      promoteStaging();
       session.setPattern(pendingPattern, true);
       syncTrackPans();
       pendingPattern = null;
@@ -283,6 +370,7 @@ function scheduleBarSwap() {
   pendingBarSwapId = Tone.Transport.schedule(() => {
     pendingBarSwapId = null;
     if (pendingPattern && pendingMode === "next-bar") {
+      promoteStaging();
       session.setPattern(pendingPattern, true);
       syncTrackPans();
       pendingPattern = null;
@@ -294,7 +382,9 @@ function scheduleBarSwap() {
   }, beatsToTicks(triggerAt));
 }
 
-function applyPattern(pattern, mode) {
+async function applyPattern(pattern, mode) {
+  const token = ++applyToken;
+
   if (pattern && typeof pattern.tempo === "number") {
     Tone.Transport.bpm.value = pattern.tempo;
   }
@@ -307,18 +397,31 @@ function applyPattern(pattern, mode) {
   }
   lastPatternSig = sig;
 
+  // Build any new synths into staging and let their samples download. The
+  // currently-playing loop keeps using its existing synths during the wait,
+  // so users hear the old pattern repeat for an extra loop or two rather
+  // than the new pattern starting with silent notes.
+  setStatus("loading…");
+  await prepareStaging(pattern.tracks || []);
+
+  // A newer applyPattern may have arrived while we were loading; in that
+  // case the newer call already disposed our staging, so just bail.
+  if (token !== applyToken) return;
+
   const haveActiveLoop = audioStarted && session.flattenedNotes.length > 0;
   const swapNow = !haveActiveLoop || mode === "immediate";
 
   if (swapNow) {
+    promoteStaging();
     session.setPattern(pattern, true);
     syncTrackPans();
     if (audioStarted) restartScheduling();
+    setStatus(audioStarted ? "playing" : "ready (click to enable audio)");
     return;
   }
 
-  // Even when a swap is deferred, panners may already exist for these track
-  // labels — keep them in sync with whatever is currently in session.tracks.
+  // Panners survive synth rebuilds, so sync pans against whatever's already
+  // in session — even before the new pattern swaps in.
   syncTrackPans();
 
   pendingPattern = pattern;
@@ -329,6 +432,7 @@ function applyPattern(pattern, mode) {
     // Default: take effect at the end of the current loop.
     pendingMode = "next-loop";
   }
+  setStatus(`queued (${pendingMode})`);
 }
 
 async function enableAudio() {
