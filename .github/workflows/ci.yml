@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Existing test suites — these stay green if the library code is sane.
+      - name: Unit tests (music theory)
+        run: node tests/music-theory.test.js
+
+      - name: Unit tests (key context)
+        run: node tests/key-context.test.js
+
+      - name: Unit tests (generative algorithms)
+        run: node tests/generative-algorithms.test.js
+
+      - name: Unit tests (analysis)
+        run: node tests/analysis.test.js
+
+      # Browser-load test — protects the jsDelivr distribution path.
+      # Loads src/index.js the same way `import("https://cdn.jsdelivr.net
+      # /gh/jmonlabs/algo@main/src/index.js")` does in the live REPL, and
+      # asserts that `jm.key`, `jm.theory.harmony.Key`, etc. are wired up.
+      # This is the test that would have caught the "jm.key is not a
+      # function" regression we hit in jmonlabs/live.
+      - name: Install puppeteer
+        run: npm install --no-save puppeteer
+
+      - name: Browser-load test
+        run: node tests/browser-load.test.mjs

@@ -1,0 +1,73 @@
+name: Purge jsDelivr cache
+
+# Why this exists: jsDelivr edge-caches branch-ref URLs
+# (e.g. cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js) for up to
+# ~12 hours by default. Without intervention, a push to main isn't
+# visible to consumers loading via @main until the cache revalidates.
+# That made `jm.key is not a function` keep biting the live REPL even
+# after the fix was on main.
+#
+# We auto-purge the cache for every source file on every push so the
+# @main URL is always fresh within seconds.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "deno.json"
+      - "README.md"
+  # Manual button so we can purge without pushing if we ever need to.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Purge all consumer-facing files from jsDelivr
+        run: |
+          # Public, unauthenticated purge endpoint — same path as
+          # cdn.jsdelivr.net but with the host swapped. Returns JSON
+          # with the status; we don't care about the body, only that
+          # the request landed.
+          set -u
+
+          # Build the list of consumer-importable files. Everything
+          # under src/ is reachable via `import "…@main/src/..."`, plus
+          # the README in case anyone hot-links to it.
+          mapfile -t FILES < <(
+            git ls-files src/ README.md package.json deno.json
+          )
+          echo "Purging ${#FILES[@]} files…"
+
+          purge_one() {
+            local p="$1"
+            local url="https://purge.jsdelivr.net/gh/jmonlabs/algo@main/$p"
+            if curl -fsS --retry 3 --retry-delay 2 --max-time 30 \
+                 "$url" > /dev/null; then
+              echo "  ok  $p"
+            else
+              echo "  ERR $p"
+              echo "$p" >> /tmp/purge-failures
+            fi
+          }
+          export -f purge_one
+
+          # Modest parallelism — jsDelivr's endpoint handles concurrent
+          # requests fine, we don't want this step to take minutes.
+          printf '%s\n' "${FILES[@]}" \
+            | xargs -P 8 -I{} bash -c 'purge_one "$@"' _ {}
+
+          if [ -s /tmp/purge-failures ]; then
+            echo
+            echo "Some purges failed (cache will still revalidate within ~12h):"
+            cat /tmp/purge-failures
+            # Don't fail the run — a missed purge is harmless; jsDelivr
+            # will revalidate against origin on its own schedule.
+          fi
