@@ -5,13 +5,12 @@
     "fmt": "deno fmt",
     "doc": "deno run --allow-read --allow-write scripts/build-docs.js"
   },
-  "nodeModulesDir": true,
+  "nodeModulesDir": "auto",
   "imports": {
     "@tangent.to/ds": "npm:@tangent.to/ds@0.4.5",
     "plotly.js": "npm:plotly.js@2.26.0"
   },
   "compilerOptions": {
-    "allowJs": true,
     "checkJs": false,
     "lib": ["deno.window", "dom", "dom.iterable", "dom.asynciterable"]
   },
