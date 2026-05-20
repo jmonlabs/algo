@@ -723,6 +723,19 @@
             "maximum": 15,
             "description": "Default MIDI channel for this sequence (0-15)."
           },
+          "midiProgram": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127,
+            "description": "General MIDI program (instrument) for this track when routed via midiChannel. Ignored on audio tracks."
+          },
+          "pan": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1,
+            "default": 0,
+            "description": "Stereo position: -1 full left, 0 center, +1 full right. Applies to both audio and MIDI tracks."
+          },
           "synth": {
             "oneOf": [
               {

@@ -373,12 +373,15 @@ export class Corruptor {
 
       if (ghostNotes.length === 0) continue;
 
-      ghostTracks.push({
+      const ghostTrack = {
         label: `${track.label || 'Track'} (Ghost)`,
         notes: ghostNotes,
         midiChannel: track.midiChannel || 0,
         synth: 'Synth' // sustaining oscillator, not the melody's percussive synth
-      });
+      };
+      if (track.midiProgram !== undefined) ghostTrack.midiProgram = track.midiProgram;
+      if (track.pan !== undefined) ghostTrack.pan = track.pan;
+      ghostTracks.push(ghostTrack);
     }
 
     return ghostTracks;

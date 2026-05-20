@@ -151,6 +151,8 @@ export function jmonTimingToSequence(jmonSequence, config = DEFAULT_TIMING_CONFI
  * @param {Object} options - Track creation options
  * @param {string} options.label - Track label
  * @param {number} options.midiChannel - MIDI channel (0-15)
+ * @param {number} [options.midiProgram] - GM program (0-127), omitted if undefined
+ * @param {number} [options.pan] - Stereo position (-1..+1), omitted if undefined
  * @param {Object} options.synth - Synth configuration
  * @param {Object} options.timingConfig - Timing configuration
  * @param {boolean} options.keepNumericDuration - Keep numeric durations (default: true)
@@ -160,20 +162,25 @@ export function notesToTrack(notes, options = {}) {
   const {
     label = 'track',
     midiChannel = 0,
+    midiProgram,
+    pan,
     synth = { type: 'Synth' },
     timingConfig = DEFAULT_TIMING_CONFIG,
     keepNumericDuration = true  // Default to numeric for MIDI consistency
   } = options;
-  
+
   // Convert notes to JMON timing format - always numeric time
   const jmonNotes = sequenceToJMONTiming(notes, timingConfig, keepNumericDuration);
-  
-  return {
+
+  const track = {
     label,
     midiChannel,
     synth,
     notes: jmonNotes
   };
+  if (midiProgram !== undefined) track.midiProgram = midiProgram;
+  if (pan !== undefined) track.pan = pan;
+  return track;
 }
 
 /**

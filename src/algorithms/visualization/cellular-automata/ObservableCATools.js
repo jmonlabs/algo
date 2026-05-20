@@ -612,13 +612,18 @@ export function createJMONTrack(sequence, trackOptions = {}) {
   const {
     label = 'ca-track',
     midiChannel = 0,
+    midiProgram,
+    pan,
     synth = { type: 'Synth' }
   } = trackOptions;
-  
-  return {
+
+  const track = {
     label,
     midiChannel,
     synth,
     notes: sequence
   };
+  if (midiProgram !== undefined) track.midiProgram = midiProgram;
+  if (pan !== undefined) track.pan = pan;
+  return track;
 }

@@ -111,7 +111,7 @@ The `userguide/` folder contains interactive HTML notebooks built with
 - `07-fractals.html` — Cellular automata and fractals
 - `08-genetic.html` — Evolutionary composition
 - `09-corruptor.html` — Mutating compositions
-- `live-coding.html` — Live coding environment
+- `10-live.html` — Live coding with the in-repo REPL (`/live/repl.html`)
 
 ## A minimal example
 
