@@ -10,8 +10,15 @@
  */
 
 import { musicxml as jmonToMusicXML } from "./converters/verovio.js";
-import bundledVerovioFactory from "verovio/wasm";
-import { VerovioToolkit as BundledVerovioToolkit } from "verovio/esm";
+
+// Verovio is intentionally NOT imported statically. We're shipped as ESM
+// source via jsDelivr, where the bare specifiers `verovio/wasm` and
+// `verovio/esm` don't resolve — and we don't want loading `jm` to fail
+// in environments that never call `jm.score()`. The fallback path below
+// uses dynamic import() inside `loadBundledToolkit` so resolution only
+// happens on demand.
+const VEROVIO_CDN_URL =
+  "https://www.verovio.org/javascript/5.6.0/verovio-toolkit-wasm.js";
 
 /**
  * Replace Verovio's fixed pixel `width`/`height` attributes with a
@@ -71,19 +78,45 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-// Verovio is bundled directly via npm imports at the top of this file.
-// esbuild inlines the factory + toolkit class into `dist/jmon.esm.js`,
-// so `jm.score()` works zero-config: no CDN fetch, no `import()` shenanigans,
-// no vite middleware to negotiate with. Cached across calls to avoid
-// re-running WASM init.
+// Fallback toolkit loader used when the caller didn't pass a
+// `toolkit` or `{verovio, VerovioToolkit}` pair. Cached across calls so
+// repeated `jm.score()` invocations don't re-run WASM init.
+//
+// Resolution order, picking the first that succeeds:
+//   1. Dynamic import of the `verovio` npm package (Node/Deno with
+//      node_modules) — gets us the same shape as the original static
+//      `import "verovio/wasm" + "verovio/esm"` pair.
+//   2. Dynamic import of the Verovio CDN bundle — works in browsers
+//      and any runtime that resolves HTTPS module URLs (i.e. all
+//      browser-side jmon/algo loads from jsDelivr).
 let _bundledToolkitPromise = null;
 
 async function loadBundledToolkit(timeoutMs) {
   if (_bundledToolkitPromise) return _bundledToolkitPromise;
   _bundledToolkitPromise = withTimeout(
     (async () => {
-      const VerovioModule = await Promise.resolve(bundledVerovioFactory());
-      return new BundledVerovioToolkit(VerovioModule);
+      // Try the npm package first (works under Node/Deno).
+      try {
+        const wasmMod = await import("verovio/wasm");
+        const esmMod = await import("verovio/esm");
+        const factory = resolveVerovioExport(wasmMod.default ?? wasmMod);
+        const Toolkit = resolveVerovioExport(
+          esmMod.VerovioToolkit ?? esmMod.default ?? esmMod
+        );
+        const VerovioModule = await Promise.resolve(factory());
+        return new Toolkit(VerovioModule);
+      } catch {
+        // Fall through to the CDN bundle.
+      }
+      // CDN bundle (verovio-toolkit-wasm.js exposes `default.toolkit`).
+      const cdn = await import(VEROVIO_CDN_URL);
+      const ToolkitCtor = cdn.default?.toolkit ?? cdn.toolkit;
+      if (typeof ToolkitCtor !== "function") {
+        throw new Error(
+          "Could not locate Verovio toolkit constructor on the CDN bundle"
+        );
+      }
+      return new ToolkitCtor();
     })(),
     timeoutMs,
     "Verovio WASM init"

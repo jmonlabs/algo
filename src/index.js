@@ -28,11 +28,10 @@ import * as audioGraphModule from "./audioGraph/index.js";
 import * as scoreRenderer from "./browser/score-renderer.js";
 import { scoreSVG as pureScoreSVG } from "./score.js";
 import * as env from "./env.js";
-// notebook-player.js uses `import.meta.url` to locate the UMD bundle on
-// disk, which esbuild cannot represent in the UMD output format. We only
-// need it on the headless path, so pull it in via dynamic import below.
+// notebook-player.js is loaded lazily so headless callers don't pay for
+// it up front and browser callers never touch it.
 
-// Lazy-load browser player to avoid JSR analyzing CDN imports
+// Lazy-load browser player
 let createPlayer;
 async function __loadPlayer() {
   if (!createPlayer) {
@@ -42,7 +41,7 @@ async function __loadPlayer() {
   return createPlayer;
 }
 
-// GM instruments helpers (optional); load lazily when needed to avoid top-level await in UMD
+// GM instruments helpers (optional); load lazily on demand.
 let GM_INSTRUMENTS, createGMInstrumentNode, findGMProgramByName, generateSamplerUrls, getPopularInstruments;
 /**
  * Lazy-load GM instrument helpers.
@@ -133,21 +132,14 @@ async function render(jmonObj, options = {}) {
 function play(jmonObj, options = {}) {
   // Headless path (notebook kernel, Deno, Node, anywhere without `document`):
   // return an iframe that embeds the REAL Tone.js player via the
-  // notebookPlayer helper. The iframe inlines the UMD bundle and runs
-  // `jm.play()` in a browser context where `isBrowser()` is true, so the
-  // full music-player.js code executes — preserving all JMON features
-  // (per-track synths, audioGraph, effects, vibrato, glissando, microtuning).
-  //
-  // This function becomes async on this path because we have to read the
-  // UMD bundle off disk. Callers use `await jm.play(...)` either way.
+  // notebookPlayer helper. The iframe loads the jmon/algo ESM source from
+  // jsDelivr and runs `jm.play()` in a browser context where `isBrowser()`
+  // is true, so the full music-player.js code executes — preserving all
+  // JMON features (per-track synths, audioGraph, effects, vibrato,
+  // glissando, microtuning). Callers use `await jm.play(...)` either way.
   if (!env.isBrowser()) {
     return (async () => {
-      // Variable specifier prevents esbuild from statically analyzing this
-      // import when building the UMD bundle — notebook-player.js uses
-      // `import.meta.url` which isn't representable in IIFE output. The
-      // file is only ever loaded in Deno/Node runtimes anyway.
-      const modPath = "./notebook-player.js";
-      const { notebookPlayer } = await import(modPath);
+      const { notebookPlayer } = await import("./notebook-player.js");
       const bundle = await notebookPlayer(jmonObj, options);
       return env.hasDisplay() ? env.displayable(bundle) : bundle;
     })();

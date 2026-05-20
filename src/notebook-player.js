@@ -3,26 +3,33 @@
  *
  * The Jupyter/Observable frontend is a browser page — it has a DOM and can
  * run Tone.js. What it doesn't have is a way to `import` our library from
- * the Deno/Node kernel side. The trick: inline the UMD bundle as a base64
- * data URL inside an iframe's `srcdoc`, point a script tag at the caller-
- * provided Tone URL, and then call `window.jm.default.play(composition,
- * { Tone })`. Inside the iframe `env.isBrowser()` is true, so `jm.play()`
- * takes its **browser path** and spawns the existing `music-player.js` UI
- * — full JMON fidelity preserved: per-track synths, audioGraph, effects,
- * vibrato, tremolo, glissando, microtuning, the works. No MIDI round-trip,
- * no feature loss.
+ * the Deno/Node kernel side. The trick: spawn an iframe whose `srcdoc`
+ * loads Tone.js (from a URL the caller provides) and the jmon/algo ESM
+ * source (from jsDelivr's GitHub mirror), then calls
+ * `jm.play(composition, { Tone })`. Inside the iframe `env.isBrowser()`
+ * is true, so `jm.play()` takes its **browser path** and spawns the full
+ * music-player.js UI — no MIDI round-trip, no feature loss.
+ *
+ * ## Distribution
+ *
+ * jmon/algo is ESM-only and is not published to npm or JSR. The iframe
+ * fetches the library straight from GitHub via jsDelivr:
+ *
+ *   https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js
+ *
+ * Pin to a tag (`@v1.1.0`) or a commit SHA if you need a stable version.
  *
  * ## Decoupling
  *
- * jmon/algo does not ship Tone.js and does not pick a CDN for you. Just
- * like `jm.score({toolkit})` requires you to hand over a Verovio toolkit,
- * `jm.play({Tone})` requires you to hand over Tone:
+ * jmon/algo does not ship Tone.js. Just like `jm.score({toolkit})` requires
+ * you to hand over a Verovio toolkit, `jm.play({Tone})` requires you to
+ * hand over Tone:
  *
  *   - **Browser path:** `Tone` is a live module (e.g. `import * as Tone
- *     from "tone"`). Same as before.
+ *     from "tone"`).
  *   - **Notebook path:** `Tone` is a **URL string** pointing at a Tone.js
- *     UMD script. The iframe's `<script src>` tag loads it in its own
- *     browser context, where it can create an AudioContext.
+ *     script (UMD or ESM). The iframe loads it in its own browser context,
+ *     where it can create an AudioContext.
  *
  * If you don't want to retype the URL every time, alias it:
  *
@@ -30,62 +37,8 @@
  *   await jm.play(composition, { Tone: ToneUrl });
  */
 
-const JMON_CDN_FALLBACK =
-  "https://cdn.jsdelivr.net/npm/@jmon/algo@latest/dist/jmon.umd.js";
-
-let _cachedBundle = null;
-
-/**
- * Read `dist/jmon.umd.js` from disk (Deno or Node) or return null if we
- * can't — the caller will fall back to a CDN URL in that case. Result is
- * cached for the lifetime of the kernel so repeat calls are cheap.
- */
-async function loadLocalUmdBundle() {
-  if (_cachedBundle !== null) return _cachedBundle;
-  const bundleUrl = new URL("../dist/jmon.umd.js", import.meta.url);
-  try {
-    if (typeof Deno !== "undefined" && typeof Deno.readTextFile === "function") {
-      _cachedBundle = await Deno.readTextFile(bundleUrl);
-      return _cachedBundle;
-    }
-    if (typeof process !== "undefined" && process.versions?.node) {
-      const { readFile } = await import("node:fs/promises");
-      _cachedBundle = await readFile(bundleUrl, "utf8");
-      return _cachedBundle;
-    }
-  } catch {
-    // File not readable — caller will fall back to CDN.
-  }
-  _cachedBundle = "";
-  return "";
-}
-
-/**
- * Minimal base64 encoder (handles the UMD bundle's non-ASCII characters if
- * any). Browsers and Deno both have `btoa`, but `btoa` only takes Latin-1.
- * We encode as UTF-8 first.
- */
-function toBase64(str) {
-  if (typeof btoa === "function") {
-    // Encode UTF-8 → binary string → base64, in chunks to avoid stack
-    // overflow on ~400KB inputs.
-    const bytes = new TextEncoder().encode(str);
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode.apply(
-        null,
-        bytes.subarray(i, i + chunkSize),
-      );
-    }
-    return btoa(binary);
-  }
-  // Node fallback
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(str, "utf8").toString("base64");
-  }
-  throw new Error("No base64 encoder available");
-}
+const JMON_CDN_DEFAULT =
+  "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
 
 /** HTML-escape a string for safe inclusion in an attribute value. */
 function escapeAttr(html) {
@@ -97,19 +50,18 @@ function escapeAttr(html) {
 /**
  * Build a notebook-embeddable player. Returns a MIME bundle whose
  * `text/html` content is an iframe that loads Tone.js (from a URL the
- * caller provides) plus the jmon/algo UMD bundle, and spawns the full
- * browser player inside.
+ * caller provides) plus the jmon/algo ESM source (from jsDelivr by
+ * default), and spawns the full browser player inside.
  *
  * @param {Object} composition - The JMON composition
  * @param {Object} options
- * @param {string} options.Tone - **Required.** URL of a Tone.js UMD
- *   script. The iframe loads it via `<script src>` into its own browser
- *   context. Example:
- *   `"https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"`
+ * @param {string} options.Tone - **Required.** URL of a Tone.js script
+ *   (UMD or ESM). The iframe loads it into its own browser context.
+ *   Example: `"https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"`
  * @param {number} [options.height=160] - iframe height in pixels
- * @param {string} [options.bundleUrl] - Override the jmon bundle source.
- *   Defaults to the local `dist/jmon.umd.js` (inlined as a data URL) or
- *   the published jsDelivr bundle if the local file is unreadable.
+ * @param {string} [options.bundleUrl] - Override the jmon ESM source URL.
+ *   Defaults to `https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js`.
+ *   Pin to `@v1.1.0` or a commit SHA for a stable version.
  * @param {boolean} [options.autoplay=false] - Start playback immediately
  * @returns {Promise<Object>} MIME bundle: { text/html, text/plain }
  */
@@ -117,7 +69,7 @@ export async function notebookPlayer(composition, options = {}) {
   const {
     Tone: toneUrl,
     height = 160,
-    bundleUrl: bundleOverride,
+    bundleUrl = JMON_CDN_DEFAULT,
     autoplay = false,
   } = options;
 
@@ -132,19 +84,6 @@ export async function notebookPlayer(composition, options = {}) {
     );
   }
 
-  // Resolve the jmon bundle URL: explicit override > local file > CDN.
-  let jmonSrc;
-  if (bundleOverride) {
-    jmonSrc = bundleOverride;
-  } else {
-    const local = await loadLocalUmdBundle();
-    if (local) {
-      jmonSrc = `data:text/javascript;base64,${toBase64(local)}`;
-    } else {
-      jmonSrc = JMON_CDN_FALLBACK;
-    }
-  }
-
   // Extract options that make sense inside the iframe and drop anything
   // that can't be JSON-serialized (e.g. a Tone instance the caller passed
   // in for a browser use case — the iframe brings its own Tone).
@@ -153,6 +92,9 @@ export async function notebookPlayer(composition, options = {}) {
   });
   const compositionJson = JSON.stringify(composition);
 
+  // The iframe loads Tone.js via a classic <script> tag (Tone's UMD build
+  // is what most CDNs serve), then loads jmon/algo as a real ES module
+  // from jsDelivr and stashes it on `window.__jm` for the bootstrap code.
   const doc =
     `<!DOCTYPE html><html><head><meta charset="utf-8">` +
     `<style>` +
@@ -162,7 +104,10 @@ export async function notebookPlayer(composition, options = {}) {
     `font-size:12px;white-space:pre-wrap}` +
     `</style>` +
     `<script src="${toneUrl}"></script>` +
-    `<script src="${jmonSrc}"></script>` +
+    `<script type="module">` +
+    `import jm from "${bundleUrl}";` +
+    `window.__jm = jm;` +
+    `</script>` +
     `</head><body>` +
     `<div id="root"></div>` +
     `<script>` +
@@ -170,19 +115,16 @@ export async function notebookPlayer(composition, options = {}) {
     `  const composition = ${compositionJson};` +
     `  const options = ${safeOptions};` +
     `  try {` +
-    // Wait up to 5s for Tone and jm to show up (CDN scripts are async).
-    `    const deadline = Date.now() + 5000;` +
-    `    while ((!window.Tone || !window.jm) && Date.now() < deadline) {` +
+    // Wait up to 10s for Tone and jm to show up (CDN scripts are async).
+    `    const deadline = Date.now() + 10000;` +
+    `    while ((!window.Tone || !window.__jm) && Date.now() < deadline) {` +
     `      await new Promise(r => setTimeout(r, 25));` +
     `    }` +
     `    if (!window.Tone) throw new Error("Tone.js failed to load from ${toneUrl}");` +
-    `    if (!window.jm) throw new Error("jmon/algo bundle failed to load");` +
-    // The UMD bundle wraps ESM exports via __toCommonJS, so the default
-    // export sits at `.default`. Fall back to `.jm` (named export) and
-    // then to `window.jm` itself for older bundle shapes.
-    `    const api = window.jm.default || window.jm.jm || window.jm;` +
+    `    if (!window.__jm) throw new Error("jmon/algo ESM failed to load from ${bundleUrl}");` +
+    `    const api = window.__jm;` +
     `    if (!api || typeof api.play !== "function") {` +
-    `      throw new Error("jm.play not found on loaded bundle (keys: " + Object.keys(window.jm).join(",") + ")");` +
+    `      throw new Error("jm.play not found on loaded module");` +
     `    }` +
     `    const player = await api.play(composition, { Tone: window.Tone, ...options });` +
     `    const root = document.getElementById("root");` +

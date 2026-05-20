@@ -2,171 +2,158 @@
 
 JavaScript music composition toolkit for algorithmic and generative music.
 
+## Distribution
+
+`jmon/algo` is **ESM-only** and shipped straight from this GitHub repo via
+[jsDelivr](https://www.jsdelivr.com/). There is no npm package, no JSR
+package, no build step, no `dist/` folder. You import the source
+directly:
+
+```js
+import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+```
+
+Pin to a tag (`@v1.1.0`) or a commit SHA when you need a stable version
+for production work. Use `@main` while iterating.
+
 ## Getting Started
 
-### Node.js
+### Observable Notebook Kit (browser, via vite)
 
-We recommend to run jmon/algo in a Observable Notebook Kit environment with Node.js, which you will need to install on your system Node.js will run the code and will allow to install packages with `npm`.
+1. Make sure Node.js is installed (`node --version`). If not, grab it
+   from [nodejs.org](https://nodejs.org/).
 
-1. Make sure that Node.js is installed on your system
+2. Create a folder for your music project and `cd` into it.
 
-Open a terminal and run the following command:
+3. Install the notebook server:
 
-```
-node --version
-```
+   ```bash
+   npm init -y
+   npm install @observablehq/notebook-kit
+   ```
 
-If the terminal can't find the command, head up to [https://nodejs.org/](https://nodejs.org/) and install fond out how to install Node.js on your system. If a version number appears, kudos.
+4. Create `index.html`:
 
-2. Create a folder and cd 
+   ```html
+   <!doctype html>
+   <notebook>
+     <title>My Composition</title>
 
-Use command lines or your file browser to create a folder for your music project. Copy its path and write `cd ` followed by the path. 
+     <script type="text/markdown">
+       A *markdown* **cell** to annotate your `code`.
 
-```bash
-cd /path/of/my/project
-```
+       The next cell loads the libraries.
+     </script>
 
-3. Install the packages
+     <script type="module" pinned>
+       import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+       import * as Tone from "npm:tone";
+       import verovio from "npm:verovio@4.3.1/wasm";
+       import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
+     </script>
 
-You'll have to initiate your project and install both `@jmon/algo` and `@observablehq/notebook-kit`.
+     <script type="module">
+       const scale = new jm.theory.harmony.Scale({ tonic: "C", mode: "major" })
+         .generate({ start: 60, length: 8 });
 
-```bash
-npm init -y
-npm install @jmon/algo @observablehq/notebook-kit
-```
+       const melody = scale.map((pitch, i) => ({
+         pitch, duration: 1, time: i, velocity: 0.8,
+       }));
 
-4. Create your notebook
+       const comp = { tempo: 120, tracks: [{ label: "Scale", notes: melody }] };
+       display(await jm.score(comp, { verovio, VerovioToolkit }));
+       display(await jm.play(comp, { Tone }));
+     </script>
+   </notebook>
+   ```
 
-Observable Notebook Kit is a wonderful way to start coding in JavaScript. Create a new html, e.g. `index.html`, file with your favorite text editor ([Zed](https://zed.dev/) is light and fast, [VSCode](https://code.visualstudio.com/) is full of features).
+5. Start the dev server:
 
-```bash
-<!doctype html>
-<notebook>
-  <title>My Composition</title>
-  <script type="text/markdown">
-    A *markdown* **cell** to annotate your `code`.
-    
-    The following cell loads libraries.
-  </script>
-  <script type="module" pinned>
-    import jm from "@jmon/algo";
-    import * as Tone from "npm:tone";
-    import verovio from "npm:verovio@4.3.1/wasm";
-    import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
-  </script>
-  <script type="text/markdown">
-    Let's start coding!
-  </script>
-  <script type="module">
-    const melody = jm.theory.harmony.Scale.generate("C", "major").map((p, i) => ({
-      pitch: p, duration: 1, time: i, velocity: 0.8
-    }));
-    const comp = { tempo: 120, tracks: [{ label: "Scale", notes: melody }] };
-    display(await jm.score(comp, { verovio, VerovioToolkit }));
-    display(await jm.play(comp, { Tone }));
-  </script>
-</notebook>
+   ```bash
+   npx notebooks preview --root .
+   ```
 
-```
-
-5. Open your notebook
-
-Start a server with:
-
-```bash
-npx notebooks preview --root .
-```
-
-Servers sounds heavy and complicated, but it's really just allowing you browser to run the files of your local folder. Your terminal will show an unfinished command with a url like http://localhost:5173/. Paste in in a browser and if your notebook is named index.html, it should apear. Else, just head up to http://localhost:5173/my_other_file.html
-
-Each time you update the notebook, your browser updates. Docking the windows helps a lot!
+   Open the URL it prints (usually http://localhost:5173/).
 
 ### Deno
 
-If you prefer deno to Node.js,
+Deno can resolve the jsDelivr URL directly:
 
-1. Create deno.json
+```js
+import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+```
+
+If you prefer a bare specifier, alias it in `deno.json`:
 
 ```json
 {
-  "nodeModulesDir": "auto",
   "imports": {
-    "@jmon/algo": "jsr:@jmon/algo"
+    "@jmon/algo": "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js"
   }
 }
 ```
 
-2. Create you html notebook (same as above)
-
-3. Run the notebook
-
-And run `deno run -A npm:@observablehq/notebook-kit preview --root .`
-
+Then `import jm from "@jmon/algo"` in your code.
 
 ### Userguide
 
-The `userguide/` folder on the repository of this project contains interactive HTML notebooks built with [Observable Notebook Kit](https://observablehq.com/framework/notebook-kit).
-```
+The `userguide/` folder contains interactive HTML notebooks built with
+[Observable Notebook Kit](https://observablehq.com/framework/notebook-kit).
 
-**Available Guides:**
-- `01-getting-started.html` - JMON format basics
-- `02-harmony.html` - Scales, chords, voice leading
-- `03-loops.html` - Polyrhythms and loops
-- `04-minimalism.html` - Process music (additive, subtractive, tintinnabuli)
-- `05-minimalism.html` - Advanced minimalism techniques
-- `06-walks.html` - Random walks and Gaussian processes
-- `07-fractals.html` - Cellular automata and fractals
-- `08-genetic-algorithms.html` - Evolutionary composition
-- `09-microtuning.html` - Microtonality and tuning systems
-- `live-coding.html` - Live coding environment
+**Available guides:**
 
-## The API
+- `01-getting-started.html` — JMON format basics
+- `02-harmony.html` — Scales, chords, voice leading
+- `03-loops.html` — Polyrhythms and loops
+- `04-minimalism.html` — Process music (additive, subtractive, tintinnabuli)
+- `05-sounds.html` — Synths, audio graph, effects
+- `06-walks.html` — Random walks and Gaussian processes
+- `07-fractals.html` — Cellular automata and fractals
+- `08-genetic.html` — Evolutionary composition
+- `09-corruptor.html` — Mutating compositions
+- `live-coding.html` — Live coding environment
 
-A very light example.
+## A minimal example
 
-```javascript
-import jm from "@jmon/algo";
+```js
+import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
 import * as Tone from "tone";
 import verovio from "verovio/wasm";
+import { VerovioToolkit } from "verovio";
 
 const melody = [
   { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
   { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
-  { pitch: 64, duration: 1, time: 2, velocity: 0.8 }
+  { pitch: 64, duration: 1, time: 2, velocity: 0.8 },
 ];
 
 const composition = {
   tempo: 120,
-  tracks: [{ label: 'Melody', notes: melody }]
+  tracks: [{ label: "Melody", notes: melody }],
 };
 
-// Render notation
-const svg = await jm.score(composition, { verovio });
-
-// Play audio
+const svg = await jm.score(composition, { verovio, VerovioToolkit });
 const player = await jm.play(composition, { Tone });
 ```
 
 ## JMON Format
 
-Je JMON format is a music notation as JSON objects:
+The JMON format describes music as JSON objects:
 
-```javascript
+```js
 // A note
 { pitch: 60, duration: 1, time: 0, velocity: 0.8 }
 
 // A track (array of notes)
 const track = [
   { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
-  { pitch: 62, duration: 1, time: 1, velocity: 0.8 }
+  { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
 ];
 
 // A composition
 const composition = {
   tempo: 120,
-  tracks: [
-    { label: 'Melody', notes: track }
-  ]
+  tracks: [{ label: "Melody", notes: track }],
 };
 ```
 
@@ -177,14 +164,15 @@ const composition = {
 - Voice leading and progressions
 - Ornaments and articulations
 - Rhythm generation
+- `jm.key(tonic, mode)` context — set the key once, build Scale/Voice/Ornament/Progression/chord(s) without repeating `{tonic, mode}`
 
 ### Generative (`jm.generative.*`)
-- **Minimalism**: Process-based composition (additive, subtractive, tintinnabuli)
-- **Random Walks**: Markov chains, Brownian motion
+- **Minimalism**: process-based composition (additive, subtractive, tintinnabuli)
+- **Random Walks**: Markov chains, Brownian motion. `Chain.line()` returns a single flat walk when you don't need branches.
 - **Fractals**: Mandelbrot sets, logistic maps
 - **Cellular Automata**: Conway's Game of Life, rule 30/110
-- **Genetic Algorithms**: Evolutionary composition
-- **Gaussian Processes**: Smooth interpolation (requires @tangent.to/ds)
+- **Genetic Algorithms**: evolutionary composition
+- **Gaussian Processes**: smooth interpolation (requires `@tangent.to/ds`)
 
 ### Analysis (`jm.analysis.*`)
 - 11+ musical metrics
@@ -199,11 +187,10 @@ const composition = {
 - SuperCollider
 - ABC notation
 
-## Building
+## Tests
 
 ```bash
-deno task build    # Build ESM and UMD bundles
-deno task test     # Run tests
+deno task test
 ```
 
 ## License
