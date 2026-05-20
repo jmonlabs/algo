@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>jmon/algo — algorithmic music composition</title>
+  <meta name="description" content="Algorithmic music composition library. Static ESM, no build. Distributed via jsDelivr from GitHub.">
+  <link rel="icon" href="https://avatars.githubusercontent.com/u/215883638?s=64&v=4">
+  <style>
+    /* Palette + font mirror algo/live/repl.html so the landing page and the
+       live REPL feel like the same surface. */
+    @font-face {
+      font-family: 'Monaspace Radon';
+      src: url('https://cdn.jsdelivr.net/gh/githubnext/monaspace@v1.101/fonts/webfonts/MonaspaceRadon-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    :root {
+      --bg:        #3D4F42;
+      --surface:   #344038;
+      --border:    #4A5C50;
+      --text:      #E8DDD2;
+      --text-mute: #A89B8E;
+      --accent:    #CB9886;
+      --accent-hi: #D9B5A3;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Monaspace Radon', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 64px 28px 96px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 36px;
+    }
+    header img {
+      width: 56px;
+      height: 56px;
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    h1 {
+      font-size: 26px;
+      letter-spacing: 1px;
+      color: var(--accent);
+      font-weight: 400;
+    }
+    .tagline {
+      color: var(--text-mute);
+      margin-top: 4px;
+      font-size: 13px;
+    }
+    section {
+      margin-top: 36px;
+    }
+    h2 {
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      font-weight: 400;
+    }
+    p { margin-bottom: 12px; }
+    a {
+      color: var(--text);
+      border-bottom: 1px dashed var(--accent);
+      text-decoration: none;
+      padding-bottom: 1px;
+      transition: color 0.1s, border-color 0.1s;
+    }
+    a:hover {
+      color: var(--accent-hi);
+      border-bottom-color: var(--accent-hi);
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    .links li {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+    .links li:last-child { border-bottom: none; }
+    .links a {
+      color: var(--accent);
+      border: none;
+      flex-shrink: 0;
+      min-width: 200px;
+    }
+    .links a:hover { color: var(--accent-hi); }
+    .links span {
+      color: var(--text-mute);
+      font-size: 13px;
+    }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    code { color: var(--accent-hi); }
+    pre code { color: var(--text); }
+    footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--text-mute);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="https://avatars.githubusercontent.com/u/215883638?s=200&v=4" alt="jmonlabs">
+      <div>
+        <h1>jmon / algo</h1>
+        <div class="tagline">algorithmic music composition · static ESM · no build</div>
+      </div>
+    </header>
+
+    <section>
+      <p>
+        A library for generating music from algorithms — scales, walks, fractals,
+        cellular automata, genetic processes — emitting JMON, a JSON format for
+        scores, MIDI, and synthesis. Composed pieces play in the browser, render
+        to notation, or stream out via Web MIDI to a DAW.
+      </p>
+      <p>
+        Distributed as ESM source via jsDelivr from GitHub. No npm install, no
+        bundler, no version dance.
+      </p>
+    </section>
+
+    <section>
+      <h2>Explore</h2>
+      <ul class="links">
+        <li><a href="userguide/">User guide</a> <span>ten interactive chapters, from JMON basics to live coding</span></li>
+        <li><a href="live/repl.html">Live REPL</a> <span>browser-based live coding surface with audio + Web MIDI</span></li>
+        <li><a href="schemas/jmon-schema.json">JMON schema</a> <span>the format spec (JSON Schema)</span></li>
+        <li><a href="https://github.com/jmonlabs/algo">Source on GitHub</a> <span>code, tests, and issues</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Drop-in import</h2>
+      <pre><code>import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+
+const scale = jm.key("C", "major").scale().generate({ start: 60, length: 8 });
+const notes = scale.map((p, i) =&gt; ({
+  pitch: p, time: i * 0.5, duration: "8n", velocity: 0.7
+}));
+
+await jm.play({ tracks: [{ label: "scale", notes }] });</code></pre>
+    </section>
+
+    <footer>
+      jmonlabs · GPL-3.0 · <a href="https://github.com/jmonlabs">github.com/jmonlabs</a>
+    </footer>
+  </main>
+</body>
+</html>
