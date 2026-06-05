@@ -158,3 +158,4 @@ deno.lock
 .DS_Store
 
 .compo/
+CLAUDE.md
