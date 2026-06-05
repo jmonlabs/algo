@@ -17,8 +17,16 @@ import { musicxml as jmonToMusicXML } from "./converters/verovio.js";
 // in environments that never call `jm.score()`. The fallback path below
 // uses dynamic import() inside `loadBundledToolkit` so resolution only
 // happens on demand.
-const VEROVIO_CDN_URL =
-  "https://www.verovio.org/javascript/5.6.0/verovio-toolkit-wasm.js";
+//
+// We load Verovio's ESM build (.mjs), NOT the `verovio-toolkit-wasm.js`
+// bundle. That bundle is UMD: importing it as a module yields an empty
+// namespace (it only assigns `globalThis.verovio`), so `default.toolkit`
+// is undefined. The .mjs entry points export the module factory and the
+// `VerovioToolkit` class directly, which is what we need.
+const VEROVIO_ESM_MODULE_URL =
+  "https://cdn.jsdelivr.net/npm/verovio@5.6.0/dist/verovio-module.mjs";
+const VEROVIO_ESM_TOOLKIT_URL =
+  "https://cdn.jsdelivr.net/npm/verovio@5.6.0/dist/verovio.mjs";
 
 /**
  * Replace Verovio's fixed pixel `width`/`height` attributes with a
@@ -66,9 +74,10 @@ function withTimeout(promise, ms, label) {
       reject(new Error(
         `${label} timed out after ${ms}ms. This usually means Verovio's ` +
         `WASM loader could not fetch its .wasm binary — common under Deno's ` +
-        `npm: compat layer. Try the pre-built CDN bundle instead: ` +
-        `const v = await import("https://www.verovio.org/javascript/5.6.0/verovio-toolkit-wasm.js"); ` +
-        `jm.score(comp, { toolkit: new v.default.toolkit() })`
+        `npm: compat layer. Try passing Verovio's ESM build explicitly: ` +
+        `const verovio = (await import("https://cdn.jsdelivr.net/npm/verovio@5.6.0/dist/verovio-module.mjs")).default; ` +
+        `const { VerovioToolkit } = await import("https://cdn.jsdelivr.net/npm/verovio@5.6.0/dist/verovio.mjs"); ` +
+        `jm.score(comp, { verovio, VerovioToolkit })`
       ));
     }, ms);
   });
@@ -106,17 +115,19 @@ function loadBundledToolkit(timeoutMs) {
         const VerovioModule = await Promise.resolve(factory());
         return new Toolkit(VerovioModule);
       } catch {
-        // Fall through to the CDN bundle.
+        // Fall through to the CDN ESM build.
       }
-      // CDN bundle (verovio-toolkit-wasm.js exposes `default.toolkit`).
-      const cdn = await import(VEROVIO_CDN_URL);
-      const ToolkitCtor = cdn.default?.toolkit ?? cdn.toolkit;
-      if (typeof ToolkitCtor !== "function") {
-        throw new Error(
-          "Could not locate Verovio toolkit constructor on the CDN bundle"
-        );
-      }
-      return new ToolkitCtor();
+      // Browser / HTTPS-module runtimes (incl. jsDelivr-loaded jmon/algo):
+      // load Verovio's ESM build from a CDN. Same shape as the npm path —
+      // a module factory plus the VerovioToolkit class.
+      const wasmMod = await import(VEROVIO_ESM_MODULE_URL);
+      const esmMod = await import(VEROVIO_ESM_TOOLKIT_URL);
+      const factory = resolveVerovioExport(wasmMod.default ?? wasmMod);
+      const Toolkit = resolveVerovioExport(
+        esmMod.VerovioToolkit ?? esmMod.default ?? esmMod
+      );
+      const VerovioModule = await Promise.resolve(factory());
+      return new Toolkit(VerovioModule);
     })(),
     timeoutMs,
     "Verovio WASM init"
@@ -162,8 +173,8 @@ async function resolveToolkit({ toolkit, verovio, VerovioToolkit, timeoutMs }) {
  * @param {Function|Object} [options.VerovioToolkit] - VerovioToolkit class
  *   (e.g. `import { VerovioToolkit } from "npm:verovio@5.6.0"`)
  * @param {Object} [options.toolkit] - Pre-initialized VerovioToolkit instance.
- *   Recommended for Deno/notebook kernels — obtain via the CDN bundle at
- *   https://www.verovio.org/javascript/5.6.0/verovio-toolkit-wasm.js
+ *   Rarely needed: when omitted, Verovio's ESM build is auto-loaded from a
+ *   CDN (verovio@5.6.0 dist/verovio-module.mjs + dist/verovio.mjs).
  * @param {number} [options.width=2100] - Page width in Verovio units
  * @param {number} [options.scale=60] - Scale factor for rendering
  * @param {string} [options.breaks='auto'] - Verovio breaks option ('auto',
