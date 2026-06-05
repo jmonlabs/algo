@@ -343,6 +343,110 @@ export function transpose(notes, semitones) {
 }
 
 /**
+ * Sprinkle expressive bend and vibrato articulations onto "long unique" notes
+ * in a track. A note qualifies when:
+ *   - its `pitch` is a single MIDI number (chords are skipped);
+ *   - its `duration` is at least `minDuration` beats;
+ *   - no other note within ±`uniqueWindow` beats shares the same pitch.
+ *
+ * For each qualifying note, two independent rolls are performed: one for
+ * bend (probability `bendProb`) and one for vibrato (probability
+ * `vibratoProb`). Both may apply to the same note. Parameters (bend amount,
+ * vibrato rate/depth) are drawn from the given ranges using a seeded RNG so
+ * the output is reproducible.
+ *
+ * Mutates the notes in place (pushes onto each note's `articulations` array,
+ * creating it if absent) and returns the same array for chaining.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {Object} [options]
+ * @param {number} [options.seed=0] - RNG seed
+ * @param {number} [options.bendProb=0.15]
+ * @param {number} [options.vibratoProb=0.25]
+ * @param {number} [options.minDuration=1] - Minimum duration in beats
+ * @param {number} [options.uniqueWindow=2] - Uniqueness window in beats
+ * @param {number} [options.bendCentsMin=50]
+ * @param {number} [options.bendCentsMax=200]
+ * @param {number} [options.bendReturnProb=0.4] - Probability that a bend
+ *   returns to the original pitch before release
+ * @param {number} [options.vibratoRateMin=4] - Hz
+ * @param {number} [options.vibratoRateMax=8]
+ * @param {number} [options.vibratoDepthMin=20] - cents
+ * @param {number} [options.vibratoDepthMax=50]
+ * @returns {Array} The same notes array (mutated).
+ */
+export function expressivize(notes, options = {}) {
+  const {
+    seed = 0,
+    bendProb = 0.15,
+    vibratoProb = 0.25,
+    minDuration = 1,
+    uniqueWindow = 2,
+    bendCentsMin = 50,
+    bendCentsMax = 200,
+    bendReturnProb = 0.4,
+    vibratoRateMin = 4,
+    vibratoRateMax = 8,
+    vibratoDepthMin = 20,
+    vibratoDepthMax = 50,
+  } = options;
+
+  // Mulberry32 — same deterministic PRNG used by Progression.smooth
+  let s = seed >>> 0;
+  const rng = () => {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  for (let i = 0; i < notes.length; i++) {
+    const n = notes[i];
+    if (Array.isArray(n.pitch)) continue;
+    if (typeof n.pitch !== "number") continue;
+    if ((n.duration || 0) < minDuration) continue;
+
+    // Uniqueness in pitch within ±uniqueWindow beats
+    let unique = true;
+    for (let j = 0; j < notes.length; j++) {
+      if (j === i) continue;
+      const m = notes[j];
+      if (Array.isArray(m.pitch) || typeof m.pitch !== "number") continue;
+      if (m.pitch !== n.pitch) continue;
+      if (Math.abs((m.time || 0) - (n.time || 0)) <= uniqueWindow) {
+        unique = false;
+        break;
+      }
+    }
+    if (!unique) continue;
+
+    if (rng() < bendProb) {
+      const sign = rng() < 0.5 ? -1 : 1;
+      const amount = sign * Math.round(
+        bendCentsMin + rng() * (bendCentsMax - bendCentsMin),
+      );
+      const returnToOriginal = rng() < bendReturnProb;
+      if (!n.articulations) n.articulations = [];
+      n.articulations.push({ type: "bend", amount, returnToOriginal });
+    }
+
+    if (rng() < vibratoProb) {
+      const rate = Math.round(
+        (vibratoRateMin + rng() * (vibratoRateMax - vibratoRateMin)) * 10,
+      ) / 10;
+      const depth = Math.round(
+        vibratoDepthMin + rng() * (vibratoDepthMax - vibratoDepthMin),
+      );
+      if (!n.articulations) n.articulations = [];
+      n.articulations.push({ type: "vibrato", rate, depth });
+    }
+  }
+
+  return notes;
+}
+
+/**
  * Clip a note sequence to a maximum time. Notes starting after `maxTime`
  * are dropped; notes overlapping the boundary have their duration trimmed.
  * @param {Array} notes - JMON notes (numeric `time` field)

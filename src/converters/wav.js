@@ -202,6 +202,9 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 				const glissando = noteMods.find(
 					(m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
 				);
+				const bend = noteMods.find(
+					(m) => m.type === "pitch" && m.subtype === "bend"
+				);
 
 				const mt = note.microtuning || 0;
 
@@ -239,6 +242,28 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 							glissSynth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
 							glissSynth.triggerRelease(time + noteDuration);
 						}
+					} else if (bend && synth.detune) {
+						// Bend : detune ramps from baseline to `amount` cents
+						// over a fast attack (~30% of note, capped 0.25s), then
+						// holds or returns. Reset slightly after release so
+						// subsequent notes start clean.
+						const microtuningCents = mt * 100;
+						const startDetune = microtuningCents;
+						const peakDetune = microtuningCents + bend.amount;
+						const rampTime = Math.min(0.25, noteDuration * 0.3);
+						const playNote = mt
+							? Tone.Frequency(note.pitch + mt, "midi").toFrequency()
+							: noteName;
+						synth.detune.cancelScheduledValues(time);
+						synth.detune.setValueAtTime(startDetune, time);
+						synth.detune.linearRampToValueAtTime(peakDetune, time + rampTime);
+						if (bend.returnToOriginal) {
+							synth.detune.linearRampToValueAtTime(startDetune, time + noteDuration);
+						} else {
+							synth.detune.setValueAtTime(peakDetune, time + noteDuration);
+							synth.detune.setValueAtTime(startDetune, time + noteDuration + 0.05);
+						}
+						synth.triggerAttackRelease(playNote, noteDuration, time, note.velocity || 0.8);
 					} else {
 						// Apply microtuning by converting to frequency
 						const playNote = mt

@@ -40,7 +40,7 @@
     }
   },
   "dependencies": {
-    "@observablehq/notebook-kit": "^1.5.2",
+    "@observablehq/notebook-kit": "^1.9.1",
     "verovio": "^5.6.0"
   }
 }

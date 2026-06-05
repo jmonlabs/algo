@@ -192,6 +192,7 @@ export function compilePerformanceTrack(track, options = {}) {
             subtype: "bend",
             index: i,
             amount,
+            returnToOriginal: !!art.returnToOriginal,
             start: onset,
             end,
             curve: art.curve || "linear",

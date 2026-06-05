@@ -1,6 +1,6 @@
 import { tonejs } from "../converters/tonejs.js";
 import { compileEvents } from "../algorithms/audio/index.js";
-import { SYNTHESIZER_TYPES } from "../constants/audio-effects.js";
+import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
 import { normalizeAudioGraph } from "../utils/normalize.js";
 import { createTrackSynth, resolveConnectTarget } from "./synth-factory.js";
 
@@ -218,12 +218,11 @@ export function createPlayer(composition, options = {}) {
     // Dispose previous audio objects
     disposeAudio();
 
-    // Master chain
-    const masterLimiter = new ToneLib.Limiter(-3).toDestination();
-    const numTracks = tracks.length || 1;
-    const gainLevel = 0.7 / Math.sqrt(numTracks);
-    masterGain = new ToneLib.Gain(gainLevel).connect(masterLimiter);
-    activeSynths.push(masterLimiter, masterGain);
+    // No master chain added by the player — the live path mirrors the WAV
+    // exactly. Tracks/audioGraph nodes route to Tone.Destination through the
+    // same rules as wav.js. Users wanting limiting or gain reduction should
+    // add the relevant nodes to their audioGraph.
+    masterGain = ToneLib.Destination;
 
     // Normalize audioGraph format
     normalizeAudioGraph(composition);
@@ -233,7 +232,7 @@ export function createPlayer(composition, options = {}) {
     if (composition.audioGraph && Array.isArray(composition.audioGraph)) {
       composition.audioGraph.forEach(({ id, type, options: opts = {} }) => {
         if (!id || !type) return;
-        if (type === 'Destination') { graphNodes[id] = masterGain; return; }
+        if (type === 'Destination') { graphNodes[id] = ToneLib.Destination; return; }
         try {
           if (SYNTHESIZER_TYPES.includes(type) || ALL_EFFECTS.includes(type)) {
             graphNodes[id] = new ToneLib[type](opts);
@@ -245,12 +244,16 @@ export function createPlayer(composition, options = {}) {
       });
 
       composition.audioGraph.forEach(({ id, target }) => {
-        if (!id || !graphNodes[id] || graphNodes[id] === masterGain) return;
+        if (!id || !graphNodes[id] || graphNodes[id] === ToneLib.Destination) return;
         const node = graphNodes[id];
         if (target && graphNodes[target]) {
-          node.connect(graphNodes[target] === masterGain ? masterGain : graphNodes[target]);
+          if (graphNodes[target] === ToneLib.Destination) {
+            node.toDestination();
+          } else {
+            node.connect(graphNodes[target]);
+          }
         } else {
-          node.connect(masterGain);
+          node.toDestination();
         }
       });
     }
@@ -385,6 +388,9 @@ export function createPlayer(composition, options = {}) {
         const glissando = mods.find(
           (m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
         );
+        const bend = mods.find(
+          (m) => m.type === "pitch" && m.subtype === "bend"
+        );
 
         // Handle chords
         if (Array.isArray(note.pitch)) {
@@ -437,6 +443,32 @@ export function createPlayer(composition, options = {}) {
               glissSynth.triggerRelease(t + duration);
             }, time));
           }
+        } else if (bend && synth.detune) {
+          // Bend : detune ramps from baseline to amount cents over a fast
+          // attack (~30% of note, capped 0.25s), holds, then optionally
+          // returns to baseline by note end. Detune is reset slightly after
+          // note end so subsequent unrelated notes start clean.
+          const microtuningCents = (note.microtuning || 0) * 100;
+          const startDetune = microtuningCents;
+          const peakDetune = microtuningCents + bend.amount;
+          const rampTime = Math.min(0.25, duration * 0.3);
+          const playNote = note.microtuning
+            ? ToneLib.Frequency(note.pitch + note.microtuning, "midi").toFrequency()
+            : noteName;
+
+          scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+            synth.detune.cancelScheduledValues(t);
+            synth.detune.setValueAtTime(startDetune, t);
+            synth.detune.linearRampToValueAtTime(peakDetune, t + rampTime);
+            if (bend.returnToOriginal) {
+              synth.detune.linearRampToValueAtTime(startDetune, t + duration);
+            } else {
+              // Hold at peak, then reset shortly after release.
+              synth.detune.setValueAtTime(peakDetune, t + duration);
+              synth.detune.setValueAtTime(startDetune, t + duration + 0.05);
+            }
+            synth.triggerAttackRelease(playNote, duration, t, velocity);
+          }, time));
         } else {
           // Normal note — apply microtuning by converting to frequency
           const playNote = note.microtuning

@@ -1,421 +1,582 @@
 <!doctype html>
 <notebook>
-  <title>2. Harmony</title>
-
-  <script type="text/markdown">
-# 2. Harmony
-
-This chapter covers the harmonic capabilities of jmon/algo:
-- Scales and modes
-- Chords and voicing
-- Ornaments
-- Voice leading
-- Chord progressions
-  </script>
-
-  <script type="module" pinned>
-import jm from "../src/index.js";
-import * as Tone from "npm:tone";
-import verovio from "npm:verovio@4.3.1/wasm";
-import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
-  </script>
-
-  <script type="text/markdown">
-## 1. Scales
-
-Scales are the foundation of melody and harmony. The `Scale` class generates scale patterns in various modes.
-  </script>
-
-  <script type="module" pinned>
-// Generate C major scale
-const cMajor = new jm.theory.harmony.Scale({tonic: "C", mode: "major"});
-const cMajorNotes = cMajor.generate({ start: 60, length: 8 });
-
-display("C Major scale (C4 to C5):");
-display(cMajorNotes);
-display(`Contains C4 (60): ${cMajorNotes.includes(60)}`);
-display(`Contains G4 (67): ${cMajorNotes.includes(67)}`);
-  </script>
-
-  <script type="text/markdown">
-### Different modes
-
-Modes provide different tonal colors to your music:
-  </script>
-
-  <script type="module" pinned>
-// Different modes
-const dDorian = new jm.theory.harmony.Scale({tonic: "D", mode: "dorian"});
-const dDorianNotes = dDorian.generate({ start: 62, length: 7 });
-
-const cPentatonic = new jm.theory.harmony.Scale({tonic: "C", mode: "major pentatonic"});
-const cPentatonicNotes = cPentatonic.generate({ start: 60, length: 5 });
-
-display({
-  "D Dorian": dDorianNotes,
-  "C Pentatonic (5 notes)": cPentatonicNotes
-});
-  </script>
-
-  <script type="text/markdown">
-### Converting to JMON track
-
-Let's convert a scale to a playable JMON track:
-  </script>
-
-  <script type="module" pinned>
-const cMajorTrack = cMajorNotes.map((pitch, i) => ({
-  pitch,
-  duration: 1,
-  time: i,
-  velocity: 0.8
-}));
-
-const cMajorPiece = {
-  title: "C Major Scale",
-  tempo: 120,
-  tracks: [{ notes: cMajorTrack }]
-};
-
-display(await jm.score(cMajorPiece, { verovio, VerovioToolkit }));
-display(await jm.play(cMajorPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-## 2. Chords
-
-In JMON, a chord is represented as an array in the pitch field. This allows multiple pitches to sound simultaneously.
-  </script>
-
-  <script type="module" pinned>
-// C Major chord (C, E, G)
-const cMajorChord = {
-  pitch: [60, 64, 67],
-  duration: 2,
-  time: 0,
-  velocity: 0.8
-};
-
-const chordPiece = {
-  title: "C Major Chord",
-  tempo: 120,
-  tracks: [{ notes: [cMajorChord] }]
-};
-
-display(cMajorChord);
-display(await jm.score(chordPiece, { verovio, VerovioToolkit }));
-display(await jm.play(chordPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-## 3. Key context — say `{tonic, mode}` once
-
-When several harmony classes share the same key, repeating `{tonic: 'C', mode: 'major'}` at every constructor gets noisy. `jm.key(tonic, mode)` returns a small **key context** that pre-applies tonic and mode to `Scale`, `Voice`, `Ornament`, `Progression`, and `chord(s)`. You can still override any field per-call.
-
-```js
-const k = jm.key("C", "major");
-
-k.scale().generate({ length: 8 });                       // C major scale
-k.voice({ measureLength: 4, output: "track" });          // C-major voice
-k.ornament({ type: "trill", parameters: { by: 1 } });    // scale-aware trill
-k.progression().generate(["I", "IV", "V", "I"]);         // C-major progression
-k.chord(60);                                             // [60, 64, 67]
-k.chords([60, 62, 64]);                                  // three chords
-```
-
-The constructors still accept `{tonic, mode}` directly (no breaking change) — `jm.key()` is purely a call-site convenience. The examples below use it where it makes the snippet shorter.
-
-## 4. Ornaments
-
-Ornaments are decorative embellishments that add expression and complexity to melodies. The `Ornament` class provides various ornament types.
-
-### Test notes
-
-We'll use these simple notes to demonstrate each ornament type:
-  </script>
-
-  <script type="module" pinned>
-const testNotes = [
-  { pitch: 60, duration: 2, time: 0, velocity: 0.8 },
-  { pitch: 64, duration: 2, time: 2, velocity: 0.8 },
-  { pitch: 67, duration: 2, time: 4, velocity: 0.8 }
-];
-
-// One key context, reused by every ornament/voice/progression that needs it below.
-const cKey = jm.key("C", "major");
-
-display(testNotes);
-  </script>
-
-  <script type="text/markdown">
-### 4.1 Grace note (acciaccatura)
-
-A grace note is a quick ornamental note played just before the main note.
-  </script>
-
-  <script type="module" pinned>
-const graceNoteOrnament = new jm.theory.harmony.Ornament({
-  type: 'grace_note',
-  parameters: {
-    graceNoteType: 'acciaccatura',
-    gracePitches: [72]  // C5
-  }
-});
-const withGraceNote = graceNoteOrnament.apply([...testNotes], 0);
-
-display(`Original: ${testNotes.length} notes`);
-display(`With grace note: ${withGraceNote.length} notes`);
-display(withGraceNote);
-
-const graceNotePiece = {
-  title: "Grace Note Example",
-  tempo: 120,
-  tracks: [{ notes: withGraceNote }]
-};
-display(await jm.play(graceNotePiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-### 4.2 Trill
-
-A trill rapidly alternates between the main note and an adjacent note.
-  </script>
-
-  <script type="module" pinned>
-// Compare with the explicit form:
-//   new jm.theory.harmony.Ornament({ type:'trill', tonic:'C', mode:'major', parameters:{...} })
-// The key context drops the tonic/mode boilerplate.
-const trillOrnament = cKey.ornament({
-  type: 'trill',
-  parameters: {
-    by: 2,           // Trill to note 2 steps up
-    trillRate: 0.25  // 16th notes
-  }
-});
-const withTrill = trillOrnament.apply([...testNotes], 0);
-
-display(`Original: 1 note (duration 2)`);
-display(`With trill: ${withTrill.length} notes (alternating)`);
-display(`Trill pitches: ${withTrill.map(n => n.pitch)}`);
-
-const trillPiece = {
-  title: "Trill Example",
-  tempo: 120,
-  tracks: [{ notes: withTrill }]
-};
-display(await jm.play(trillPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-### 4.3 Mordent
-
-A mordent is a quick alternation with an adjacent note and back.
-  </script>
-
-  <script type="module" pinned>
-const mordentOrnament = cKey.ornament({
-  type: 'mordent',
-  parameters: {
-    by: -1  // Mordent down one step
-  }
-});
-const withMordent = mordentOrnament.apply([...testNotes], 0);
-
-display(`With mordent: ${withMordent.length} notes (quick alternation)`);
-display(`Pattern: ${withMordent.map(n => n.pitch)}`);
-
-const mordentPiece = {
-  title: "Mordent Example",
-  tempo: 120,
-  tracks: [{ notes: withMordent }]
-};
-display(await jm.play(mordentPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-### 4.4 Turn
-
-A turn ornament creates a four-note pattern around the main note.
-  </script>
-
-  <script type="module" pinned>
-const turnOrnament = cKey.ornament({ type: 'turn' });
-const withTurn = turnOrnament.apply([...testNotes], 0);
-
-display(`With turn: ${withTurn.length} notes (4-note pattern)`);
-display(`Turn pattern: ${withTurn.map(n => n.pitch)}`);
-
-const turnPiece = {
-  title: "Turn Example",
-  tempo: 120,
-  tracks: [{ notes: withTurn }]
-};
-display(await jm.play(turnPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-### 4.5 Arpeggio
-
-An arpeggio breaks a chord into a sequence of individual notes.
-  </script>
-
-  <script type="module" pinned>
-const arpeggioOrnament = cKey.ornament({
-  type: 'arpeggio',
-  parameters: {
-    arpeggioDegrees: [0, 2, 4, 2],  // Triad up and down
-    direction: 'up'
-  }
-});
-const withArpeggio = arpeggioOrnament.apply([...testNotes], 0);
-
-display(`With arpeggio: ${withArpeggio.length} notes`);
-display(`Arpeggio pattern: ${withArpeggio.map(n => n.pitch)}`);
-
-const arpeggioPiece = {
-  title: "Arpeggio Example",
-  tempo: 120,
-  tracks: [{ notes: withArpeggio }]
-};
-display(await jm.play(arpeggioPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-## 5. Voice leading
-
-The `Voice` class helps create harmonic accompaniment from melodies by generating chords at measure boundaries.
-  </script>
-
-  <script type="module" pinned>
-// Simple melody
-const melody = [
-  { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
-  { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
-  { pitch: 64, duration: 1, time: 2, velocity: 0.8 },
-  { pitch: 65, duration: 1, time: 3, velocity: 0.8 }
-];
-
-// Reuse the C major context from above — no need to repeat tonic/mode.
-const voice = cKey.voice({
-  measureLength: 4,
-  output: 'track'
-});
-
-const chords = voice.generate(melody);
-
-display("Original melody pitches:", melody.map(n => n.pitch));
-display("Generated chords:", chords);
-
-const harmonizedPiece = {
-  title: "Voice Leading Example",
-  tempo: 120,
-  keySignature: "C-major",
-  tracks: [
-    { notes: melody, clef: "treble" },
-    { notes: chords, clef: "bass" }
-  ]
-};
-
-display(await jm.score(harmonizedPiece, { verovio, VerovioToolkit }));
-display(await jm.play(harmonizedPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-## 6. Chord progressions
-
-Generate random chord progressions using the circle of fifths or other intervallic relationships. You can also pass roman numerals (`['I', 'IV', 'V', 'I']`) for diatonic progressions.
-  </script>
-
-  <script type="module" pinned>
-// Generate a progression on the circle of fifths.
-// `radius: [major, minor, diminished]` controls how many candidates of
-// each quality the progression draws from.
-const progression = cKey.progression({
-  circleOf: 'P5',
-  type: 'chords',
-  radius: [3, 3, 1]
-});
-const chordProgression = progression.generate(8, 5); // 8 chords, seed 5
-
-display(`Generated ${chordProgression.length} chords`);
-display("First two chords:", chordProgression.slice(0, 2));
-
-// Convert to JMON track
-const progressionTrack = chordProgression.map((chord, i) => ({
-  pitch: chord,
-  duration: 1,
-  time: i,
-  velocity: 0.7
-}));
-
-const progressionPiece = {
-  title: "Chord Progression (Circle of Fifths)",
-  tempo: 100,
-  tracks: [{ notes: progressionTrack }]
-};
-
-display(await jm.score(progressionPiece, { verovio, VerovioToolkit }));
-display(await jm.play(progressionPiece, { Tone }));
-  </script>
-
-  <script type="text/markdown">
-## 7. Complete example: Twinkle with harmony
-
-Let's put it all together by adding harmony and ornaments to "Twinkle Twinkle Little Star". One `jm.key()` call covers both the voicing and the trill.
-  </script>
-
-  <script type="module" pinned>
-// Original melody
-const twinkle = [
-  { pitch: 60, duration: 1, time: 0, velocity: 0.8 },   // C
-  { pitch: 60, duration: 1, time: 1, velocity: 0.8 },   // C
-  { pitch: 67, duration: 1, time: 2, velocity: 0.8 },   // G
-  { pitch: 67, duration: 1, time: 3, velocity: 0.8 },   // G
-  { pitch: 69, duration: 1, time: 4, velocity: 0.8 },   // A
-  { pitch: 69, duration: 1, time: 5, velocity: 0.8 },   // A
-  { pitch: 67, duration: 2, time: 6, velocity: 0.8 },   // G (long note)
-  { pitch: 65, duration: 1, time: 8, velocity: 0.8 },   // F
-  { pitch: 65, duration: 1, time: 9, velocity: 0.8 },   // F
-  { pitch: 64, duration: 1, time: 10, velocity: 0.8 },  // E
-  { pitch: 64, duration: 1, time: 11, velocity: 0.8 },  // E
-  { pitch: 62, duration: 1, time: 12, velocity: 0.8 },  // D
-  { pitch: 62, duration: 1, time: 13, velocity: 0.8 },  // D
-  { pitch: 60, duration: 2, time: 14, velocity: 0.8 }   // C
-];
-
-// Set the key once — voicing and ornament both pick it up.
-const twinkleKey = jm.key("C", "major");
-
-const twinkleChords = twinkleKey
-  .voice({ measureLength: 4, output: 'track' })
-  .generate(twinkle)
-  .map(note => ({ ...note, velocity: 0.5 }));
-
-// Add trill to the long note (index 6)
-const ornamentedTwinkle = twinkleKey
-  .ornament({ type: 'trill', parameters: { by: 1, trillRate: 0.25 } })
-  .apply(twinkle, 6);
-
-// Create complete composition
-const twinkleComplete = {
-  title: 'Twinkle Twinkle Little Star (with harmony)',
-  tempo: 120,
-  keySignature: 'C-major',
-  tracks: [
-    {
-      label: 'Melody with Trill',
-      notes: ornamentedTwinkle
-    },
-    {
-      label: 'Chords',
-      notes: twinkleChords
-    }
-  ]
-};
-
-display(await jm.score(twinkleComplete, { verovio, VerovioToolkit }));
-display(await jm.play(twinkleComplete, { Tone }));
-  </script>
-
-
+    <title>2. Harmony</title>
+
+    <script type="text/markdown">
+        # 2. Harmony
+
+        This chapter covers the harmonic capabilities of jmon/algo:
+
+        - Scales and modes
+        - Chords and voicing
+        - Ornaments
+        - Voice leading
+        - Chord progressions
+    </script>
+
+    <script type="module" pinned>
+        import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+        import * as Tone from "npm:tone";
+        import verovio from "npm:verovio@4.3.1/wasm";
+        import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
+    </script>
+
+    <script type="text/markdown">
+        ## 1. Scales
+
+        Scales are the foundation of melody and harmony. The `Scale` class generates scale patterns in various modes.
+    </script>
+
+    <script type="module" pinned>
+        // Generate C major scale
+        const cMajor = new jm.theory.harmony.Scale({
+            tonic: "C",
+            mode: "major",
+        });
+        const cMajorNotes = cMajor.generate({ start: 60, length: 8 });
+
+        display("C Major scale (C4 to C5):");
+        display(cMajorNotes);
+        display(`Contains C4 (60): ${cMajorNotes.includes(60)}`);
+        display(`Contains G4 (67): ${cMajorNotes.includes(67)}`);
+    </script>
+
+    <script type="text/markdown">
+        ### Different modes
+
+        Modes provide different tonal colors to your music:
+    </script>
+
+    <script type="module" pinned>
+        // Different modes
+        const dDorian = new jm.theory.harmony.Scale({
+            tonic: "D",
+            mode: "dorian",
+        });
+        const dDorianNotes = dDorian.generate({ start: 62, length: 7 });
+
+        const cPentatonic = new jm.theory.harmony.Scale({
+            tonic: "C",
+            mode: "major pentatonic",
+        });
+        const cPentatonicNotes = cPentatonic.generate({ start: 60, length: 5 });
+
+        display({
+            "D Dorian": dDorianNotes,
+            "C Pentatonic (5 notes)": cPentatonicNotes,
+        });
+    </script>
+
+    <script type="text/markdown">
+        ### Converting to JMON track
+
+        Let's convert a scale to a playable JMON track:
+    </script>
+
+    <script type="module" pinned>
+        const cMajorTrack = cMajorNotes.map((pitch, i) => ({
+            pitch,
+            duration: 1,
+            time: i,
+            velocity: 0.8,
+        }));
+
+        const cMajorPiece = {
+            title: "C Major Scale",
+            tempo: 120,
+            tracks: [{ notes: cMajorTrack }],
+        };
+
+        display(await jm.score(cMajorPiece, { verovio, VerovioToolkit }));
+        display(await jm.play(cMajorPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ## 2. Chords
+
+        In JMON, a chord is represented as an array in the pitch field. This allows multiple pitches to sound simultaneously.
+    </script>
+
+    <script type="module" pinned>
+        // C Major chord (C, E, G)
+        const cMajorChord = {
+            pitch: [60, 64, 67],
+            duration: 2,
+            time: 0,
+            velocity: 0.8,
+        };
+
+        const chordPiece = {
+            title: "C Major Chord",
+            tempo: 120,
+            tracks: [{ notes: [cMajorChord] }],
+        };
+
+        display(cMajorChord);
+        display(await jm.score(chordPiece, { verovio, VerovioToolkit }));
+        display(await jm.play(chordPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ## 3. Key context — say `{tonic, mode}` once
+
+        When several harmony classes share the same key, repeating `{tonic: 'C', mode: 'major'}` at every constructor gets noisy. `jm.key(tonic, mode)` returns a small **key context** that pre-applies tonic and mode to `Scale`, `Voice`, `Ornament`, `Progression`, and `chord(s)`. You can still override any field per-call.
+
+        ```js
+        const k = jm.key("C", "major");
+
+        k.scale().generate({ length: 8 }); // C major scale
+        k.voice({ measureLength: 4, output: "track" }); // C-major voice
+        k.ornament({ type: "trill", parameters: { by: 1 } }); // scale-aware trill
+        k.progression().generate(["I", "IV", "V", "I"]); // C-major progression
+        k.chord(60); // [60, 64, 67]
+        k.chords([60, 62, 64]); // three chords
+        ```
+
+        The constructors still accept `{tonic, mode}` directly (no breaking change) — `jm.key()` is purely a call-site convenience. The examples below use it where it makes the snippet shorter.
+
+        ## 4. Ornaments
+
+        Ornaments are decorative embellishments that add expression and complexity to melodies. The `Ornament` class provides various ornament types.
+
+        ### Test notes
+
+        We'll use these simple notes to demonstrate each ornament type:
+    </script>
+
+    <script type="module" pinned>
+        const testNotes = [
+            { pitch: 60, duration: 2, time: 0, velocity: 0.8 },
+            { pitch: 64, duration: 2, time: 2, velocity: 0.8 },
+            { pitch: 67, duration: 2, time: 4, velocity: 0.8 },
+        ];
+
+        // One key context, reused by every ornament/voice/progression that needs it below.
+        const cKey = jm.key("C", "major");
+
+        display(testNotes);
+    </script>
+
+    <script type="text/markdown">
+        ### 4.1 Grace note (acciaccatura)
+
+        A grace note is a quick ornamental note played just before the main note.
+    </script>
+
+    <script type="module" pinned>
+        const graceNoteOrnament = new jm.theory.harmony.Ornament({
+            type: "grace_note",
+            parameters: {
+                graceNoteType: "acciaccatura",
+                gracePitches: [72], // C5
+            },
+        });
+        const withGraceNote = graceNoteOrnament.apply([...testNotes], 0);
+
+        display(`Original: ${testNotes.length} notes`);
+        display(`With grace note: ${withGraceNote.length} notes`);
+        display(withGraceNote);
+
+        const graceNotePiece = {
+            title: "Grace Note Example",
+            tempo: 120,
+            tracks: [{ notes: withGraceNote }],
+        };
+        display(await jm.play(graceNotePiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ### 4.2 Trill
+
+        A trill rapidly alternates between the main note and an adjacent note.
+    </script>
+
+    <script type="module" pinned>
+        // Compare with the explicit form:
+        //   new jm.theory.harmony.Ornament({ type:'trill', tonic:'C', mode:'major', parameters:{...} })
+        // The key context drops the tonic/mode boilerplate.
+        const trillOrnament = cKey.ornament({
+            type: "trill",
+            parameters: {
+                by: 2, // Trill to note 2 steps up
+                trillRate: 0.25, // 16th notes
+            },
+        });
+        const withTrill = trillOrnament.apply([...testNotes], 0);
+
+        display(`Original: 1 note (duration 2)`);
+        display(`With trill: ${withTrill.length} notes (alternating)`);
+        display(`Trill pitches: ${withTrill.map((n) => n.pitch)}`);
+
+        const trillPiece = {
+            title: "Trill Example",
+            tempo: 120,
+            tracks: [{ notes: withTrill }],
+        };
+        display(await jm.play(trillPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ### 4.3 Mordent
+
+        A mordent is a quick alternation with an adjacent note and back.
+    </script>
+
+    <script type="module" pinned>
+        const mordentOrnament = cKey.ornament({
+            type: "mordent",
+            parameters: {
+                by: -1, // Mordent down one step
+            },
+        });
+        const withMordent = mordentOrnament.apply([...testNotes], 0);
+
+        display(
+            `With mordent: ${withMordent.length} notes (quick alternation)`,
+        );
+        display(`Pattern: ${withMordent.map((n) => n.pitch)}`);
+
+        const mordentPiece = {
+            title: "Mordent Example",
+            tempo: 120,
+            tracks: [{ notes: withMordent }],
+        };
+        display(await jm.play(mordentPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ### 4.4 Turn
+
+        A turn ornament creates a four-note pattern around the main note.
+    </script>
+
+    <script type="module" pinned>
+        const turnOrnament = cKey.ornament({ type: "turn" });
+        const withTurn = turnOrnament.apply([...testNotes], 0);
+
+        display(`With turn: ${withTurn.length} notes (4-note pattern)`);
+        display(`Turn pattern: ${withTurn.map((n) => n.pitch)}`);
+
+        const turnPiece = {
+            title: "Turn Example",
+            tempo: 120,
+            tracks: [{ notes: withTurn }],
+        };
+        display(await jm.play(turnPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ### 4.5 Arpeggio
+
+        An arpeggio breaks a chord into a sequence of individual notes.
+    </script>
+
+    <script type="module" pinned>
+        const arpeggioOrnament = cKey.ornament({
+            type: "arpeggio",
+            parameters: {
+                arpeggioDegrees: [0, 2, 4, 2], // Triad up and down
+                direction: "up",
+            },
+        });
+        const withArpeggio = arpeggioOrnament.apply([...testNotes], 0);
+
+        display(`With arpeggio: ${withArpeggio.length} notes`);
+        display(`Arpeggio pattern: ${withArpeggio.map((n) => n.pitch)}`);
+
+        const arpeggioPiece = {
+            title: "Arpeggio Example",
+            tempo: 120,
+            tracks: [{ notes: withArpeggio }],
+        };
+        display(await jm.play(arpeggioPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ## 5. Voice leading
+
+        The `Voice` class helps create harmonic accompaniment from melodies by generating chords at measure boundaries.
+    </script>
+
+    <script type="module" pinned>
+        // Simple melody
+        const melody = [
+            { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
+            { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
+            { pitch: 64, duration: 1, time: 2, velocity: 0.8 },
+            { pitch: 65, duration: 1, time: 3, velocity: 0.8 },
+        ];
+
+        // Reuse the C major context from above — no need to repeat tonic/mode.
+        const voice = cKey.voice({
+            measureLength: 4,
+            output: "track",
+        });
+
+        const chords = voice.generate(melody);
+
+        display(
+            "Original melody pitches:",
+            melody.map((n) => n.pitch),
+        );
+        display("Generated chords:", chords);
+
+        const harmonizedPiece = {
+            title: "Voice Leading Example",
+            tempo: 120,
+            keySignature: "C-major",
+            tracks: [
+                { notes: melody, clef: "treble" },
+                { notes: chords, clef: "bass" },
+            ],
+        };
+
+        display(await jm.score(harmonizedPiece, { verovio, VerovioToolkit }));
+        display(await jm.play(harmonizedPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ## 6. Chord progressions
+
+        The `Progression` class offers four complementary modes for generating chord sequences. Each captures a different harmonic philosophy — from diatonic functional progressions to neo-Riemannian chromatic-mediant walks:
+
+        - **Diatonic** (`generate()`) — random within a key/mode, drawn from the circle of fifths, or by Roman numerals.
+        - **Smooth** (`smooth()`) — random walk constrained by parsimonious voice-leading: picks any chord whose voices move by ≤ N semitones from the previous. Produces "Severance theme"-style chromatic-mediant progressions.
+        - **Explicit NRT transformations** (`applyTransforms()`) — deterministic sequence of neo-Riemannian operators (P, L, R, N, S, H).
+        - **NRT random walk** (`transformWalk()`) — seeded random walk in a user-defined vocabulary of NRT operators.
+
+        ### 6.1 Diatonic / circle of fifths
+
+        Generate random chord progressions using the circle of fifths or other intervallic relationships. You can also pass Roman numerals (`['I', 'IV', 'V', 'I']`) for diatonic progressions.
+    </script>
+
+    <script type="module" pinned>
+        // Generate a progression on the circle of fifths.
+        // `radius: [major, minor, diminished]` controls how many candidates of
+        // each quality the progression draws from.
+        const progression = cKey.progression({
+            circleOf: "P5",
+            type: "chords",
+            radius: [3, 3, 1],
+        });
+        const chordProgression = progression.generate(8, 5); // 8 chords, seed 5
+
+        display(`Generated ${chordProgression.length} chords`);
+        display("First two chords:", chordProgression.slice(0, 2));
+
+        // Convert to JMON track
+        const progressionTrack = chordProgression.map((chord, i) => ({
+            pitch: chord,
+            duration: 1,
+            time: i,
+            velocity: 0.7,
+        }));
+
+        const progressionPiece = {
+            title: "Chord Progression (Circle of Fifths)",
+            tempo: 100,
+            tracks: [{ notes: progressionTrack }],
+        };
+
+        display(await jm.score(progressionPiece, { verovio, VerovioToolkit }));
+        display(await jm.play(progressionPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ### 6.2 Smooth voice-leading
+
+        `Progression.smooth()` performs a seeded random walk where each new triad is chosen to minimize total voice-leading distance from the previous chord. The result is the "Severance theme" aesthetic — distant key centers (Cm → F# → F → G#m) linked by smooth voice motion. The constructor's `mode` is **not** respected here (the algorithm draws from all 12 roots × allowed qualities); `tonic` is just the starting root.
+
+        Key options:
+
+        - **`maxVoiceLeading`** — max sum of voice movements (semitones) between consecutive chords. Smaller = smoother / less harmonic motion. Try 3–6.
+        - **`bassRange`** — if set, keep the lowest voice within ±N semitones of the start. ~3 produces the _Severance_ hypnotic-bass aesthetic (root chromatically circling a pivot). `null` disables.
+        - **`qualities`** — allowed triad qualities. Default `['major', 'minor']`. Add `'diminished'` or `'augmented'` for spicier walks.
+        - **`seed`** — deterministic. Change to explore.
+    </script>
+
+    <script type="module" pinned>
+        const smoothGen = new jm.theory.harmony.Progression({
+            tonic: "C",
+            mode: "minor",
+        });
+        const smoothChords = smoothGen.smooth(4, {
+            seed: 42,
+            maxVoiceLeading: 4,
+            bassRange: 3,
+        });
+
+        display(
+            `Smooth (seed 42): ${smoothChords.map((c) => `[${c.join(",")}]`).join(" → ")}`,
+        );
+
+        const smoothTrack = smoothChords.map((chord, i) => ({
+            pitch: chord,
+            duration: 2,
+            time: i * 2,
+            velocity: 0.7,
+        }));
+        const smoothPiece = {
+            title: "Smooth voice-leading",
+            tempo: 80,
+            tracks: [{ notes: smoothTrack }],
+        };
+        display(await jm.score(smoothPiece, { verovio, VerovioToolkit }));
+        display(await jm.play(smoothPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ### 6.3 Explicit neo-Riemannian transformations
+
+        `applyTransforms()` applies a deterministic sequence of NRT operations starting from the constructor's tonic + mode. The six standard operators all flip the chord quality (major ↔ minor) and shift the root by a fixed interval:
+
+        - **P** (Parallel) — same root, flip quality (C ↔ Cm).
+        - **L** (Leading-tone) — C → Em, Cm → Ab; share two notes, move the remaining one by a semitone.
+        - **R** (Relative) — C ↔ Am, Cm ↔ Eb; share the third interval.
+        - **N** (Nebenverwandt, = RLP) — C → Fm, Cm → G; subdominant minor / dominant major.
+        - **S** (Slide, = LPR) — C → C#m, Cm → B; share the third pitch class.
+        - **H** (Hexatonic pole, = LPL) — C → G#m, Cm → E; maximum contrast, **no common tones**.
+
+        Compound notation: `'PL'` applies P then L as a **single move** (one resulting chord), while the array `['P', 'L']` produces two separate chords. Useful when you want to reach a distant chord in one step — e.g. `'RPR'` takes Cm to F# (a tritone relation that no single primitive can bridge).
+    </script>
+
+    <script type="module" pinned>
+        const nrt = new jm.theory.harmony.Progression({
+            tonic: "C",
+            mode: "minor",
+        });
+
+        // PLRH walk from Cm: each operator one step.
+        const plrhChords = nrt.applyTransforms(["P", "L", "R", "H"], {
+            octaveBounds: { center: 62, range: 12 },
+        });
+        display(
+            `PLRH from Cm: ${plrhChords.map((c) => `[${c.join(",")}]`).join(" → ")}`,
+        );
+
+        // Compound moves: each entry is one chord in the result.
+        // 'RPR' = R then P then R, taking Cm to F# major (Severance-style tritone).
+        const compoundChords = nrt.applyTransforms(["RPR", "PS", "PRP"], {
+            octaveBounds: { center: 62, range: 12 },
+        });
+        display(
+            `Compounds from Cm: ${compoundChords.map((c) => `[${c.join(",")}]`).join(" → ")}`,
+        );
+
+        const nrtTrack = plrhChords.map((chord, i) => ({
+            pitch: chord,
+            duration: 2,
+            time: i * 2,
+            velocity: 0.7,
+        }));
+        const nrtPiece = {
+            title: "PLRH from Cm",
+            tempo: 80,
+            tracks: [{ notes: nrtTrack }],
+        };
+        display(await jm.score(nrtPiece, { verovio, VerovioToolkit }));
+        display(await jm.play(nrtPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ### 6.4 Random walk in an NRT vocabulary
+
+        `transformWalk()` walks randomly through a user-defined vocabulary of NRT operators. Like `smooth()` but constrained to _specific transformations_ instead of "any chord within voice-leading distance N". The vocabulary controls the harmonic flavor — staying on `[P, L, R]` keeps the walk in classical NRT territory; adding `S` and `H` introduces chromatic contrast; including compounds like `'RPR'` unlocks tritone jumps.
+
+        Three realization shapes:
+
+        - **`'closest'`** (default) — parsimonious voice-leading via the same algorithm as `smooth()`. Picks the inversion + octave that minimizes voice movement.
+        - **`'root'`** — always root-position triad with a smooth bass.
+        - **`'random'`** — randomly picks `'closest'` or `'root'` per chord (needs the seed).
+
+        `octaveBounds: {center, range}` keeps the chord centroid near a target MIDI value — useful for long walks that would otherwise drift away from a usable register.
+    </script>
+
+    <script type="module" pinned>
+        const walker = new jm.theory.harmony.Progression({
+            tonic: "C",
+            mode: "minor",
+        });
+        const walkChords = walker.transformWalk(6, {
+            seed: 17,
+            vocabulary: ["P", "L", "R", "S", "H", "RPR"],
+            octaveBounds: { center: 62, range: 12 },
+        });
+        display(
+            `Walk (seed 17): ${walkChords.map((c) => `[${c.join(",")}]`).join(" → ")}`,
+        );
+
+        const walkTrack = walkChords.map((chord, i) => ({
+            pitch: chord,
+            duration: 2,
+            time: i * 2,
+            velocity: 0.7,
+        }));
+        const walkPiece = {
+            title: "NRT random walk",
+            tempo: 80,
+            tracks: [{ notes: walkTrack }],
+        };
+        display(await jm.score(walkPiece, { verovio, VerovioToolkit }));
+        display(await jm.play(walkPiece, { Tone }));
+    </script>
+
+    <script type="text/markdown">
+        ## 7. Complete example: Twinkle with harmony
+
+        Let's put it all together by adding harmony and ornaments to "Twinkle Twinkle Little Star". One `jm.key()` call covers both the voicing and the trill.
+    </script>
+
+    <script type="module" pinned>
+        // Original melody
+        const twinkle = [
+            { pitch: 60, duration: 1, time: 0, velocity: 0.8 }, // C
+            { pitch: 60, duration: 1, time: 1, velocity: 0.8 }, // C
+            { pitch: 67, duration: 1, time: 2, velocity: 0.8 }, // G
+            { pitch: 67, duration: 1, time: 3, velocity: 0.8 }, // G
+            { pitch: 69, duration: 1, time: 4, velocity: 0.8 }, // A
+            { pitch: 69, duration: 1, time: 5, velocity: 0.8 }, // A
+            { pitch: 67, duration: 2, time: 6, velocity: 0.8 }, // G (long note)
+            { pitch: 65, duration: 1, time: 8, velocity: 0.8 }, // F
+            { pitch: 65, duration: 1, time: 9, velocity: 0.8 }, // F
+            { pitch: 64, duration: 1, time: 10, velocity: 0.8 }, // E
+            { pitch: 64, duration: 1, time: 11, velocity: 0.8 }, // E
+            { pitch: 62, duration: 1, time: 12, velocity: 0.8 }, // D
+            { pitch: 62, duration: 1, time: 13, velocity: 0.8 }, // D
+            { pitch: 60, duration: 2, time: 14, velocity: 0.8 }, // C
+        ];
+
+        // Set the key once — voicing and ornament both pick it up.
+        const twinkleKey = jm.key("C", "major");
+
+        const twinkleChords = twinkleKey
+            .voice({ measureLength: 4, output: "track" })
+            .generate(twinkle)
+            .map((note) => ({ ...note, velocity: 0.5 }));
+
+        // Add trill to the long note (index 6)
+        const ornamentedTwinkle = twinkleKey
+            .ornament({ type: "trill", parameters: { by: 1, trillRate: 0.25 } })
+            .apply(twinkle, 6);
+
+        // Create complete composition
+        const twinkleComplete = {
+            title: "Twinkle Twinkle Little Star (with harmony)",
+            tempo: 120,
+            keySignature: "C-major",
+            tracks: [
+                {
+                    label: "Melody with Trill",
+                    notes: ornamentedTwinkle,
+                },
+                {
+                    label: "Chords",
+                    notes: twinkleChords,
+                },
+            ],
+        };
+
+        display(await jm.score(twinkleComplete, { verovio, VerovioToolkit }));
+        display(await jm.play(twinkleComplete, { Tone }));
+    </script>
 </notebook>
