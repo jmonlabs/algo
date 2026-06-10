@@ -865,6 +865,63 @@
                   "enum": ["staccato", "accent", "tenuto", "legato", "marcato"],
                   "description": "Performance instruction that affects how a note is played (e.g., 'staccato', 'accent')."
                 },
+                "articulations": {
+                  "type": "array",
+                  "description": "Declarative articulations. Strings for simple articulations (e.g., 'staccato'), objects for parameterized ones (e.g., { \"type\": \"glissando\", \"target\": 72 }, { \"type\": \"bend\", \"amount\": 100 }).",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Simple articulation name (e.g., 'staccato', 'accent', 'tenuto', 'legato', 'marcato')."
+                      },
+                      {
+                        "type": "object",
+                        "required": ["type"],
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "description": "Articulation type (e.g., 'glissando', 'portamento', 'bend', 'vibrato', 'tremolo', 'crescendo', 'diminuendo')."
+                          }
+                        },
+                        "additionalProperties": true,
+                        "description": "Parameterized articulation. glissando/portamento take 'target' (MIDI pitch); bend takes 'amount' (cents) and optional 'returnToOriginal'; vibrato/tremolo take 'rate'/'depth'."
+                      }
+                    ]
+                  }
+                },
+                "pitchEnvelope": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "Pitch envelope over the note, in semitone offsets relative to the written pitch (transposition-safe). Either an array of numbers spread evenly across the note duration (e.g., [0, 1] bends up one semitone, SCAMP-style), or anchor objects with explicit timing. Compiles to the same backend pitch-curve mechanism as glissando/portamento/bend articulations.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "number",
+                        "description": "Semitone offset from the written pitch; values are spread evenly across the note duration."
+                      },
+                      {
+                        "type": "object",
+                        "required": ["time", "value"],
+                        "properties": {
+                          "time": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "Anchor time in beats relative to the note start (clamped to the note duration)."
+                          },
+                          "value": {
+                            "type": "number",
+                            "description": "Semitone offset from the written pitch at this anchor."
+                          },
+                          "curve": {
+                            "type": "string",
+                            "description": "Interpolation hint toward the next anchor (default 'linear')."
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
                 "ornaments": {
                   "type": "array",
                   "description": "Array of melodic ornaments to apply to this note",

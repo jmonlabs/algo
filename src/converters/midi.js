@@ -147,6 +147,10 @@ function buildMidiFile(composition) {
             }
         }
 
+        // Pitch curves (glissando, portamento, bend, pitch envelopes) compile
+        // to cents anchors; render them as MIDI pitch wheel events.
+        events.push(...buildPitchBendEvents(notesWithTime, channel, ticksPerBeat));
+
         trackChunks.push(encodeTrack(events));
     }
 
@@ -169,6 +173,95 @@ function buildMidiFile(composition) {
     }
 
     return new Uint8Array(fileBytes);
+}
+
+/**
+ * Render compiled pitch curves (anchors in cents) as MIDI pitch wheel events.
+ *
+ * Emits an RPN 0 (pitch bend sensitivity) setup sized to the widest curve on
+ * the track — MIDI's ±2 semitone default would clip wider glissandi — then
+ * samples each curve's linear segments and recenters the wheel at note end.
+ *
+ * @param {Array<Object>} notes - track notes with resolved numeric times
+ * @param {number} channel - MIDI channel (0-15)
+ * @param {number} ticksPerBeat
+ * @returns {Array<{tick:number,sortOrder:number,bytes:number[]}>}
+ */
+function buildPitchBendEvents(notes, channel, ticksPerBeat) {
+    let pitchMods = [];
+    try {
+        const perf = compileEvents({ events: notes });
+        pitchMods = (perf.modulations || []).filter(
+            m => m.type === 'pitch' && Array.isArray(m.anchors) && m.anchors.length > 0
+        );
+    } catch (_) {
+        return [];
+    }
+    if (pitchMods.length === 0) return [];
+
+    const maxCents = Math.max(
+        ...pitchMods.flatMap(m => m.anchors.map(a => Math.abs(a.value)))
+    );
+    const rangeSemitones = Math.min(24, Math.max(2, Math.ceil(maxCents / 100)));
+    const centerValue = 8192;
+
+    const events = [];
+
+    // RPN 0,0 = pitch bend sensitivity, in semitones (MSB) + cents (LSB),
+    // then deselect the RPN so later CCs can't change it accidentally.
+    const rpn = [[101, 0], [100, 0], [6, rangeSemitones], [38, 0], [101, 127], [100, 127]];
+    // Array sort is stable, so equal tick/sortOrder preserves RPN sequence.
+    rpn.forEach(([cc, value]) => {
+        events.push({ tick: 0, sortOrder: -1, bytes: [0xb0 | channel, cc, value] });
+    });
+
+    const toBendValue = (cents) => {
+        const v = centerValue + Math.round((cents / (rangeSemitones * 100)) * (centerValue - 1));
+        return Math.max(0, Math.min(16383, v));
+    };
+    const pushBend = (tick, value, sortOrder) => {
+        events.push({
+            tick,
+            sortOrder,
+            bytes: [0xe0 | channel, value & 0x7f, (value >> 7) & 0x7f]
+        });
+    };
+
+    // Sample each linear segment finely enough to sound continuous.
+    const stepTicks = Math.max(1, Math.round(ticksPerBeat / 16));
+
+    for (const mod of pitchMods) {
+        const anchors = mod.anchors;
+        // Initial value lands between note-off (0) and note-on (1) at the
+        // same tick so the wheel is set before the note sounds.
+        pushBend(Math.round(anchors[0].time * ticksPerBeat), toBendValue(anchors[0].value), 0.5);
+
+        for (let k = 1; k < anchors.length; k++) {
+            const a = anchors[k - 1];
+            const b = anchors[k];
+            const aTick = Math.round(a.time * ticksPerBeat);
+            const bTick = Math.round(b.time * ticksPerBeat);
+            let lastValue = toBendValue(a.value);
+            for (let tick = aTick + stepTicks; tick < bTick; tick += stepTicks) {
+                const frac = (tick - aTick) / (bTick - aTick);
+                const value = toBendValue(a.value + (b.value - a.value) * frac);
+                if (value === lastValue) continue;
+                pushBend(tick, value, 2);
+                lastValue = value;
+            }
+            const endValue = toBendValue(b.value);
+            if (endValue !== lastValue || bTick === aTick) pushBend(bTick, endValue, 2);
+        }
+
+        // Recenter so the next note starts clean. sortOrder 0.25 keeps the
+        // reset ahead of a following curve's initial value at the same tick.
+        const last = anchors[anchors.length - 1];
+        if (toBendValue(last.value) !== centerValue) {
+            pushBend(Math.round(mod.end * ticksPerBeat), centerValue, 0.25);
+        }
+    }
+
+    return events;
 }
 
 // --- Public API ---

@@ -33,6 +33,11 @@
  * @property {string=} articulation - Legacy single articulation
  * @property {number=} glissTarget - Legacy target pitch for glissando/portamento
  * @property {number=} velocity - Optional velocity (0..1)
+ * @property {Array<number|{time:number,value:number,curve?:string}>=} pitchEnvelope -
+ *   Pitch envelope as semitone offsets relative to the written pitch. Either an
+ *   array of numbers spread evenly across the note duration (SCAMP-style, e.g.
+ *   [0, 1] bends up one semitone), or anchor objects with `time` in beats
+ *   relative to note start and `value` in semitones.
  */
 
 /**
@@ -46,7 +51,10 @@
  * @typedef {Object} PerformanceModulation
  * @property {"pitch"|"amplitude"|"durationScale"|"velocityBoost"} type
  * @property {number} index - note index in the track
- * @property {string=} subtype - e.g., "glissando", "portamento", "bend", "crescendo", "diminuendo", "vibrato", "tremolo"
+ * @property {string=} subtype - e.g., "glissando", "portamento", "bend", "envelope", "crescendo", "diminuendo", "vibrato", "tremolo"
+ * @property {Array<{time:number,value:number}>=} anchors - Unified pitch-curve representation:
+ *   absolute time in beats, value in cents relative to the note's written pitch.
+ *   Players and exporters should consume this rather than from/to/amount.
  * @property {number=} from - source pitch (MIDI) for pitch-type curves
  * @property {number=} to - target pitch (MIDI) for pitch-type curves
  * @property {number=} amount - cents for pitch bend, or other scalar
@@ -99,6 +107,23 @@ export function compilePerformanceTrack(track, options = {}) {
     const onset = toNumber(n.time, 0);
     const dur = toNumber(n.duration, 0);
     const end = onset + Math.max(0, dur);
+
+    // Pitch envelope: second frontend to the same pitch-curve backend as
+    // glissando/portamento/bend articulations. Compiles to cents anchors.
+    if (!isRest && n.pitchEnvelope != null) {
+      const envAnchors = normalizePitchEnvelope(n.pitchEnvelope, dur);
+      if (envAnchors) {
+        modulations.push({
+          type: "pitch",
+          subtype: "envelope",
+          index: i,
+          anchors: envAnchors.map((a) => ({ time: onset + a.time, value: a.value })),
+          start: onset,
+          end,
+          curve: "linear",
+        });
+      }
+    }
 
     // Gather articulations in a normalized array of { type, ...params }
     const arts = normalizeArticulations(n);
@@ -177,6 +202,10 @@ export function compilePerformanceTrack(track, options = {}) {
             index: i,
             from: fromPitch,
             to: toPitch,
+            anchors: [
+              { time: onset, value: 0 },
+              { time: end, value: (toPitch - fromPitch) * 100 },
+            ],
             start: onset,
             end,
             curve: art.curve || "linear",
@@ -187,12 +216,21 @@ export function compilePerformanceTrack(track, options = {}) {
         case "bend": {
           const amount = toNumber(art.amount, undefined);
           if (amount === undefined) break;
+          // Fast attack to the bent pitch (~30% of the note, capped at half
+          // a beat), then hold — or return to the written pitch by note end.
+          const rampBeats = Math.min(0.5, dur * 0.3);
+          const anchors = [
+            { time: onset, value: 0 },
+            { time: onset + rampBeats, value: amount },
+            { time: end, value: art.returnToOriginal ? 0 : amount },
+          ];
           modulations.push({
             type: "pitch",
             subtype: "bend",
             index: i,
             amount,
             returnToOriginal: !!art.returnToOriginal,
+            anchors,
             start: onset,
             end,
             curve: art.curve || "linear",
@@ -294,6 +332,54 @@ function normalizeArticulations(note) {
 
 
   return out;
+}
+
+/**
+ * Normalize a note's pitchEnvelope to anchors relative to the note start:
+ * [{ time: beats from note start, value: cents offset from written pitch }].
+ *
+ * Accepts:
+ * - Array of numbers (semitone offsets) spread evenly across the duration,
+ *   e.g. [0, 1] ramps from the written pitch up one semitone (SCAMP-style).
+ * - Array of { time, value } anchors with time in beats relative to note
+ *   start (clamped to the note duration) and value in semitones.
+ *
+ * @param {Array<number|{time:number,value:number}>} envelope
+ * @param {number} dur - note duration in beats
+ * @returns {Array<{time:number,value:number}>|undefined}
+ */
+function normalizePitchEnvelope(envelope, dur) {
+  if (!Array.isArray(envelope) || envelope.length === 0) return undefined;
+  const span = Math.max(0, dur);
+
+  /** @type {Array<{time:number,value:number}>} */
+  let anchors;
+
+  if (envelope.every((p) => typeof p === "number")) {
+    if (envelope.length === 1) {
+      // Constant offset over the whole note
+      const cents = envelope[0] * 100;
+      anchors = [{ time: 0, value: cents }, { time: span, value: cents }];
+    } else {
+      anchors = envelope.map((v, k) => ({
+        time: (k / (envelope.length - 1)) * span,
+        value: v * 100,
+      }));
+    }
+  } else {
+    anchors = envelope
+      .filter((p) => p && typeof p === "object")
+      .map((p) => ({
+        time: Math.max(0, Math.min(span, toNumber(p.time, 0))),
+        value: toNumber(p.value, 0) * 100,
+      }))
+      .sort((a, b) => a.time - b.time);
+    if (anchors.length === 0) return undefined;
+    // Hold the written pitch until the first anchor if it starts late
+    if (anchors[0].time > 0) anchors.unshift({ time: 0, value: 0 });
+  }
+
+  return anchors;
 }
 
 /**

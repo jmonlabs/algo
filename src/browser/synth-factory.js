@@ -110,3 +110,66 @@ export function createTrackSynth(track, ToneLib, sharedSynth = null) {
 
   return { synth: new ToneLib.PolySynth(), isLoadable: false, isShared: false };
 }
+
+/**
+ * True when a Tone.js node exposes a schedulable `detune` signal (cents).
+ * Mono synths (Synth, MonoSynth, AMSynth, FMSynth) do; PolySynth and
+ * Sampler do not — pitch curves on those need a dedicated glide voice.
+ */
+export function hasDetuneParam(synth) {
+  return !!(synth && synth.detune && typeof synth.detune.setValueAtTime === "function");
+}
+
+/**
+ * Create a dedicated monophonic voice for pitch curves (glissando,
+ * portamento, bend, pitch envelopes) on tracks whose synth has no `detune`
+ * signal (PolySynth, Sampler). Uses Tone.Synth — the same voice PolySynth
+ * uses by default — with the track's nested voice options when present, so
+ * the glide voice matches the track timbre as closely as possible. The
+ * caller is responsible for connecting it to the track's effect chain.
+ *
+ * @param {Object} track — JMON track object
+ * @param {Object} ToneLib — Tone.js library namespace
+ * @returns {Object|null} a Tone.Synth, or null if construction failed
+ */
+export function createGlideVoice(track, ToneLib) {
+  const spec = track && track.synth;
+  // PolySynth object specs nest voice options under options.options
+  const voiceOptions =
+    (spec && typeof spec === "object" && spec.options && spec.options.options) || undefined;
+  try {
+    return new ToneLib.Synth(voiceOptions);
+  } catch {
+    try {
+      return new ToneLib.Synth();
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Schedule a compiled pitch curve on a `detune` signal (cents), then reset
+ * it to the baseline shortly after the curve ends so later notes on the
+ * same voice start clean.
+ *
+ * @param {Object} detuneParam — Tone.js Signal/AudioParam in cents
+ * @param {number} startTime — absolute time in seconds of the note start
+ * @param {Array<{time:number,value:number}>} anchors — time in seconds
+ *   relative to `startTime`, value in cents relative to the written pitch
+ * @param {number} [baseCents=0] — baseline detune (e.g. microtuning * 100)
+ * @param {number} [resetDelay=0.05] — seconds after the last anchor at
+ *   which the signal returns to `baseCents`
+ */
+export function applyPitchAnchors(detuneParam, startTime, anchors, baseCents = 0, resetDelay = 0.05) {
+  if (!detuneParam || !Array.isArray(anchors) || anchors.length === 0) return;
+  if (typeof detuneParam.cancelScheduledValues === "function") {
+    detuneParam.cancelScheduledValues(startTime);
+  }
+  detuneParam.setValueAtTime(baseCents + anchors[0].value, startTime + Math.max(0, anchors[0].time));
+  for (let k = 1; k < anchors.length; k++) {
+    detuneParam.linearRampToValueAtTime(baseCents + anchors[k].value, startTime + anchors[k].time);
+  }
+  const last = anchors[anchors.length - 1];
+  detuneParam.setValueAtTime(baseCents, startTime + last.time + resetDelay);
+}
