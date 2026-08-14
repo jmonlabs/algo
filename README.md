@@ -189,6 +189,13 @@ as in [chapter 6](userguide/06-walks.html).
 - WAV audio
 - SuperCollider
 
+### Utils (`jm.utils.*`)
+- Sequence transformations: `invert`, `retrograde`, `augment`, `transpose`,
+  `applySwing`, `splitLongNotes`, `removeDuplicates`, `normalizeVelocities`
+- Queries: `getPitchRange`, `getTotalDuration`, `extractRhythm`
+- Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`,
+  `quantizeComposition` (grids in quarter notes; `1/3` for triplets)
+
 ## Tests
 
 ```bash

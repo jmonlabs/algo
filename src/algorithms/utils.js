@@ -493,3 +493,361 @@ export const instrumentMapping = {
     // ... (full mapping truncated for brevity, but would include all 128 instruments)
     'Gunshot': 127
 };
+
+/* ---------------------------------------------------------------------------
+ * Sequence transformations
+ *
+ * Migrated from the former `utils/music.js`, which was never imported and
+ * whose import of `../types/music.js` pointed at a file that does not exist.
+ * Five of its methods also read and wrote `note.offset` — djalgo's field
+ * name — which is `undefined` on JMON notes; they are ported to `time` here.
+ *
+ * All of these take and return arrays of JMON notes
+ * (`{ pitch, duration, time, velocity }`), never mutate their input, and
+ * tolerate rests (`pitch: null`) and chords (`pitch: [60, 64, 67]`).
+ * ------------------------------------------------------------------------- */
+
+/** Apply `fn` to a note's pitch, passing chords through element-wise and rests through untouched. */
+function mapPitch(pitch, fn) {
+    if (pitch === null || pitch === undefined) return pitch;
+    return Array.isArray(pitch) ? pitch.map(fn) : fn(pitch);
+}
+
+/** Flatten every sounding pitch in a sequence into a single array. */
+function allPitches(notes) {
+    const out = [];
+    for (const note of notes) {
+        const p = note?.pitch;
+        if (p === null || p === undefined) continue;
+        if (Array.isArray(p)) out.push(...p);
+        else out.push(p);
+    }
+    return out;
+}
+
+/**
+ * Invert a melody around a pivot pitch. Each pitch is reflected to the
+ * opposite side of the pivot, so an ascending third becomes a descending one.
+ *
+ * @param {Array<Object>} notes - JMON notes
+ * @param {number} [pivot] - Pivot pitch. Defaults to the midpoint of the
+ *   sequence's range, which keeps the inversion inside the original tessitura.
+ * @returns {Array<Object>} New notes with inverted pitches
+ *
+ * @example
+ * invert([{ pitch: 60, duration: 1, time: 0 }, { pitch: 64, duration: 1, time: 1 }], 60);
+ * // => pitches 60 and 56
+ */
+export function invert(notes, pivot) {
+    const pitches = allPitches(notes);
+    if (pitches.length === 0) return notes.map(n => ({ ...n }));
+
+    const axis = pivot !== undefined
+        ? pivot
+        : (Math.max(...pitches) + Math.min(...pitches)) / 2;
+
+    return notes.map(note => ({
+        ...note,
+        pitch: mapPitch(note.pitch, p => 2 * axis - p)
+    }));
+}
+
+/**
+ * Retrograde: play the sequence backwards.
+ *
+ * Each note is mirrored within the sequence's own span
+ * (`newTime = span - (time + duration)`), so rests, chords and overlapping
+ * voices survive the transformation. Reversing the array and relaying notes
+ * end-to-end — what the old implementation did — silently flattens polyphony
+ * and drops every gap.
+ *
+ * @param {Array<Object>} notes - JMON notes
+ * @returns {Array<Object>} New notes, ordered by their new time
+ */
+export function retrograde(notes) {
+    if (!notes || notes.length === 0) return [];
+
+    const span = getTotalDuration(notes);
+
+    return notes
+        .map(note => ({
+            ...note,
+            time: span - ((note.time || 0) + (note.duration || 0))
+        }))
+        .sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Augmentation (`factor > 1`) or diminution (`factor < 1`): scale the
+ * sequence in time.
+ *
+ * Both `time` and `duration` are scaled, so the rhythm is stretched as a
+ * whole and simultaneous notes stay simultaneous.
+ *
+ * @param {Array<Object>} notes - JMON notes
+ * @param {number} factor - Multiplier (2 = twice as slow, 0.5 = twice as fast)
+ * @returns {Array<Object>} New notes
+ */
+export function augment(notes, factor) {
+    if (!Number.isFinite(factor) || factor <= 0) {
+        throw new Error(`augment: factor must be a positive number, got ${factor}`);
+    }
+    return notes.map(note => ({
+        ...note,
+        time: (note.time || 0) * factor,
+        duration: (note.duration || 0) * factor
+    }));
+}
+
+/**
+ * Push off-beat notes later to produce a swing feel.
+ *
+ * @param {Array<Object>} notes - JMON notes
+ * @param {Object} [options]
+ * @param {number} [options.ratio=0.67] - Where the off-beat lands inside the
+ *   beat, as a fraction. 0.5 is straight, 0.67 is a triplet swing.
+ * @param {number} [options.subdivision=0.5] - Off-beat position in quarter
+ *   notes (0.5 = eighths, 0.25 = sixteenths)
+ * @param {number} [options.tolerance=0.01] - How close a note must sit to the
+ *   off-beat to count as one
+ * @returns {Array<Object>} New notes
+ */
+export function applySwing(notes, options = {}) {
+    const { ratio = 0.67, subdivision = 0.5, tolerance = 0.01 } = options;
+    const beat = subdivision * 2;
+
+    return notes.map(note => {
+        const time = note.time || 0;
+        const positionInBeat = time % beat;
+        const isOffBeat = Math.abs(positionInBeat - subdivision) < tolerance;
+        if (!isOffBeat) return { ...note };
+
+        const beatStart = time - positionInBeat;
+        return { ...note, time: beatStart + beat * ratio };
+    });
+}
+
+/**
+ * Extract the onset times of a sequence — its rhythm, stripped of pitch.
+ * @param {Array<Object>} notes - JMON notes
+ * @returns {Array<number>} Sorted onset times in quarter notes
+ */
+export function extractRhythm(notes) {
+    return notes.map(note => note.time || 0).sort((a, b) => a - b);
+}
+
+/**
+ * Rescale velocities into `[min, max]`, preserving their relative shape.
+ * A sequence whose velocities are all equal collapses to the midpoint.
+ *
+ * @param {Array<Object>} notes - JMON notes
+ * @param {number} [min=0.1] - Target floor
+ * @param {number} [max=1.0] - Target ceiling
+ * @returns {Array<Object>} New notes
+ */
+export function normalizeVelocities(notes, min = 0.1, max = 1.0) {
+    if (!notes || notes.length === 0) return [];
+
+    const velocities = notes.map(n => n.velocity ?? 0.8);
+    const lo = Math.min(...velocities);
+    const hi = Math.max(...velocities);
+    const range = hi - lo;
+
+    if (range === 0) {
+        const mid = (min + max) / 2;
+        return notes.map(note => ({ ...note, velocity: mid }));
+    }
+
+    return notes.map((note, i) => ({
+        ...note,
+        velocity: min + ((velocities[i] - lo) / range) * (max - min)
+    }));
+}
+
+/**
+ * Lowest and highest sounding pitch in a sequence.
+ * @param {Array<Object>} notes - JMON notes
+ * @returns {{min: number, max: number}|null} `null` when nothing sounds
+ */
+export function getPitchRange(notes) {
+    const pitches = allPitches(notes);
+    if (pitches.length === 0) return null;
+    return { min: Math.min(...pitches), max: Math.max(...pitches) };
+}
+
+/**
+ * Total span of a sequence: the latest note end, in quarter notes.
+ * @param {Array<Object>} notes - JMON notes
+ * @returns {number}
+ */
+export function getTotalDuration(notes) {
+    if (!notes || notes.length === 0) return 0;
+    return Math.max(...notes.map(note => (note.time || 0) + (note.duration || 0)));
+}
+
+/**
+ * Split notes longer than `maxDuration` into a run of tied-length notes.
+ * Useful before exporting to formats that cap note length, or to turn long
+ * pads into repeated attacks.
+ *
+ * @param {Array<Object>} notes - JMON notes
+ * @param {number} maxDuration - Longest allowed duration in quarter notes
+ * @returns {Array<Object>} New notes
+ */
+export function splitLongNotes(notes, maxDuration) {
+    if (!Number.isFinite(maxDuration) || maxDuration <= 0) {
+        throw new Error(`splitLongNotes: maxDuration must be positive, got ${maxDuration}`);
+    }
+
+    const result = [];
+    for (const note of notes) {
+        const duration = note.duration || 0;
+        if (duration <= maxDuration) {
+            result.push({ ...note });
+            continue;
+        }
+        const pieces = Math.ceil(duration / maxDuration);
+        const pieceDuration = duration / pieces;
+        for (let i = 0; i < pieces; i++) {
+            result.push({
+                ...note,
+                duration: pieceDuration,
+                time: (note.time || 0) + i * pieceDuration
+            });
+        }
+    }
+    return result;
+}
+
+/**
+ * Merge consecutive notes that repeat the same pitch back-to-back into one
+ * longer note. Notes separated by a gap are left alone — only true
+ * restatements are merged.
+ *
+ * @param {Array<Object>} notes - JMON notes
+ * @param {number} [tolerance=0.01] - Largest gap still considered contiguous
+ * @returns {Array<Object>} New notes
+ */
+export function removeDuplicates(notes, tolerance = 0.01) {
+    if (!notes || notes.length <= 1) return (notes || []).map(n => ({ ...n }));
+
+    const samePitch = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+    const result = [{ ...notes[0] }];
+    for (let i = 1; i < notes.length; i++) {
+        const current = notes[i];
+        const previous = result[result.length - 1];
+        const contiguous = Math.abs(
+            (current.time || 0) - ((previous.time || 0) + (previous.duration || 0))
+        ) <= tolerance;
+
+        if (samePitch(current.pitch, previous.pitch) && contiguous) {
+            previous.duration = (previous.duration || 0) + (current.duration || 0);
+        } else {
+            result.push({ ...current });
+        }
+    }
+    return result;
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Quantization
+ *
+ * JMON-native (`time` / `duration` on note objects), migrated from the former
+ * `src/utils/quantize.js`. Distinct from `quantizeNotes` above, which works on
+ * djalgo `[pitch, duration, offset]` tuples and clamps notes to their measure.
+ *
+ * Grids are in quarter notes: 1 = quarter, 0.5 = eighth, 0.25 = sixteenth,
+ * 1/3 = quarter triplet.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Snap a numeric value to a grid.
+ * @param {number} value - Value in quarter notes
+ * @param {number} [grid=0.25] - Grid size in quarter notes
+ * @param {'nearest'|'floor'|'ceil'} [mode='nearest'] - Rounding mode
+ * @returns {number} Snapped value; non-finite input is returned unchanged
+ */
+export function quantize(value, grid = 0.25, mode = 'nearest') {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return value;
+    if (!Number.isFinite(grid) || grid <= 0) {
+        throw new Error(`quantize: grid must be a positive number, got ${grid}`);
+    }
+
+    const steps = value / grid;
+    let rounded;
+    switch (mode) {
+        case 'floor': rounded = Math.floor(steps); break;
+        case 'ceil':  rounded = Math.ceil(steps);  break;
+        case 'nearest':
+        default:      rounded = Math.round(steps);
+    }
+    // Re-round to kill the float drift that `steps * grid` introduces on
+    // grids like 1/3 (e.g. 0.6666666666666666 instead of 2/3).
+    return Number((rounded * grid).toPrecision(12));
+}
+
+/**
+ * Quantize the timing fields of an array of note-like objects.
+ *
+ * Durations never quantize to zero: a note shorter than the grid is floored
+ * to one grid unit rather than silently deleted.
+ *
+ * @param {Array<Object>} events - Objects carrying numeric timing fields
+ * @param {Object} [options]
+ * @param {number} [options.grid=0.25] - Grid size in quarter notes
+ * @param {string[]} [options.fields=['time','duration']] - Fields to snap
+ * @param {'nearest'|'floor'|'ceil'} [options.mode='nearest'] - Rounding mode
+ * @returns {Array<Object>} New array with snapped fields
+ */
+export function quantizeEvents(events, options = {}) {
+    const { grid = 0.25, fields = ['time', 'duration'], mode = 'nearest' } = options;
+    if (!Array.isArray(events)) return events;
+
+    return events.map(event => {
+        const copy = { ...event };
+        for (const field of fields) {
+            if (typeof copy[field] !== 'number') continue;
+            const snapped = quantize(copy[field], grid, mode);
+            // A note quantized out of existence is worse than one slightly
+            // off the grid, so keep at least one grid unit of duration.
+            copy[field] = (field === 'duration' && snapped <= 0) ? grid : snapped;
+        }
+        return copy;
+    });
+}
+
+/**
+ * Quantize a JMON track's notes, returning a new track.
+ * @param {Object} track - `{ label, notes, ... }`
+ * @param {Object} [options] - Same options as {@link quantizeEvents}
+ * @returns {Object} New track
+ */
+export function quantizeTrack(track, options = {}) {
+    const { grid = 0.25, mode = 'nearest' } = options;
+    if (!track || !Array.isArray(track.notes)) return track;
+    return {
+        ...track,
+        notes: quantizeEvents(track.notes, { grid, mode, fields: ['time', 'duration'] })
+    };
+}
+
+/**
+ * Quantize every track of a JMON composition, returning a new composition.
+ * @param {Object} composition - `{ tempo, tracks, ... }`
+ * @param {Object} [options] - Same options as {@link quantizeEvents}
+ * @returns {Object} New composition
+ *
+ * @example
+ * // Tighten a MIDI import onto a sixteenth grid
+ * const tight = quantizeComposition(jm.converters.midiToJmon(bytes), { grid: 0.25 });
+ */
+export function quantizeComposition(composition, options = {}) {
+    const { grid = 0.25, mode = 'nearest' } = options;
+    if (!composition || !Array.isArray(composition.tracks)) return composition;
+    return {
+        ...composition,
+        tracks: composition.tracks.map(track => quantizeTrack(track, { grid, mode }))
+    };
+}
