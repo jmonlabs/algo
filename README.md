@@ -171,21 +171,23 @@ const composition = {
 - **Random Walks**: Markov chains, Brownian motion. `Chain.line()` returns a single flat walk when you don't need branches.
 - **Fractals**: Mandelbrot sets, logistic maps
 - **Cellular Automata**: Conway's Game of Life, rule 30/110
-- **Genetic Algorithms**: evolutionary composition
-- **Gaussian Processes**: smooth interpolation (requires `@tangent.to/ds`)
+- **Genetic Algorithms**: evolutionary composition (`Darwin`)
+
+Gaussian processes are not part of the `jm` namespace — they live in
+[`@tangent.to/ds`](https://tangent-to.github.io/ds/) and are used directly,
+as in [chapter 6](userguide/06-walks.html).
 
 ### Analysis (`jm.analysis.*`)
-- 11+ musical metrics
+- 16 musical metrics
 - Gini coefficient, syncopation, contour entropy
 - Statistical pattern analysis
 
 ### Converters (`jm.converters.*`)
-- MIDI files
+- MIDI files (both directions — `midi` out, `midiToJmon` in)
 - Tone.js (web audio)
-- Verovio (notation rendering)
+- Verovio (notation rendering, and MusicXML export)
 - WAV audio
 - SuperCollider
-- ABC notation
 
 ## Tests
 
