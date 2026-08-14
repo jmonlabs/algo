@@ -109,6 +109,7 @@ test("the removed visualization wrappers are gone from the public surface", asyn
   const { default: jm } = await import("../src/index.js");
 
   assert.equal(jm.visualization, undefined, "jm.visualization should be removed");
+  assert.equal(jm.theory.motifs, undefined, "jm.theory.motifs should be removed");
 
   const ca = new CellularAutomata({ ruleNumber: 30, width: 9, ruleLength: 3 });
   for (const method of ["plotEvolution", "plotGeneration", "plotDensity"]) {

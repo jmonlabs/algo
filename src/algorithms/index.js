@@ -4,7 +4,6 @@ import { MusicTheoryConstants, ARTICULATION_TYPES, ORNAMENT_TYPES, ConstantsAPI 
 // Theory imports
 import harmony from './theory/harmony/index.js';
 import rhythm from './theory/rhythm/index.js';
-import { MotifBank } from './theory/motifs/index.js';
 
 // Generative algorithm imports
 import { CellularAutomata } from './generative/cellular-automata/index.js';
@@ -31,10 +30,7 @@ import audioNS from './audio/index.js';
 // Export namespaces
 export const theory = {
     harmony,
-    rhythm,
-    motifs: {
-        MotifBank
-    }
+    rhythm
 };
 
 export const constants = {
