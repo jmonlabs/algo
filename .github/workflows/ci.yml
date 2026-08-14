@@ -32,6 +32,11 @@ jobs:
       - name: Unit tests (analysis)
         run: node tests/analysis.test.js
 
+      # node:test + assert — unlike the console.log suites above, this one
+      # actually fails the build when an assertion breaks.
+      - name: Unit tests (plot data)
+        run: node --test tests/plot-data.test.js
+
       # Browser-load test — protects the jsDelivr distribution path.
       # Loads src/index.js the same way `import("https://cdn.jsdelivr.net
       # /gh/jmonlabs/algo@main/src/index.js")` does in the live REPL, and

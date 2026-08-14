@@ -305,7 +305,6 @@ const jm = {
   analysis: algorithms.analysis,
   constants: algorithms.constants,
   audio: algorithms.audio,
-  visualization: algorithms.visualization,
 
   // Utils
   utils: {

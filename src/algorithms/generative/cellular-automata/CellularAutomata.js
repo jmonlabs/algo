@@ -331,36 +331,4 @@ export class CellularAutomata {
     });
   }
 
-  /**
-   * Create Observable Plot visualization of CA evolution
-   * @param {Object} [options] - Plot options
-   * @returns {Object} Observable Plot spec
-   */
-  async plotEvolution(options) {
-    // Dynamic import for visualization
-    const CAVisualizerModule = await import('../../visualization/cellular-automata/CAVisualizer.js');
-    return CAVisualizerModule.CAVisualizer.plotEvolution(this.getHistory(), options);
-  }
-
-  /**
-   * Create Observable Plot visualization of current generation
-   * @param {Object} [options] - Plot options
-   * @returns {Object} Observable Plot spec
-   */
-  async plotGeneration(options) {
-    // Dynamic import for visualization
-    const CAVisualizerModule = await import('../../visualization/cellular-automata/CAVisualizer.js');
-    return CAVisualizerModule.CAVisualizer.plotGeneration(this.getCurrentState(), options);
-  }
-
-  /**
-   * Create Observable Plot density visualization
-   * @param {Object} [options] - Plot options
-   * @returns {Object} Observable Plot spec
-   */
-  async plotDensity(options) {
-    // Dynamic import for visualization
-    const CAVisualizerModule = await import('../../visualization/cellular-automata/CAVisualizer.js');
-    return CAVisualizerModule.CAVisualizer.plotDensity(this.getHistory(), options);
-  }
 }

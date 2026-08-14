@@ -366,16 +366,39 @@ export class Loop {
   }
 
   /**
-   * Simple plotting method matching Python implementation
+   * Convert the loops to flat plot data, one row per sounding note.
+   * Returns data rather than a rendered figure — draw it with whichever
+   * plotting library you like (Observable Plot, d3, Vega, ...).
+   *
+   * @returns {Array<{loop: string, time: number, duration: number, pitch: number, velocity: number}>}
+   *
+   * @example
+   * const loop = Loop.euclidean(8, 3, [60]);
+   * const plotData = loop.toPlotData();
+   * // Use with Observable Plot:
+   * Plot.plot({ marks: [
+   *   Plot.barX(plotData, { x1: "time", x2: (d) => d.time + d.duration, y: "loop" })
+   * ]})
    */
-  async plot(pulse = 1/4, colors = null, options = {}) {
-    const { LoopVisualizer } = await import('../../visualization/loops/LoopVisualizer.js');
-    return LoopVisualizer.plotLoops(
-      this.loops, 
-      this.measureLength,
-      pulse,
-      colors,
-      options
-    );
+  toPlotData() {
+    const data = [];
+    for (const [key, loop] of Object.entries(this.loops)) {
+      // Loops are stored as JMON tracks ({ label, notes }); tolerate a bare
+      // note array too, since the constructor accepts either shape.
+      const notes = Array.isArray(loop) ? loop : (loop?.notes || []);
+      const label = (Array.isArray(loop) ? null : loop?.label) ?? key;
+      for (const note of notes) {
+        // Rests carry a null pitch — they shape the timing but draw nothing.
+        if (note.pitch === null || note.pitch === undefined) continue;
+        data.push({
+          loop: label,
+          time: note.time,
+          duration: note.duration,
+          pitch: note.pitch,
+          velocity: note.velocity ?? 0.8
+        });
+      }
+    }
+    return data;
   }
 }

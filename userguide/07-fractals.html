@@ -507,12 +507,9 @@
     Let's visualize the Mandelbrot set:
   </script>
   <script id="37" type="module">
-    const mbPlotData = [];
-    mbData.forEach((row, y) => {
-      row.forEach((value, x) => {
-    mbPlotData.push({ x, y, value });
-      });
-    });
+    // toPlotData() flattens the iteration grid into { x, y, value } rows.
+    // Passing the grid we already generated avoids a second pass over the plane.
+    const mbPlotData = mb.toPlotData(mbData);
 
     display(Plot.plot({
       title: "The Mandelbrot Set",
@@ -544,13 +541,7 @@
     maxIterations: maxIter
       });
 
-      const zoomData = zoomMb.generate();
-      const zoomPlotData = [];
-      zoomData.forEach((row, y) => {
-    row.forEach((value, x) => {
-      zoomPlotData.push({ x, y, value });
-    });
-      });
+      const zoomPlotData = zoomMb.toPlotData();
 
       return html`<div style="display: inline-block; margin: 10px;">
     <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${zoomRegions[i].name}</div>
@@ -664,13 +655,7 @@
         maxIterations: 200
       });
 
-      const data = julia.generate();
-      const plotData = [];
-      data.forEach((row, y) => {
-        row.forEach((value, x) => {
-          plotData.push({ x, y, value });
-        });
-      });
+      const plotData = julia.toPlotData();
 
       return html`<div style="display: inline-block; margin: 10px;">
         <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">${label} (c = ${c.real} + ${c.imaginary}i)</div>
@@ -748,13 +733,7 @@
       maxIterations: 300
     });
 
-    const shipData = ship.generate();
-    const shipPlotData = [];
-    shipData.forEach((row, y) => {
-      row.forEach((value, x) => {
-        shipPlotData.push({ x, y, value });
-      });
-    });
+    const shipPlotData = ship.toPlotData();
 
     display(Plot.plot({
       title: "Burning Ship Fractal",
@@ -782,13 +761,7 @@
       if (type === 'julia') opts.c = { real: -0.4, imaginary: 0.6 };
 
       const f = jm.generative.fractals.Fractal(type, opts);
-      const data = f.generate();
-      const plotData = [];
-      data.forEach((row, y) => {
-        row.forEach((value, x) => {
-          plotData.push({ x, y, value });
-        });
-      });
+      const plotData = f.toPlotData();
 
       return html`<div style="display: inline-block; margin: 10px;">
         <div style="text-align: center; font-weight: bold;">${type}</div>
