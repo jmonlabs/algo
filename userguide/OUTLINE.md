@@ -59,6 +59,15 @@ of other topics rather than a foundation.
 | Assumes | I.1 |
 | Source | **existing** — `05-sounds.html`. The mastering presets are undocumented; add them. |
 
+`customPresets` belongs here too: define a synth once at composition level and
+name it from a track (`synth: "warmPad"`, or `{ preset: "warmPad", options }`
+to layer overrides). Both players and the WAV renderer share one synth factory,
+so a preset sounds the same live, offline and exported.
+
+One consequence of the synth choice is easy to miss and belongs in III.1:
+a glissando on the default `PolySynth` loses the track's timbre, while any
+other instrument keeps it. Cross-link rather than repeat.
+
 ---
 
 ## Part II — Generators
@@ -128,6 +137,22 @@ What you do to material once it exists. **New transformations go here.**
 | Assumes | I.1, I.2 |
 | Source | **partial → new** — ornaments appear briefly in 02; `Articulation`, `Strum` and `Arpeggiate` have **no coverage at all**. |
 
+**How a slide is actually performed**, worth a short section of its own — it is
+the one articulation whose result depends on the track's instrument:
+
+| Track's `synth` | What happens | Timbre |
+|---|---|---|
+| `MonoSynth`, `Synth`, `FMSynth`, … | its `detune` Signal ramps in cents | kept |
+| GM number (a `Sampler`) | its sounding voices' `playbackRate` ramps — the instrument is resampled, which is what a soundfont engine does to bend a note | kept |
+| `PolySynth` (the default) | Tone gives it neither a rampable `detune` nor reachable voices, so a bare `MonoSynth` is built to carry the slide | **lost for that note** |
+
+So the practical advice for a reader: a glissando keeps the track's sound
+everywhere except on the default `PolySynth`. Naming a `MonoSynth`, or a GM
+program, fixes it. Worth stating plainly rather than leaving to be discovered.
+
+Cents are the unit throughout: C4 to G4 is a perfect fifth, so 700 cents, or a
+playback rate of 2^(7/12) ≈ 1.498.
+
 ### III.2 Transformations
 
 | | |
@@ -175,9 +200,22 @@ function. Cross-link them rather than merging.
 
 | | |
 |---|---|
-| Covers | `jm.converters.*` — `midi` / `midiBytes` / `midiBase64` / `midiPlayer`, `midiToJmon` (import direction), `wav` / `downloadWav`, `musicxml` / `downloadMusicXML`, `supercollider`, `tonejs`. `jm.score()` and `jm.scoreSVG()` via Verovio. What survives each format and what does not — microtuning, custom synths and effects do not round-trip through Standard MIDI File. |
+| Covers | `jm.converters.*` — `midi` / `midiBytes` / `midiBase64` / `midiPlayer`, `midiToJmon` (import direction), `wav` / `downloadWav`, `musicxml` / `downloadMusicXML`, `supercollider`, `tonejs`. `jm.score()` and `jm.scoreSVG()` via Verovio. What survives each format and what does not. |
 | Assumes | I.1 |
 | Source | **new** — currently scattered through 01 and 05. |
+
+What survives Standard MIDI File, since this is the question readers will
+actually have:
+
+- **Round-trips exactly**: pitches, times, durations, tracks, tempo, and
+  glissando / portamento / bend — written as a pitch bend sweep with the bend
+  range set wide enough via RPN 0, and read back into an articulation.
+- **Round-trips approximately**: velocity, to within MIDI's 7 bits (1/127).
+- **Does not survive**: custom synths, the `audioGraph`, effects, microtuning.
+  Those are Tone-side, and SMF has nowhere to put them.
+
+`midiToJmon` needs no audio library — a MIDI file is bytes. Worth saying,
+because it used to require Tone.js and could not run.
 
 ---
 
