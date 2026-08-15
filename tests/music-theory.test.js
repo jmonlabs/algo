@@ -191,21 +191,47 @@ test("Voice returns an empty array for an empty track", () => {
   assert.deepEqual(new Voice({ tonic: "C", mode: "major" }).generate(null), []);
 });
 
-test(
-  "Voice should build full triads on every degree",
-  { todo: "Voice pre-generates a single-octave scale and passes it to " +
-          "chordifyMany, so chords rooted above the 4th degree run off the " +
-          "end of the array and silently lose notes. chordify() on its own " +
-          "gets these right. Fix: generate a multi-octave scale in the " +
-          "Voice constructor." },
-  () => {
-    const voice = new Voice({ tonic: "C", mode: "major" });
-    for (const root of [60, 62, 64, 65, 67, 69, 71]) {
-      const [chord] = voice.generate([note(root, 0)]);
-      assert.equal(chord.length, 3, `root ${root} produced ${chord.length} notes`);
-    }
-  },
-);
+test("Voice builds full triads on every degree of the scale", () => {
+  // Regression: Voice used to hand chordifyMany a single-octave scale, so
+  // chords rooted above the 4th degree ran off the end of the array and lost
+  // notes — a triad on the 6th degree came back as a single pitch.
+  const voice = new Voice({ tonic: "C", mode: "major" });
+  const expected = {
+    60: [60, 64, 67], 62: [62, 65, 69], 64: [64, 67, 71], 65: [65, 69, 72],
+    67: [67, 71, 74], 69: [69, 72, 76], 71: [71, 74, 77],
+  };
+  for (const [root, chord] of Object.entries(expected)) {
+    assert.deepEqual(voice.generate([note(Number(root), 0)])[0], chord, `root ${root}`);
+  }
+});
+
+test("chordify continues past the end of a short scale instead of truncating", () => {
+  const oneOctave = new Scale({ tonic: "C", mode: "major" }).generate();
+  assert.equal(oneOctave.length, 7);
+
+  // Every degree must still yield a pitch, even rooted at the very top.
+  assert.deepEqual(chordify(69, { scale: oneOctave }), [69, 72, 76]);
+  assert.deepEqual(chordify(71, { scale: oneOctave }), [71, 74, 77]);
+});
+
+test("chordify returns one pitch per requested degree", () => {
+  for (const degrees of [[0, 2, 4], [0, 2, 4, 6], [0, 2, 4, 6, 8], [0, 4]]) {
+    const chord = chordify(60, { tonic: "C", mode: "major", degrees });
+    assert.equal(chord.length, degrees.length, `degrees ${degrees} gave ${chord.length} notes`);
+    assert.ok(chord.every(Number.isFinite), `degrees ${degrees} produced a non-pitch`);
+  }
+});
+
+test("chordify handles negative degrees by reaching down an octave", () => {
+  assert.deepEqual(chordify(60, { tonic: "C", mode: "major", degrees: [-2, 0, 2] }), [57, 60, 64]);
+});
+
+test("chordify builds a seventh chord from the documented example", () => {
+  assert.deepEqual(
+    chordify(60, { tonic: "C", mode: "major", degrees: [0, 2, 4, 6] }),
+    [60, 64, 67, 71],
+  );
+});
 
 /* --- Ornament ------------------------------------------------------------ */
 
@@ -300,6 +326,32 @@ test("beatcycle assigns durations cyclically, one per pitch", () => {
   const out = beatcycle([60, 62, 64], [1, 0.5]);
   assert.equal(out.length, 3);
   assert.deepEqual(out.map((n) => n.duration), [1, 0.5, 1]);
+});
+
+test("Rhythm.darwin evolves a rhythm and returns JMON events", () => {
+  // Regression: darwin() assigned an undeclared `legacy` variable, which in a
+  // strict-mode ES module threw ReferenceError on every call path — the
+  // method was unreachable.
+  const rhythm = new Rhythm(4, [0.5, 1]);
+
+  for (const call of [() => rhythm.darwin(42), () => rhythm.darwin({ seed: 7 })]) {
+    const out = call();
+    assert.ok(Array.isArray(out) && out.length > 0);
+    assert.ok(out.every((e) => Number.isFinite(e.duration) && Number.isFinite(e.time)));
+    assert.ok(out.every((e) => !Array.isArray(e)), "should emit objects, not tuples");
+  }
+});
+
+test("rhythm helpers always emit JMON objects", () => {
+  // The `legacy: true` tuple-output flag is gone; passing it changes nothing.
+  const iso = isorhythm([60, 62], [1], { legacy: true });
+  const cycle = beatcycle([60, 62], [1], { legacy: true });
+  const random = new Rhythm(4, [1]).random(1, 0, 100, { legacy: true });
+
+  for (const [name, out] of [["isorhythm", iso], ["beatcycle", cycle], ["random", random]]) {
+    assert.ok(out.every((e) => !Array.isArray(e) && typeof e === "object"),
+      `${name} still returns tuples`);
+  }
 });
 
 test("Rhythm.random fills exactly the requested measure length", () => {

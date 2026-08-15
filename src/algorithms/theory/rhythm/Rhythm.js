@@ -5,11 +5,11 @@ import { beatsToTime } from '../../../utils/jmon-utils.js';
  */
 export class Rhythm {
     /**
-     * Constructs all the necessary attributes for the Rhythm object. Accepts the
-     * legacy `(measureLength, durations)` signature or an options object.
+     * Constructs a Rhythm. Takes either the positional
+     * `(measureLength, durations)` form or a single options object.
      *
-     * @param {number|Object} measureLength - Measure length or configuration object
-     * @param {Array<number>} [durations] - Durations list when using legacy signature
+     * @param {number|Object} measureLength - Measure length, or `{ measureLength, durations }`
+     * @param {Array<number>} [durations] - Durations, when using the positional form
      */
     constructor(measureLength, durations) {
         if (typeof measureLength === 'object' && measureLength !== null) {
@@ -30,20 +30,20 @@ export class Rhythm {
     }
 
     /**
-     * Generate a random rhythm.
-     * @param {number|Object|null} seedOrOptions - Legacy seed value or options object
-     * @param {number} [restProbability=0] - Legacy positional parameter
-     * @param {number} [maxIter=100] - Legacy positional parameter
-     * @param {Object} [options={}] - Additional options when using legacy signature
-     * @param {boolean} [options.legacy=false] - Return legacy tuples instead of objects
-     * @param {boolean} [options.useStringTime=false] - Output bars:beats:ticks time strings
-     * @returns {Array} Array of rhythm events `{ duration, time }` (or legacy tuples)
+     * Generate a random rhythm that fills one measure.
+     *
+     * @param {number|Object|null} seedOrOptions - Seed, or an options object
+     *   `{ seed, restProbability, maxIter, useStringTime }`
+     * @param {number} [restProbability=0] - Chance of skipping a slot, positional form
+     * @param {number} [maxIter=100] - Iteration cap, positional form
+     * @param {Object} [options={}] - Extra options when using the positional form
+     * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time strings
+     * @returns {Array<Object>} Rhythm events `{ duration, time }`
      */
     random(seedOrOptions = null, restProbability = 0, maxIter = 100, options = {}) {
         let seed = seedOrOptions;
         let restProb = restProbability;
         let maxIterations = maxIter;
-        let legacy = false;
         let useStringTime = false;
 
         if (typeof seedOrOptions === 'object' && seedOrOptions !== null && !Array.isArray(seedOrOptions)) {
@@ -51,10 +51,8 @@ export class Rhythm {
             seed = config.seed ?? null;
             restProb = config.restProbability ?? 0;
             maxIterations = config.maxIter ?? config.maxIterations ?? 100;
-            legacy = !!config.legacy;
             useStringTime = !!config.useStringTime;
         } else if (options && typeof options === 'object') {
-            legacy = !!options.legacy;
             useStringTime = !!options.useStringTime;
         }
 
@@ -88,10 +86,6 @@ export class Rhythm {
             console.warn('Max iterations reached. The sum of the durations may not equal the measure length.');
         }
         
-        if (legacy) {
-            return rhythm;
-        }
-
         return rhythm.map(([duration, offset]) => ({
             duration,
             time: useStringTime ? beatsToTime(offset) : offset
@@ -99,23 +93,25 @@ export class Rhythm {
     }
 
     /**
-     * Executes the Darwinian evolution algorithm to generate the best rhythm.
-     * Accepts legacy positional args or a configuration object similar to
-     * {@link Rhythm#random}.
+     * Evolve a rhythm with a small genetic algorithm.
      *
-     * @param {number|Object|null} seedOrOptions - Legacy seed or options object
+     * Takes either positional arguments or a single options object, the same
+     * way {@link Rhythm#random} does.
+     *
+     * @param {number|Object|null} seedOrOptions - Seed, or an options object
+     *   `{ seed, populationSize, maxGenerations, mutationRate, useStringTime }`
      * @param {number} [populationSize=10]
      * @param {number} [maxGenerations=50]
      * @param {number} [mutationRate=0.1]
-     * @param {Object} [options={}] - Additional options (legacy flag, string times)
-     * @returns {Array} Rhythm events as `{ duration, time }` objects or legacy tuples
+     * @param {Object} [options={}] - Extra options when using the positional form
+     * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time strings
+     * @returns {Array<Object>} Rhythm events `{ duration, time }`
      */
     darwin(seedOrOptions = null, populationSize = 10, maxGenerations = 50, mutationRate = 0.1, options = {}) {
         let seed = seedOrOptions;
         let popSize = populationSize;
         let generations = maxGenerations;
         let mutRate = mutationRate;
-        let legacy = false;
         let useStringTime = false;
 
         if (typeof seedOrOptions === 'object' && seedOrOptions !== null && !Array.isArray(seedOrOptions)) {
@@ -124,10 +120,8 @@ export class Rhythm {
             popSize = config.populationSize ?? config.population ?? 10;
             generations = config.maxGenerations ?? config.generations ?? 50;
             mutRate = config.mutationRate ?? 0.1;
-            legacy = !!config.legacy;
             useStringTime = !!config.useStringTime;
         } else if (options && typeof options === 'object') {
-            legacy = !!options.legacy;
             useStringTime = !!options.useStringTime;
         }
 
@@ -139,13 +133,7 @@ export class Rhythm {
             mutRate,
             this.durations
         );
-        const tuples = ga.generate();
-
-        if (legacy) {
-            return tuples;
-        }
-
-        return tuples.map(([duration, offset]) => ({
+        return ga.generate().map(([duration, offset]) => ({
             duration,
             time: useStringTime ? beatsToTime(offset) : offset
         }));

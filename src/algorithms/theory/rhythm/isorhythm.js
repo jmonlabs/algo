@@ -1,19 +1,19 @@
-import { setOffsetsAccordingToDurations } from '../../utils.js';
 import { beatsToTime } from '../../../utils/jmon-utils.js';
 
 /**
- * Merges durations and pitches until both ends coincide, then sets offsets according to successive durations
- * @param {Array} pitches - Array of pitches or tuples
- * @param {Array} durations - Array of durations
- * @param {Object} options - Options for output format
- * @param {boolean} options.legacy - If true, return legacy tuple format (default: false)
- * @param {boolean} options.useStringTime - If true, use bars:beats:ticks time format (default: false for MIDI consistency)
- * @returns {Array} Array of JMON notes with numeric time (MIDI-consistent) or legacy tuples
+ * Merges durations and pitches until both ends coincide, then sets each note's
+ * time from the durations that precede it.
+ *
+ * @param {Array<number>} pitches - Pitch values
+ * @param {Array<number>} durations - Durations, cycled against the pitches
+ * @param {Object} [options]
+ * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time
+ *   strings instead of numeric quarter notes
+ * @returns {Array<Object>} JMON notes
  */
 export function isorhythm(pitches, durations, options = {}) {
-    // Extract pitches if they are tuples
-    const cleanPitches = pitches.map(p => Array.isArray(p) || (typeof p === 'object' && p.length) ? p[0] : p);
-    
+    const cleanPitches = pitches.map(p => (Array.isArray(p) ? p[0] : p));
+
     // Calculate LCM using helper function
     const lcm = calculateLCM(cleanPitches.length, durations.length);
     
@@ -26,23 +26,18 @@ export function isorhythm(pitches, durations, options = {}) {
         dRepeated.push(durations[i % durations.length]);
     }
     
-    // Create notes with placeholder offsets
-    const notes = pRepeated.map((pitch, i) => [pitch, dRepeated[i], 1]);
-    
-    // Set proper offsets based on durations
-    const tuplesWithOffsets = setOffsetsAccordingToDurations(notes);
-    
-    // Return legacy format if requested
-    if (options.legacy) {
-        return tuplesWithOffsets;
-    }
-    
-    // Convert to JMON format - use numeric time by default for MIDI consistency
-    return tuplesWithOffsets.map(([pitch, duration, offset]) => ({
-        pitch,
-        duration,
-        time: options.useStringTime ? beatsToTime(offset) : offset
-    }));
+    // Lay the notes out end to end, each starting where the previous one ended.
+    let time = 0;
+    return pRepeated.map((pitch, i) => {
+        const duration = dRepeated[i];
+        const note = {
+            pitch,
+            duration,
+            time: options.useStringTime ? beatsToTime(time) : time
+        };
+        time += duration;
+        return note;
+    });
 }
 
 /**

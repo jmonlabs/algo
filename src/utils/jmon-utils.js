@@ -153,32 +153,6 @@ export function normalizeNotes(notes) {
 }
 
 /**
- * Convert legacy tuple sequences to JMON notes
- * @param {Array} tuples - Array of [pitch, duration, offset] tuples
- * @returns {Array} JMON note objects
- */
-export function tuplesToJmon(tuples) {
-  return tuples.map(([pitch, duration, offset = 0]) => ({
-    pitch,
-    duration,
-    time: beatsToTime(offset)
-  }));
-}
-
-/**
- * Convert JMON notes to legacy tuple format
- * @param {Array} notes - JMON note objects
- * @returns {Array} Array of [pitch, duration, offset] tuples
- */
-export function jmonToTuples(notes) {
-  return notes.map(note => [
-    note.pitch,
-    note.duration,
-    timeToBeats(note.time)
-  ]);
-}
-
-/**
  * Create a basic scale sequence in JMON format
  * @param {Array} pitches - Array of MIDI note numbers
  * @param {number} duration - Duration for each note (default: 1 beat)
