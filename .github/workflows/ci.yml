@@ -33,6 +33,7 @@ jobs:
             tests/analysis.test.js \
             tests/converters.test.js \
             tests/corruptor.test.js \
+            tests/timeline.test.js \
             tests/plot-data.test.js \
             tests/utils-transforms.test.js
 

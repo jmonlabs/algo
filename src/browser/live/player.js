@@ -14,6 +14,11 @@
 
 import { Session } from "./session.js";
 import { createTrackSynth } from "../synth-factory.js";
+import {
+  tempoSegments,
+  automationChannels,
+  parseAutomationTarget,
+} from "../../utils/timeline.js";
 
 // Tone.js — ESM build via jsDelivr (matches the rest of algo). Tone's ESM
 // build exposes Transport via getTransport() rather than as a namespace
@@ -325,6 +330,10 @@ function scheduleIteration(startBeat) {
     scheduledIds.push(id);
   });
 
+  // Automation is re-armed for every iteration, so its curve repeats with the
+  // loop the way the notes do.
+  applyAutomation(session.pattern, startBeat);
+
   const boundary = startBeat + loopDur;
   const triggerAt = Math.max(startBeat, boundary - LOOKAHEAD_BEATS);
   const boundaryId = Tone.Transport.schedule((time) => {
@@ -382,12 +391,96 @@ function scheduleBarSwap() {
   }, beatsToTicks(triggerAt));
 }
 
+// Tempo-map and automation schedule ids, cleared whenever a new pattern lands.
+let timelineIds = [];
+
+function clearTimeline() {
+  for (const id of timelineIds) {
+    try { Tone.Transport.clear(id); } catch (_) {}
+  }
+  timelineIds = [];
+}
+
+/**
+ * Follow a pattern's tempoMap.
+ *
+ * Notes here are scheduled in transport ticks, so moving `Transport.bpm` is all
+ * it takes — Tone re-derives the wall-clock position of every pending event.
+ * That is the whole reason this player schedules in ticks rather than seconds.
+ */
+function applyTempoMap(pattern) {
+  clearTimeline();
+  if (!pattern) return;
+
+  const segments = tempoSegments(pattern);
+  if (segments.length <= 1) return;
+
+  for (const segment of segments) {
+    if (segment.time === 0) {
+      Tone.Transport.bpm.value = segment.tempo;
+      continue;
+    }
+    timelineIds.push(Tone.Transport.schedule(() => {
+      Tone.Transport.bpm.value = segment.tempo;
+    }, beatsToTicks(segment.time)));
+  }
+}
+
+/**
+ * Follow a pattern's automation channels.
+ *
+ * Targets resolve against what this player actually owns: `track.<label>.<param>`
+ * reaches a track's synth or its panner, `tempo` reaches the transport. Nodes
+ * from an `audioGraph` are not built here — the live player wires each track
+ * straight to its panner — so those targets are reported rather than guessed at.
+ */
+function applyAutomation(pattern, startBeat = 0) {
+  const channels = automationChannels(pattern || {});
+  if (channels.length === 0) return;
+
+  for (const channel of channels) {
+    const parsed = parseAutomationTarget(channel.target);
+    if (parsed.kind === "midi") continue;
+
+    const param = resolveLiveAutomationParam(parsed, channel);
+    if (!param) {
+      setStatus(`automation target not found: ${channel.target}`);
+      continue;
+    }
+
+    for (const point of channel.points) {
+      timelineIds.push(Tone.Transport.schedule((time) => {
+        if (typeof param.setValueAtTime === "function") {
+          param.setValueAtTime(point.value, time);
+        } else {
+          param.value = point.value;
+        }
+      }, beatsToTicks(startBeat + point.time)));
+    }
+  }
+}
+
+function resolveLiveAutomationParam(parsed, channel) {
+  if (parsed.kind === "tempo") return Tone.Transport.bpm;
+  if (parsed.kind !== "track") return null;
+
+  const label = parsed.node || channel.trackId;
+  const synth = trackSynths.get(label);
+  if (synth && synth[parsed.param]) return synth[parsed.param];
+
+  const panner = trackPanners.get(label);
+  if (panner && panner[parsed.param]) return panner[parsed.param];
+
+  return null;
+}
+
 async function applyPattern(pattern, mode) {
   const token = ++applyToken;
 
   if (pattern && typeof pattern.tempo === "number") {
     Tone.Transport.bpm.value = pattern.tempo;
   }
+  applyTempoMap(pattern);
 
   // Cheap diff: if the JSON is byte-identical to the last applied pattern,
   // don't tear down the running loop.

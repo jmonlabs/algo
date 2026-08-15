@@ -2,6 +2,12 @@ import { tonejs } from "../converters/tonejs.js";
 import { compileEvents } from "../algorithms/audio/index.js";
 import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
 import { normalizeAudioGraph } from "../utils/normalize.js";
+import {
+  tempoSegments,
+  beatsToSeconds,
+  automationChannels,
+  parseAutomationTarget,
+} from "../utils/timeline.js";
 import { createTrackSynth, resolveConnectTarget } from "./synth-factory.js";
 
 /**
@@ -56,6 +62,8 @@ export function createPlayer(composition, options = {}) {
   let ToneLib = null;
   let masterGain = null;
   let trackConfigs = []; // [{synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN}]
+  let tempoPlan = null;     // { segments, toSeconds } — set when audio starts
+  let graphNodesRef = {};   // audioGraph nodes, for automation targets
   let activeSynths = []; // all disposable audio nodes
 
   // Create UI container
@@ -229,6 +237,7 @@ export function createPlayer(composition, options = {}) {
 
     // Build audioGraph nodes if present
     const graphNodes = {};
+    graphNodesRef = graphNodes;
     if (composition.audioGraph && Array.isArray(composition.audioGraph)) {
       composition.audioGraph.forEach(({ id, type, options: opts = {} }) => {
         if (!id || !type) return;
@@ -258,6 +267,12 @@ export function createPlayer(composition, options = {}) {
       });
     }
 
+    // A tempo map means each beat sits at its own rate, so a single
+    // secondsPerQN cannot place events — the map has to be integrated.
+    // With no tempoMap this collapses to `beats * 60 / tempo`.
+    const segments = tempoSegments(composition);
+    const toSeconds = (beats) => beatsToSeconds(beats, segments);
+    tempoPlan = { segments, toSeconds };
     const secondsPerQN = 60 / tempo;
 
     // Build per-track configs
@@ -339,14 +354,104 @@ export function createPlayer(composition, options = {}) {
   }
 
   // ── Schedule events on the transport (cheap — redo on seek) ──────
+  /**
+   * Follow the composition's tempoMap.
+   *
+   * Event times are already integrated through the map, so this exists so that
+   * Tone's own musical-time parsing (note-value durations, ramp times) and any
+   * transport-position readout agree with what is being heard.
+   */
+  function scheduleTempoChanges(toSeconds) {
+    const segments = tempoPlan?.segments;
+    if (!segments || segments.length <= 1) return;
+
+    for (const segment of segments) {
+      if (segment.time === 0) {
+        ToneLib.Transport.bpm.value = segment.tempo;
+        continue;
+      }
+      scheduledEvents.push(ToneLib.Transport.schedule(() => {
+        ToneLib.Transport.bpm.value = segment.tempo;
+      }, toSeconds(segment.time)));
+    }
+  }
+
+  /**
+   * Follow the composition's `automation` channels.
+   *
+   * A target names a parameter: `"reverb.wet"` addresses a node in the
+   * audioGraph, `"track.lead.volume"` a track's own chain, and `"tempo"` the
+   * transport. `"midi.cc*"` targets are skipped — this is the audio path, and
+   * a control change has no meaning here.
+   *
+   * Points ramp linearly from one to the next, which is what an automation
+   * lane draws between two anchors.
+   */
+  function scheduleAutomation(toSeconds) {
+    const channels = automationChannels(composition);
+    if (channels.length === 0) return;
+
+    for (const channel of channels) {
+      const parsed = parseAutomationTarget(channel.target);
+      if (parsed.kind === "midi") continue;
+
+      const param = resolveAutomationParam(parsed, channel);
+      if (!param) {
+        console.warn(`[AUTOMATION] Unresolved target: ${channel.target}`);
+        continue;
+      }
+
+      channel.points.forEach((point, i) => {
+        const at = toSeconds(point.time);
+        scheduledEvents.push(ToneLib.Transport.schedule((audioTime) => {
+          const previous = channel.points[i - 1];
+          const rampSeconds = previous ? at - toSeconds(previous.time) : 0;
+          if (rampSeconds > 0 && typeof param.linearRampToValueAtTime === "function") {
+            param.linearRampToValueAtTime(point.value, audioTime + rampSeconds);
+          } else if (typeof param.setValueAtTime === "function") {
+            param.setValueAtTime(point.value, audioTime);
+          } else {
+            param.value = point.value;
+          }
+        }, at));
+      });
+    }
+  }
+
+  /** Map a parsed automation target onto a Tone parameter, or null. */
+  function resolveAutomationParam(parsed, channel) {
+    if (parsed.kind === "tempo") return ToneLib.Transport.bpm;
+
+    if (parsed.kind === "track") {
+      const label = parsed.node || channel.trackId;
+      const index = (composition.tracks || []).findIndex(
+        (track, i) => (track.label ?? `track ${i}`) === label,
+      );
+      const synth = index >= 0 ? trackConfigs[index]?.synth : undefined;
+      return synth?.[parsed.param] ?? null;
+    }
+
+    const node = graphNodesRef[parsed.node];
+    return node?.[parsed.param] ?? null;
+  }
+
   function scheduleNotes() {
     clearScheduledEvents();
+
+    // tempoPlan is filled in when the audio graph is built. Before that, fall
+    // back to the flat rate so a call arriving early still places events.
+    const toSeconds = tempoPlan
+      ? tempoPlan.toSeconds
+      : (beats) => beats * 60 / tempo;
+
+    scheduleTempoChanges(toSeconds);
+    scheduleAutomation(toSeconds);
 
     trackConfigs.forEach(({ synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN }) => {
       // Schedule vibrato/tremolo enable/disable
       modulations.forEach((mod) => {
-        const startTime = mod.start * secondsPerQN;
-        const endTime = mod.end * secondsPerQN;
+        const startTime = toSeconds(mod.start);
+        const endTime = toSeconds(mod.end);
 
         if (mod.type === "pitch" && mod.subtype === "vibrato" && vibratoEffect) {
           scheduledEvents.push(ToneLib.Transport.schedule(() => {
@@ -380,8 +485,12 @@ export function createPlayer(composition, options = {}) {
 
       // Schedule notes
       partEvents.forEach((note, noteIndex) => {
-        const time = typeof note.time === "number" ? note.time * secondsPerQN : note.time;
-        const duration = typeof note.duration === "number" ? note.duration * secondsPerQN : note.duration;
+        const time = typeof note.time === "number" ? toSeconds(note.time) : note.time;
+        // A duration spans from the note's own onset, so it is the difference
+        // between two integrated positions, not a scaled length.
+        const duration = typeof note.duration === "number" && typeof note.time === "number"
+          ? toSeconds(note.time + note.duration) - toSeconds(note.time)
+          : note.duration;
         const velocity = note.velocity || 0.8;
         const mods = modsByNote[noteIndex] || [];
 

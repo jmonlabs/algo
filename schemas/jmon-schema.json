@@ -70,7 +70,7 @@
     },
     "tempoMap": {
       "type": "array",
-      "description": "Map of tempo changes over time. STATUS: Produced by midiToJmon; the players do not yet follow it.",
+      "description": "Map of tempo changes over time.",
       "items": {
         "type": "object",
         "required": [
@@ -1231,7 +1231,7 @@
     },
     "automation": {
       "type": "object",
-      "description": "Multi-level automation system with interpolation support. STATUS: Produced by midiToJmon and read by Corruptor; the players do not yet follow it.",
+      "description": "Multi-level automation system with interpolation support. Targets are resolved as 'tempo', '<audioGraphNodeId>.<param>' or 'track.<label>.<param>'; 'midi.cc*' targets are ignored on the audio path. Anchor point times are in quarter notes.",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -1349,7 +1349,7 @@
     },
     "timeSignatureMap": {
       "type": "array",
-      "description": "Map of time signature changes over time. STATUS: Produced by midiToJmon; the players do not yet follow it.",
+      "description": "Map of time signature changes over time. STATUS: Produced by midiToJmon; not yet followed during playback.",
       "items": {
         "type": "object",
         "required": [

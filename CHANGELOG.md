@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 183 tests across eight
+- A test suite that fails on a broken assertion: 207 tests across nine
   `node:test` suites, all run by CI.
 
 ### Changed
@@ -104,14 +104,37 @@ to pin — never resolved.
 - `tuplesToJmon` and `jmonToTuples`, unused converters.
 - Five one-line test files that ran as tests while asserting nothing.
 
+### Playback follows tempoMap and automation
+
+Both players now read `composition.tempoMap` and `composition.automation`,
+which the MIDI importer had been producing all along with nothing to consume
+them. The shared logic lives in `src/utils/timeline.js` — pure functions, so it
+is tested without a browser.
+
+- `tempoMap` — `music-player.js` schedules in seconds, so beat positions are
+  integrated through the map segment by segment; a note straddling a tempo
+  change is correctly part at each rate. `live/player.js` schedules in
+  transport ticks, so it only has to move `Transport.bpm` and Tone re-derives
+  the rest. With no tempoMap, the integration collapses to exactly the flat
+  `beats * 60 / tempo` it replaces — asserted by a test, so no existing piece
+  shifts.
+- `automation` — all three spellings (`global`, per-track `tracks`, and the
+  deprecated flat `events`) flatten to one channel list. Targets resolve as
+  `tempo`, `<audioGraphNodeId>.<param>`, or `track.<label>.<param>`. The
+  offline player ramps linearly between anchor points; the live player re-arms
+  the curve each loop iteration. `midi.cc*` targets are skipped on the audio
+  path, where a control change has no meaning.
+
 ### Known gaps
 
-- `src/browser/` — the Tone.js player, the live player and the score renderer —
-  has no automated coverage. Neither does glissando, in any converter.
-- `schemas/jmon-schema.json` is the written specification, not an enforced
-  contract. `keySignatureMap`, `annotations`, `customPresets` and
-  `converterHints` are declared there but implemented nowhere; `tempoMap`,
-  `timeSignatureMap` and `automation` are produced by the MIDI importer but
-  ignored by the players.
+- `src/browser/` has no automated coverage of its Tone.js-dependent paths —
+  the note scheduler, the synth factory, the score renderer. The logic that
+  could be extracted from it has been: `src/utils/timeline.js` is covered.
+  Glissando has no coverage in any converter.
+- `keySignatureMap`, `annotations`, `customPresets` and `converterHints` are
+  declared in the schema and implemented nowhere. `timeSignatureMap` is
+  produced by the MIDI importer but not followed during playback.
+- `schemas/jmon-schema.json` remains the written specification rather than an
+  enforced contract; see the validator's own notes.
 
 [1.2.0]: https://github.com/jmonlabs/algo/releases/tag/v1.2.0
