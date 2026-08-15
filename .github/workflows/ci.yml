@@ -19,26 +19,19 @@ jobs:
         with:
           node-version: "22"
 
-      # Existing test suites — these stay green if the library code is sane.
-      - name: Unit tests (music theory)
-        run: node tests/music-theory.test.js
-
-      - name: Unit tests (key context)
-        run: node tests/key-context.test.js
-
-      - name: Unit tests (generative algorithms)
-        run: node tests/generative-algorithms.test.js
-
-      - name: Unit tests (analysis)
-        run: node tests/analysis.test.js
-
-      # node:test + assert — unlike the console.log suites above, these
-      # actually fail the build when an assertion breaks.
-      - name: Unit tests (plot data)
-        run: node --test tests/plot-data.test.js
-
-      - name: Unit tests (utils transforms + quantization)
-        run: node --test tests/utils-transforms.test.js
+      # node:test + assert throughout — a broken assertion fails the build.
+      # Listed explicitly rather than globbing tests/, because the remaining
+      # legacy suites there (all-features, gaussian-processes, tone-esm-compat,
+      # bun-compatibility) need npm dependencies this job does not install.
+      - name: Unit tests
+        run: |
+          node --test \
+            tests/music-theory.test.js \
+            tests/key-context.test.js \
+            tests/generative-algorithms.test.js \
+            tests/analysis.test.js \
+            tests/plot-data.test.js \
+            tests/utils-transforms.test.js
 
       # Browser-load test — protects the jsDelivr distribution path.
       # Loads src/index.js the same way `import("https://cdn.jsdelivr.net

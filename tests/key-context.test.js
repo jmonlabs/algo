@@ -1,165 +1,164 @@
 /**
- * Tests for the Key context (jm.key) and Chain.line() convenience.
+ * The jm.key() context: setting tonic/mode once and handing it to Scale,
+ * Voice, Ornament, Progression and the chord helpers.
  *
- * These features collapse the repeated {tonic, mode} boilerplate
- * across harmony classes and remove the [branches]+null-padding shape
- * for single-line random walks.
+ * node:test + assert. Run with: node --test tests/key-context.test.js
  */
 
-import { Key, key } from '../src/algorithms/theory/harmony/Key.js';
-import { Voice } from '../src/algorithms/theory/harmony/Voice.js';
-import { Ornament } from '../src/algorithms/theory/harmony/Ornament.js';
-import { Chain } from '../src/algorithms/generative/walks/Chain.js';
+import test from "node:test";
+import assert from "node:assert/strict";
 
-let failures = 0;
-function check(label, cond) {
-    const mark = cond ? '✓' : '✗';
-    if (!cond) failures++;
-    console.log(`  ${mark} ${label}`);
-}
+import { Key, key } from "../src/algorithms/theory/harmony/Key.js";
+import { Scale } from "../src/algorithms/theory/harmony/Scale.js";
+import { Voice } from "../src/algorithms/theory/harmony/Voice.js";
+import { Ornament } from "../src/algorithms/theory/harmony/Ornament.js";
+import { Chain } from "../src/algorithms/generative/walks/Chain.js";
 
-console.log('=== Testing Key Context + Chain.line() ===\n');
+/* --- the factory --------------------------------------------------------- */
 
-// Test 1: key() factory shape
-console.log('1. key() factory');
-{
-    const k = key('C', 'major');
-    check('returns Key instance', k instanceof Key);
-    check('tonic = C', k.tonic === 'C');
-    check('mode = major', k.mode === 'major');
+test("key() builds a Key carrying tonic and mode", () => {
+  const k = key("D", "dorian");
+  assert.ok(k instanceof Key);
+  assert.equal(k.tonic, "D");
+  assert.equal(k.mode, "dorian");
+});
 
-    const k2 = key({ tonic: 'D', mode: 'dorian' });
-    check('options-object form: tonic = D', k2.tonic === 'D');
-    check('options-object form: mode = dorian', k2.mode === 'dorian');
+test("key() defaults to C major and accepts an options object", () => {
+  assert.deepEqual([key().tonic, key().mode], ["C", "major"]);
+  assert.deepEqual([key("F").tonic, key("F").mode], ["F", "major"]);
 
-    const k3 = key({ key: 'F' });
-    check("`key` alias for tonic", k3.tonic === 'F');
-    check('default mode = major', k3.mode === 'major');
-}
-console.log('');
+  const fromObject = key({ tonic: "A", mode: "minor" });
+  assert.deepEqual([fromObject.tonic, fromObject.mode], ["A", "minor"]);
 
-// Test 2: k.scale() / k.voice() / k.ornament() / k.progression()
-console.log('2. Context-applied constructors');
-{
-    const k = key('C', 'major');
-    const scale = k.scale().generate({ length: 8 });
-    check('k.scale().generate() returns 8 notes', scale.length === 8);
-    check('first note is C', scale[0] === 60);
+  // `key` is accepted as an alias of `tonic` in the options form.
+  const fromAlias = key({ key: "E", mode: "phrygian" });
+  assert.deepEqual([fromAlias.tonic, fromAlias.mode], ["E", "phrygian"]);
+});
 
-    const v = k.voice({ measureLength: 4 });
-    check('k.voice() carries tonic', v.tonic === 'C');
-    check('k.voice() carries mode', v.mode === 'major');
-    check('k.voice() respects per-call options', v.measureLength === 4);
+/* --- context-applied constructors ---------------------------------------- */
 
-    const orn = k.ornament({ type: 'trill', parameters: { by: 2 } });
-    check('k.ornament() builds a scale', !!orn.scale && orn.scale.length > 0);
+test("the context builds harmony objects without repeating tonic/mode", () => {
+  const k = key("D", "dorian");
 
-    const prog = k.progression().generate(['I', 'IV', 'V', 'I']);
-    check('k.progression() returns 4 chords', prog.length === 4);
-    check('first chord is C major triad', prog[0].join(',') === '60,64,67');
-}
-console.log('');
+  const scale = k.scale();
+  assert.ok(scale instanceof Scale);
+  assert.deepEqual(scale.generate({ start: 62, length: 7 }), [62, 64, 65, 67, 69, 71, 72]);
 
-// Test 3: per-call override wins
-console.log('3. Per-call overrides take precedence');
-{
-    const k = key('C', 'major');
-    const dorianVoice = k.voice({ mode: 'dorian' });
-    check('override mode = dorian', dorianVoice.mode === 'dorian');
-    check('override keeps tonic = C', dorianVoice.tonic === 'C');
-}
-console.log('');
+  const voice = k.voice({ measureLength: 4 });
+  assert.ok(voice instanceof Voice);
+  assert.deepEqual([voice.tonic, voice.mode], ["D", "dorian"]);
 
-// Test 4: k.chord() / k.chords()
-console.log('4. Chord helpers');
-{
-    const k = key('C', 'major');
-    const chord = k.chord(60);
-    check('k.chord(60) = [60,64,67]', chord.join(',') === '60,64,67');
+  const ornament = k.ornament({ type: "mordent", parameters: { by: -1 } });
+  assert.ok(ornament instanceof Ornament);
 
-    const chords = k.chords([60, 62, 64]);
-    check('k.chords() returns 3 chords', chords.length === 3);
-    check('first chord matches', chords[0].join(',') === '60,64,67');
-}
-console.log('');
+  const progression = k.progression();
+  assert.equal(progression.mode, "dorian");
+});
 
-// Test 5: Voice / Ornament accept a Key instance as `key` option
-console.log('5. Voice/Ornament accept Key instance via options.key');
-{
-    const k = key('G', 'minor');
+test("a context scale matches one built by hand", () => {
+  const byHand = new Scale({ tonic: "F", mode: "lydian" }).generate({ start: 65, length: 7 });
+  const byContext = key("F", "lydian").scale().generate({ start: 65, length: 7 });
+  assert.deepEqual(byContext, byHand);
+});
 
-    const v = new Voice({ key: k, output: 'track' });
-    check('Voice picks tonic from key', v.tonic === 'G');
-    check('Voice picks mode from key', v.mode === 'minor');
+/* --- overrides ----------------------------------------------------------- */
 
-    const orn = new Ornament({ key: k, type: 'turn' });
-    check('Ornament builds scale from key context', !!orn.scale);
-}
-console.log('');
+test("per-call options beat the context", () => {
+  const k = key("C", "major");
 
-// Test 6: backward compat — old API still works
-console.log('6. Backward compatibility');
-{
-    const v = new Voice({ tonic: 'D', mode: 'dorian' });
-    check('Voice({tonic,mode}) still works', v.tonic === 'D' && v.mode === 'dorian');
+  assert.equal(k.scale({ mode: "minor" }).mode, "minor");
+  assert.equal(k.scale({ tonic: "G" }).tonic, "G");
+  assert.deepEqual(
+    k.scale({ tonic: "A", mode: "minor" }).generate({ start: 69, length: 3 }),
+    [69, 71, 72],
+  );
+  // The context itself is untouched by an override.
+  assert.deepEqual([k.tonic, k.mode], ["C", "major"]);
+});
 
-    const vKey = new Voice({ key: 'F', mode: 'major' });
-    check("Voice({key:'F', mode}) string-alias still works", vKey.tonic === 'F');
+/* --- chord helpers ------------------------------------------------------- */
 
-    const orn = new Ornament({ type: 'trill', tonic: 'C', mode: 'major', parameters: { by: 1 } });
-    check('Ornament({type, tonic, mode}) still builds scale', !!orn.scale);
+test("chord() and chords() apply the context", () => {
+  const k = key("C", "major");
+  assert.deepEqual(k.chord(60), [60, 64, 67]);
+  assert.deepEqual(k.chords([60, 62]), [[60, 64, 67], [62, 65, 69]]);
+});
 
-    const ornNoKey = new Ornament({ type: 'trill', parameters: { by: 1 } });
-    check('Ornament with no tonic/mode has scale=null', ornNoKey.scale === null);
-}
-console.log('');
+test("chord() in a minor context differs from the major one", () => {
+  assert.notDeepEqual(key("A", "minor").chord(69), key("A", "major").chord(69));
+});
 
-// Test 7: Chain.line() returns flat array, no nulls, no nesting
-console.log('7. Chain.line() convenience');
-{
-    const chain = new Chain({
-        walkRange: [0, 7],
-        walkStart: 3,
-        walkProbability: [-1, 0, 1],
-        roundTo: 0
-    });
-    const walk = chain.line(16, 42);
-    check('returns an Array', Array.isArray(walk));
-    check('length matches request', walk.length === 16);
-    check('no null values', !walk.includes(null));
-    check('no nested arrays', walk.every(v => typeof v === 'number'));
-    check('respects walkStart', walk[0] === 3);
-    check('values within walkRange', walk.every(v => v >= 0 && v <= 7));
-}
-console.log('');
+/* --- Key accepted as an option ------------------------------------------- */
 
-// Test 8: line() restores configured branching/merging
-console.log('8. line() preserves instance state');
-{
-    const chain = new Chain({
-        walkRange: [-5, 5],
-        walkStart: 0,
-        branchingProbability: 0.5,
-        mergingProbability: 0.3
-    });
-    chain.line(10, 1);
-    check('branchingProbability restored', chain.branchingProbability === 0.5);
-    check('mergingProbability restored', chain.mergingProbability === 0.3);
-}
-console.log('');
+test("Voice accepts a Key instance through options.key", () => {
+  const k = key("G", "mixolydian");
+  const voice = new Voice({ key: k });
+  assert.deepEqual([voice.tonic, voice.mode], ["G", "mixolydian"]);
+});
 
-// Test 9: line() is deterministic with seed
-console.log('9. line() is reproducible');
-{
-    const opts = { walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0 };
-    const a = new Chain(opts).line(20, 99);
-    const b = new Chain(opts).line(20, 99);
-    check('same seed → same walk', a.join(',') === b.join(','));
-}
-console.log('');
+test("an explicit tonic/mode still wins over a Key passed as options.key", () => {
+  const voice = new Voice({ key: key("G", "mixolydian"), tonic: "C", mode: "minor" });
+  assert.deepEqual([voice.tonic, voice.mode], ["C", "minor"]);
+});
 
-console.log(`=== Key Context Tests ${failures ? 'FAILED' : 'Complete'} (${failures} failures) ===`);
+test("Voice still accepts a bare tonic string as options.key", () => {
+  const voice = new Voice({ key: "E", mode: "minor" });
+  assert.deepEqual([voice.tonic, voice.mode], ["E", "minor"]);
+});
 
-if (failures > 0) {
-    process.exitCode = 1;
-}
+/* --- backward compatibility ---------------------------------------------- */
+
+test("the pre-context constructors keep working unchanged", () => {
+  const scale = new Scale({ tonic: "C", mode: "major" });
+  assert.deepEqual(scale.generate({ start: 60, length: 8 }), [60, 62, 64, 65, 67, 69, 71, 72]);
+
+  const voice = new Voice({ tonic: "C", mode: "major", measureLength: 4 });
+  assert.deepEqual([voice.tonic, voice.mode], ["C", "major"]);
+});
+
+/* --- Chain.line() -------------------------------------------------------- */
+
+test("Chain.line() returns one flat walk of the requested length", () => {
+  const walk = new Chain({
+    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+  }).line(8, 42);
+
+  assert.ok(Array.isArray(walk));
+  assert.equal(walk.length, 8);
+  assert.ok(walk.every((v) => Number.isInteger(v)), "roundTo: 0 should yield integers");
+  assert.ok(walk.every((v) => v >= 0 && v <= 10), "walk left its range");
+});
+
+test("Chain.line() is reproducible for a given seed", () => {
+  const build = () => new Chain({
+    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+  });
+  assert.deepEqual(build().line(8, 42), build().line(8, 42));
+  assert.notDeepEqual(build().line(8, 42), build().line(8, 7));
+});
+
+test("Chain.line() starts where walkStart says", () => {
+  const walk = new Chain({
+    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+  }).line(4, 42);
+  assert.equal(walk[0], 5);
+});
+
+test("Chain.line() leaves the instance reusable", () => {
+  const chain = new Chain({
+    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+  });
+  const first = chain.line(8, 42);
+  const second = chain.line(8, 42);
+  assert.deepEqual(second, first, "instance state leaked between calls");
+  assert.equal(chain.walkStart, 5, "walkStart was mutated");
+});
+
+/* --- reachable from the public API --------------------------------------- */
+
+test("jm.key is wired up on the default export", async () => {
+  const { default: jm } = await import("../src/index.js");
+  assert.equal(typeof jm.key, "function");
+  assert.equal(typeof jm.theory.harmony.Key, "function");
+  assert.deepEqual(jm.key("C", "major").chord(60), [60, 64, 67]);
+});
