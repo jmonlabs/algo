@@ -123,7 +123,8 @@ test("Progression takes an options object, not positional arguments", () => {
   // key entirely — silently. Locked in so that the day it starts validating,
   // this test says so.
   const positional = new Progression("F#", "minor");
-  assert.equal(positional.tonicNote, "C4");
+  assert.equal(positional.tonicNote, "C");
+  assert.equal(positional.tonicMidi, 60);
   assert.equal(positional.mode, "major");
 
   const correct = new Progression({ tonic: "F#", mode: "minor" });
@@ -137,18 +138,29 @@ test("Progression resolves a bare note name to the right octave", () => {
   assert.equal(new Progression({ tonic: "F#" }).tonicMidi, 66);
 });
 
-test(
-  "Progression should default to C4, and accept an octave-qualified tonic",
-  { todo: "The default tonic is the string 'C4', whose length is 2, so the " +
-          "constructor takes the bare-note-name branch and appends another " +
-          "'4' — cdeToMidi('C44') is 59, a semitone flat. Both `new " +
-          "Progression()` and `{ tonic: 'C4' }` are affected; `{ tonic: 'C' }` " +
-          "is fine. Fix: test for a trailing digit rather than string length." },
-  () => {
-    assert.equal(new Progression().tonicMidi, 60);
-    assert.equal(new Progression({ tonic: "C4" }).tonicMidi, 60);
-  },
-);
+test("Progression defaults to C4 and accepts an octave-qualified tonic", () => {
+  // Regression: the default tonic is the string 'C4', and the constructor
+  // decided "is this a bare note name?" by string length. 'C4' is two
+  // characters, so it took the bare branch and asked cdeToMidi for 'C44' —
+  // a semitone flat. Every default-constructed Progression was wrong.
+  assert.equal(new Progression().tonicMidi, 60);
+  assert.equal(new Progression().tonicNote, "C");
+  assert.deepEqual(new Progression().generate(["I", "IV", "V", "I"]), [
+    [60, 64, 67], [65, 69, 72], [67, 71, 74], [60, 64, 67],
+  ]);
+});
+
+test("Progression resolves bare and octave-qualified tonics identically", () => {
+  for (const [bare, qualified, midi] of [
+    ["C", "C4", 60], ["F#", "F#4", 66], ["C#", "C#4", 61],
+  ]) {
+    assert.equal(new Progression({ tonic: bare }).tonicMidi, midi, bare);
+    assert.equal(new Progression({ tonic: qualified }).tonicMidi, midi, qualified);
+    assert.equal(new Progression({ tonic: qualified }).tonicNote, bare);
+  }
+  // A non-default octave is honoured rather than overwritten.
+  assert.equal(new Progression({ tonic: "Bb3" }).tonicMidi, 58);
+});
 
 /* --- Chordify ------------------------------------------------------------ */
 
@@ -339,6 +351,30 @@ test("Rhythm.darwin evolves a rhythm and returns JMON events", () => {
     assert.ok(Array.isArray(out) && out.length > 0);
     assert.ok(out.every((e) => Number.isFinite(e.duration) && Number.isFinite(e.time)));
     assert.ok(out.every((e) => !Array.isArray(e)), "should emit objects, not tuples");
+  }
+});
+
+test("Rhythm.darwin lays notes end to end inside the measure", () => {
+  // Regression: the genome stored [duration, offset], but crossover spliced in
+  // a tail carrying the *other* parent's offsets and mutation changed a
+  // duration without shifting what followed — so the result described a
+  // rhythm overlapping itself. Offsets are now always rebuilt from durations.
+  const measureLength = 4;
+  const rhythm = new Rhythm(measureLength, [0.25, 0.5, 1, 2]);
+
+  for (let seed = 0; seed < 40; seed++) {
+    const out = rhythm.darwin(seed);
+    assert.ok(out.length > 0, `seed ${seed} produced nothing`);
+
+    let expectedTime = 0;
+    for (const event of out) {
+      assert.ok(
+        Math.abs(event.time - expectedTime) < 1e-9,
+        `seed ${seed}: note at ${event.time}, expected ${expectedTime}`,
+      );
+      expectedTime += event.duration;
+    }
+    assert.ok(expectedTime <= measureLength + 1e-9, `seed ${seed} overflowed the measure`);
   }
 });
 

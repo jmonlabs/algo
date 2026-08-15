@@ -230,18 +230,44 @@ class GeneticRhythm {
     }
 
     /**
-     * Ensure rhythm respects measure length
+     * Rewrite every offset from the durations that precede it.
+     *
+     * The genome stores `[duration, offset]`, but only the durations are
+     * heritable — an offset is a consequence of them. Crossover splices in a
+     * tail carrying the *other* parent's offsets, and mutation changes a
+     * duration without shifting what follows, so both leave the offsets
+     * describing a rhythm that overlaps itself. Rebuilding them here is what
+     * keeps the invariant "offsets are the running sum of durations" true at
+     * every stage.
+     *
+     * @param {Array} rhythm - Array of [duration, offset] tuples
+     * @returns {Array} New array with coherent, ascending offsets
+     */
+    relayout(rhythm) {
+        let offset = 0;
+        return rhythm.map(([duration]) => {
+            const note = [duration, offset];
+            offset += duration;
+            return note;
+        });
+    }
+
+    /**
+     * Trim a rhythm back inside the measure, then relayout it.
      * @param {Array} rhythm - The rhythm to adjust
-     * @returns {Array} Adjusted rhythm
+     * @returns {Array} Adjusted rhythm with coherent offsets
      */
     ensureMeasureLength(rhythm) {
-        const totalLength = rhythm.reduce((sum, note) => sum + note[0], 0);
-        
-        if (totalLength > this.measureLength && rhythm.length > 0) {
-            rhythm.pop(); // Remove last note if exceeds measure length
+        const trimmed = [...rhythm];
+        let totalLength = trimmed.reduce((sum, note) => sum + note[0], 0);
+
+        // Drop from the end until it fits. A single pop is not enough: a
+        // crossover can splice together two long tails at once.
+        while (totalLength > this.measureLength && trimmed.length > 0) {
+            totalLength -= trimmed.pop()[0];
         }
-        
-        return rhythm;
+
+        return this.relayout(trimmed);
     }
 
     /**
@@ -250,50 +276,48 @@ class GeneticRhythm {
      * @returns {Array} Mutated rhythm
      */
     mutate(rhythm) {
-        if (Math.random() < this.mutationRate && rhythm.length > 1) {
-            const index = Math.floor(Math.random() * (rhythm.length - 1));
-                const [duration, offset] = rhythm[index];
-            const nextOffset = index === rhythm.length - 1 ? 
-                this.measureLength : rhythm[index + 1][1];
-            const maxNewDuration = nextOffset - offset;
-            const validDurations = this.durations.filter(d => d <= maxNewDuration);
-            
-            if (validDurations.length > 0) {
-                const newDuration = validDurations[Math.floor(Math.random() * validDurations.length)];
-                rhythm[index] = [newDuration, offset];
-            }
+        if (Math.random() >= this.mutationRate || rhythm.length === 0) {
+            return rhythm;
         }
-        
-        return rhythm;
+
+        // Every slot is mutable, including the last — the old bound excluded
+        // it, so the final note of a rhythm could never change.
+        const index = Math.floor(Math.random() * rhythm.length);
+        const mutated = [...rhythm];
+        mutated[index] = [
+            this.durations[Math.floor(Math.random() * this.durations.length)],
+            rhythm[index][1]
+        ];
+
+        // A new duration shifts everything after it, so trim and relayout
+        // rather than constraining the choice to the neighbouring gap.
+        return this.ensureMeasureLength(mutated);
     }
 
     /**
-     * Execute the genetic algorithm
-     * @returns {Array} Best rhythm found, sorted by offset
+     * Execute the genetic algorithm.
+     * @returns {Array} Best rhythm found, as gap-free ascending [duration, offset]
      */
     generate() {
         for (let generation = 0; generation < this.maxGenerations; generation++) {
             const newPopulation = [];
-            
+
             for (let i = 0; i < this.populationSize; i++) {
                 const parent1 = this.selectParent();
                 const parent2 = this.selectParent();
-                let child = this.crossover(parent1, parent2);
-                child = this.mutate(child);
-                
-                // Sort child by offset
-                child.sort((a, b) => a[1] - b[1]);
+                const child = this.mutate(this.crossover(parent1, parent2));
+                // No sort needed: crossover and mutate both relayout, so
+                // offsets are already ascending by construction.
                 newPopulation.push(child);
             }
-            
+
             this.population = newPopulation;
         }
 
-        // Return best rhythm sorted by offset
-        const bestRhythm = this.population.reduce((best, current) => 
+        const bestRhythm = this.population.reduce((best, current) =>
             this.evaluateFitness(current) < this.evaluateFitness(best) ? current : best
         );
-        
-        return bestRhythm.sort((a, b) => a[1] - b[1]);
+
+        return this.relayout(bestRhythm);
     }
 }

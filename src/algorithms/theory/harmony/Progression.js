@@ -38,15 +38,16 @@ export class Progression extends MusicTheoryConstants {
             weights
         } = options;
 
-        // Parse tonic - handle both 'C' and 'C4' formats
-        if (tonic.length <= 2) {
-            // Just note name, add octave
-            this.tonicMidi = cdeToMidi(tonic + '4');
-            this.tonicNote = tonic;
-        } else {
-            this.tonicMidi = cdeToMidi(tonic);
-            this.tonicNote = tonic.replace(/[0-9]/g, '');
-        }
+        // Parse tonic — accepts a bare note name ('C', 'F#') or an
+        // octave-qualified one ('C4', 'Bb3'). cdeToMidi mishandles bare
+        // accidentals, so the bare form gets a default octave appended.
+        //
+        // The test is for a trailing octave number, not string length: the
+        // default tonic 'C4' is two characters long, so a length test sent it
+        // down the bare branch and asked cdeToMidi for 'C44' — a semitone flat.
+        const hasOctave = /-?\d+$/.test(tonic);
+        this.tonicMidi = cdeToMidi(hasOctave ? tonic : `${tonic}4`);
+        this.tonicNote = tonic.replace(/-?\d+$/, '');
 
         this.scale = mode;
         this.mode = mode;
