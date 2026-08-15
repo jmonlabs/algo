@@ -284,11 +284,64 @@ test("Ornament 'mordent' alternates with the note below and keeps the span", () 
 
 /* --- Articulation -------------------------------------------------------- */
 
-test("Articulation.apply is static and shortens a staccato note", () => {
+test("Articulation is constructed and applied the same way Ornament is", () => {
+  const melody = [note(60, 0), note(62, 1), note(64, 2)];
+
+  const ornamented = new Ornament({
+    type: "mordent", tonic: "C", mode: "major", parameters: { by: -1 },
+  }).apply(melody.map((n) => ({ ...n })), 0);
+  const articulated = new Articulation({ type: "staccato" })
+    .apply(melody.map((n) => ({ ...n })), 0);
+
+  for (const [label, out] of [["Ornament", ornamented], ["Articulation", articulated]]) {
+    assert.ok(Array.isArray(out), `${label} should return an array`);
+    assert.ok(out.length >= melody.length, `${label} should not lose notes`);
+  }
+});
+
+test("Articulation validates its type at construction, like Ornament", () => {
+  assert.throws(() => new Articulation({ type: "nonesuch" }), /Unknown articulation type/);
+  assert.throws(() => new Articulation({}), /Unknown articulation type/);
+  // The message lists what is available, as Scale's does.
+  assert.throws(() => new Articulation({ type: "nonesuch" }), /staccato/);
+});
+
+test("Articulation#apply picks a note at random when given no index", () => {
+  const out = new Articulation({ type: "staccato" }).apply([note(60, 0), note(62, 1)]);
+  // Staccato halves a note and inserts a rest, so exactly one note was touched.
+  assert.equal(out.length, 3);
+  assert.equal(out.filter((n) => n.pitch === null).length, 1);
+});
+
+test("Articulation#apply accepts several indices at once", () => {
+  const out = new Articulation({ type: "staccato" })
+    .apply([note(60, 0), note(62, 1), note(64, 2)], [0, 2]);
+
+  assert.equal(out.filter((n) => n.pitch === null).length, 2, "expected two rests");
+  assert.deepEqual(out.filter((n) => n.pitch !== null).map((n) => n.pitch), [60, 62, 64]);
+});
+
+test("staccato and staccatissimo shorten by their documented amounts", () => {
+  for (const [type, factor] of [["staccato", 0.5], ["staccatissimo", 0.25]]) {
+    const out = new Articulation({ type }).apply([note(60, 0, 1)], 0);
+    assert.equal(out[0].duration, factor, `${type} duration`);
+    assert.ok(out[0].articulations.includes(type), `${type} should tag the note`);
+    assert.equal(out[1].pitch, null, `${type} should insert a rest`);
+    assert.equal(out[1].duration, 1 - factor, `${type} rest duration`);
+  }
+});
+
+test("staccatissimo is a registered type, not just an unreachable branch", async () => {
+  const { default: jm } = await import("../src/index.js");
+  const types = jm.constants.listArticulations();
+  assert.ok(types.includes("staccatissimo"), "staccatissimo should be listed");
+  assert.equal(types.length, 13);
+});
+
+test("the static Articulation.apply form still works", () => {
   assert.equal(typeof Articulation.apply, "function");
-  const out = Articulation.apply([note(60, 0)], "staccato");
-  assert.ok(Array.isArray(out));
-  assert.ok(out[0].duration <= 1, "staccato should not lengthen the note");
+  const out = Articulation.apply([note(60, 0)], 0, "accent");
+  assert.ok(out[0].velocity > 0.8, "accent should raise velocity");
 });
 
 /* --- Strum / Arpeggiate -------------------------------------------------- */

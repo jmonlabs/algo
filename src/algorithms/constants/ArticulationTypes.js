@@ -3,9 +3,13 @@
  */
 export const ARTICULATION_TYPES = {
     // Simple articulations
-    'staccato': { 
-        complex: false, 
-        description: 'Shortens note duration to ~50%' 
+    'staccato': {
+        complex: false,
+        description: 'Shortens note duration to ~50%'
+    },
+    'staccatissimo': {
+        complex: false,
+        description: 'Shortens note duration to ~25%'
     },
     'accent': { 
         complex: false, 

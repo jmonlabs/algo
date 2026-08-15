@@ -124,7 +124,7 @@ What you do to material once it exists. **New transformations go here.**
 
 | | |
 |---|---|
-| Covers | `Ornament` — `grace_note`, `trill`, `mordent`, `turn`, `arpeggio`, and their parameters. `Articulation` (**static** `Articulation.apply()`, unlike `Ornament`'s instance method) — the 12 types from `staccato` to `diminuendo`. `Strum` / `strum`, `Arpeggiate` / `arpeggiate` — note that `strum`'s `direction: 'up'` reverses pitch order, guitar-style, while `arpeggiate`'s does not. `jm.constants.listOrnaments()` / `.listArticulations()` / `.describe()`. |
+| Covers | `Ornament` — `grace_note`, `trill`, `mordent`, `turn`, `arpeggio`, and their parameters. `Articulation` — built and applied exactly like `Ornament` (`new Articulation({ type }).apply(notes, index)`), 13 types from `staccato` to `diminuendo`, with a static `Articulation.apply()` as the low-level form. `Strum` / `strum`, `Arpeggiate` / `arpeggiate` — note that `strum`'s `direction: 'up'` reverses pitch order, guitar-style, while `arpeggiate`'s does not. `jm.constants.listOrnaments()` / `.listArticulations()` / `.describe()`. |
 | Assumes | I.1, I.2 |
 | Source | **partial → new** — ornaments appear briefly in 02; `Articulation`, `Strum` and `Arpeggiate` have **no coverage at all**. |
 
