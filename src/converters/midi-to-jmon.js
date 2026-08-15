@@ -202,6 +202,43 @@ export class MidiToJmon {
    * @param {Object} track - Parent track for context
    * @returns {Object} JMON note
    */
+/**
+   * Recover a slide from a note's pitch bend envelope.
+   *
+   * The export writes a glissando as a bend sweeping from centre to its
+   * depth across the note. Reading it back means looking at where the bend
+   * has arrived by the time the note ends: a sweep that starts near centre
+   * and lands somewhere else is a slide to `pitch + semitones`. A bend that
+   * is already off-centre when the note starts is a fixed bend, not a slide.
+   *
+   * @returns {Object|null} A JMON articulation, or null if there is no bend
+   */
+  recoverSlide(note, track) {
+    const bends = track?.pitchBends;
+    if (!Array.isArray(bends) || bends.length === 0) return null;
+
+    const range = track.pitchBendRange || 2;
+    const start = note.time;
+    const end = note.time + note.duration;
+    // Half-open: a bend sitting exactly on the note's end belongs to what
+    // follows, not to this note.
+    const within = bends.filter((b) => b.time >= start - 1e-6 && b.time < end - 1e-6);
+    if (within.length < 2) return null;
+
+    const first = within[0].value * range;
+    const last = within.at(-1).value * range;
+    const depth = last - first;
+
+    // A semitone's worth of movement is the floor; below that it is vibrato
+    // or rounding, not a slide.
+    if (Math.abs(depth) < 0.5) return null;
+
+    if (Math.abs(first) < 0.05) {
+      return { type: "glissando", target: Math.round(note.midi + depth) };
+    }
+    return { type: "bend", amount: Number(depth.toFixed(3)) };
+  }
+
   convertNote(note, Tone, track, timeUnit = "seconds") {
     const inBeats = timeUnit === "beats";
 
@@ -219,6 +256,12 @@ export class MidiToJmon {
         : this.convertDurationToNoteValue(note.duration),
       velocity: note.velocity,
     };
+
+    // Recover a slide written as pitch bend by the export.
+    const slide = inBeats ? this.recoverSlide(note, track) : null;
+    if (slide) {
+      jmonNote.articulations = [...(jmonNote.articulations || []), slide];
+    }
 
     // Add modulations if present on this note
     if (this.options.includeModulations && note.controlChanges) {

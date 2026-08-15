@@ -202,23 +202,23 @@ test("staccato and accent coexist — they are different marks", () => {
 
 /* --- what MIDI does with a slide ----------------------------------------- */
 
-test("a glissando is not carried by Standard MIDI File export", async () => {
-  // Documented, not desired: the writer emits no pitch bend, so a slide is
-  // flattened to its starting note. The browser player and the WAV renderer
-  // read the modulation directly and do perform it.
+test("a glissando is carried by Standard MIDI File export", async () => {
+  // SMF has no glissando message; the writer emits a pitch bend sweep and the
+  // importer reconstructs the articulation from it. The round-trip itself is
+  // asserted in tests/converters.test.js — this checks that the compiled
+  // modulation is what reaches the writer in the first place.
   const { midiBytes } = await import("../src/converters/midi.js");
-  const { midiToJmon } = await import("../src/converters/midi-to-jmon.js");
+  const { parseMidiFile } = await import("../src/converters/midi-parser.js");
 
   const composition = {
     format: "jmon", version: "1.0", tempo: 120,
     tracks: [track([note(60, 0, 2, { articulations: [{ type: "glissando", target: 67 }] })])],
   };
 
-  const back = await midiToJmon(await midiBytes(composition));
-  assert.equal(back.tracks[0].notes.length, 1);
-  assert.equal(back.tracks[0].notes[0].pitch, 60, "the note keeps its starting pitch");
-  assert.equal(
-    JSON.stringify(back).includes("gliss"), false,
-    "if this starts passing, the MIDI writer gained pitch bend — update the note above",
-  );
+  const parsed = parseMidiFile(await midiBytes(composition));
+  const sounding = parsed.tracks.find((t) => t.notes.length > 0);
+
+  assert.equal(sounding.notes[0].midi, 60, "the note still starts where it started");
+  assert.ok(sounding.pitchBends.length > 8, "the slide should be a sweep of bend events");
+  assert.ok(sounding.pitchBendRange >= 7, "the bend range must cover a fifth");
 });

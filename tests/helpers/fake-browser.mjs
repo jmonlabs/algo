@@ -1,0 +1,206 @@
+/**
+ * A minimal browser and a recording Tone.js, so `src/browser/` can be tested
+ * without a real one.
+ *
+ * The point is not to test Tone — it is to test what the player *asks* Tone to
+ * do. Every scheduled event, every node constructed and every parameter set is
+ * recorded, which is exactly the layer that carries the library's own decisions:
+ * when a note is placed, how a tempo map shifts it, which synth a track ends up
+ * with, whether automation reaches a parameter.
+ *
+ * `music-player.js` touches very little of the DOM — `document.createElement`,
+ * `document.head` and `requestAnimationFrame` — so the stub stays small enough
+ * to trust.
+ */
+
+/** A DOM node with just enough surface for the player's UI building. */
+function element(tag = "div") {
+  return {
+    tagName: tag,
+    style: {},
+    dataset: {},
+    children: [],
+    handlers: {},
+    textContent: "",
+    innerHTML: "",
+    className: "",
+    appendChild(child) { this.children.push(child); return child; },
+    append(...kids) { this.children.push(...kids); },
+    addEventListener(event, fn) { this.handlers[event] = fn; },
+    removeEventListener(event) { delete this.handlers[event]; },
+    setAttribute(name, value) { this[name] = value; },
+    getAttribute(name) { return this[name]; },
+    remove() {},
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+  };
+}
+
+/** A Tone `Param`/`Signal` that records what was written to it and when. */
+class RecordingParam {
+  constructor(value = 0, log = null, name = "") {
+    this.value = value;
+    this._log = log;
+    this._name = name;
+  }
+  setValueAtTime(value, time) {
+    this.value = value;
+    this._log?.push({ param: this._name, value, time, kind: "set" });
+    return this;
+  }
+  linearRampToValueAtTime(value, time) {
+    this.value = value;
+    this._log?.push({ param: this._name, value, time, kind: "ramp" });
+    return this;
+  }
+  rampTo(value) { this.value = value; return this; }
+  cancelScheduledValues() { return this; }
+}
+
+/**
+ * Build a fake Tone.js and the record of everything done to it.
+ *
+ * @returns {{Tone: Object, record: Object}}
+ */
+export function createFakeTone() {
+  const record = {
+    scheduled: [],     // { time, callback }
+    nodes: [],         // { type, options }
+    params: [],        // { param, value, time, kind }
+    triggered: [],     // { pitch, duration, time, velocity }
+    transport: { starts: 0, stops: 0 },
+  };
+
+  class Node {
+    constructor(type, options) {
+      record.nodes.push({ type, options });
+      this.type = type;
+      this.volume = new RecordingParam(0, record.params, `${type}.volume`);
+      this.wet = new RecordingParam(1, record.params, `${type}.wet`);
+      this.frequency = new RecordingParam(440, record.params, `${type}.frequency`);
+      this.depth = new RecordingParam(0, record.params, `${type}.depth`);
+      this.loaded = Promise.resolve();
+    }
+    toDestination() { return this; }
+    connect() { return this; }
+    disconnect() { return this; }
+    dispose() {}
+    triggerAttackRelease(pitch, duration, time, velocity) {
+      record.triggered.push({ pitch, duration, time, velocity });
+    }
+    triggerAttack() {} triggerRelease() {}
+    set() { return this; }
+  }
+
+  const named = (type) => class extends Node { constructor(options) { super(type, options); } };
+
+  const Transport = {
+    bpm: new RecordingParam(120, record.params, "transport.bpm"),
+    timeSignature: [4, 4],
+    position: 0,
+    seconds: 0,
+    PPQ: 192,
+    state: "stopped",
+    schedule(callback, time) {
+      record.scheduled.push({ time, callback });
+      return record.scheduled.length - 1;
+    },
+    scheduleOnce(callback, time) { return this.schedule(callback, time); },
+    clear() {}, cancel() {},
+    start() { record.transport.starts++; this.state = "started"; return this; },
+    stop() { record.transport.stops++; this.state = "stopped"; return this; },
+    pause() { this.state = "paused"; return this; },
+  };
+
+  const Tone = {
+    Transport,
+    Destination: { name: "destination", volume: new RecordingParam(0) },
+    getTransport: () => Transport,
+    getContext: () => ({ currentTime: 0, state: "running" }),
+    context: { currentTime: 0, state: "running", resume: async () => {} },
+    start: async () => {},
+    loaded: async () => {},
+    now: () => 0,
+    Frequency: (value) => ({ toNote: () => String(value), toMidi: () => Number(value) }),
+    Time: () => ({ toTicks: () => 0, toSeconds: () => 0 }),
+    Panner: class extends Node {
+      constructor(pan) { super("Panner", { pan }); this.pan = new RecordingParam(pan ?? 0, record.params, "Panner.pan"); }
+    },
+  };
+
+  for (const type of [
+    "PolySynth", "Synth", "MonoSynth", "FMSynth", "AMSynth", "DuoSynth",
+    "MembraneSynth", "MetalSynth", "PluckSynth", "NoiseSynth", "Sampler",
+    "Reverb", "Delay", "FeedbackDelay", "PingPongDelay", "Chorus", "Phaser",
+    "Tremolo", "Vibrato", "Distortion", "Chebyshev", "BitCrusher", "Filter",
+    "AutoFilter", "EQ3", "Compressor", "Limiter", "Gain", "Volume",
+  ]) {
+    Tone[type] = named(type);
+  }
+
+  return { Tone, record };
+}
+
+/**
+ * Install the stub globals the player expects. Returns a function that puts
+ * the environment back, so suites do not leak into each other.
+ */
+export function installFakeBrowser() {
+  const saved = {
+    document: globalThis.document,
+    window: globalThis.window,
+    requestAnimationFrame: globalThis.requestAnimationFrame,
+    cancelAnimationFrame: globalThis.cancelAnimationFrame,
+    Tone: globalThis.Tone,
+  };
+
+  globalThis.document = {
+    createElement: (tag) => element(tag),
+    head: element("head"),
+    body: element("body"),
+    addEventListener() {}, removeEventListener() {},
+  };
+  globalThis.window = globalThis;
+  globalThis.requestAnimationFrame = () => 0;
+  globalThis.cancelAnimationFrame = () => {};
+
+  return function restore() {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  };
+}
+
+/** Walk a stub element tree and collect every registered handler. */
+export function collectHandlers(node, depth = 0, found = []) {
+  if (!node || depth > 8) return found;
+  if (node.handlers && Object.keys(node.handlers).length > 0) found.push(node.handlers);
+  for (const child of node.children || []) collectHandlers(child, depth + 1, found);
+  return found;
+}
+
+/**
+ * Build a player and start it, returning the record of what it asked Tone for.
+ * Starting is what builds the audio graph and schedules the notes — before the
+ * first gesture a player has only built its UI.
+ */
+export async function playAndRecord(composition, options = {}) {
+  const restore = installFakeBrowser();
+  try {
+    const { Tone, record } = createFakeTone();
+    globalThis.Tone = Tone;
+
+    const { createPlayer } = await import("../../src/browser/music-player.js");
+    const ui = createPlayer(composition, { Tone, ...options });
+
+    const handlers = collectHandlers(ui);
+    const play = handlers.find((h) => typeof h.click === "function");
+    if (!play) throw new Error("no play handler found on the player UI");
+    await play.click();
+
+    return { record, ui, Tone };
+  } finally {
+    restore();
+  }
+}

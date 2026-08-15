@@ -161,12 +161,17 @@ function readTrack(reader, ppq, header) {
     instrument: undefined,
     notes: [],
     controlChanges: {},
+    pitchBends: [],
+    // Pitch bend is meaningless without knowing its span. RPN 0 carries it;
+    // 2 semitones is the standard default when a file does not say.
+    pitchBendRange: 2,
   };
 
   // Sounding notes keyed by `channel:pitch`, awaiting their note-off.
   const pending = new Map();
   let ticks = 0;
   let runningStatus = 0;
+  const rpn = { msb: null, lsb: null };
 
   while (!reader.done) {
     ticks += reader.varint();
@@ -215,6 +220,15 @@ function readTrack(reader, ppq, header) {
       case 0xb0: { // control change
         const number = reader.uint8();
         const value = reader.uint8();
+
+        // RPN 0 is pitch bend sensitivity. Track it so a bend can be read
+        // back in semitones rather than as an opaque ratio.
+        if (number === 101) rpn.msb = value;
+        else if (number === 100) rpn.lsb = value;
+        else if (number === 6 && rpn.msb === 0 && rpn.lsb === 0) {
+          track.pitchBendRange = value || 2;
+        }
+
         (track.controlChanges[number] ||= []).push({
           number,
           value: value / 127,
@@ -231,10 +245,16 @@ function readTrack(reader, ppq, header) {
         reader.uint8();
         break;
       case 0xa0: // polyphonic aftertouch
-      case 0xe0: // pitch bend
         reader.uint8();
         reader.uint8();
         break;
+      case 0xe0: { // pitch bend — 14 bit, little end first, 8192 at rest
+        const lsb = reader.uint8();
+        const msb = reader.uint8();
+        const raw = (msb << 7) | lsb;
+        track.pitchBends.push({ time: beats, value: (raw - 8192) / 8192 });
+        break;
+      }
       default:
         // Unknown status: without a length we cannot skip safely.
         throw new Error(`Unrecognised MIDI status byte 0x${status.toString(16)}`);

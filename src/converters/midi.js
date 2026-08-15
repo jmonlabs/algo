@@ -45,6 +45,99 @@ function encodeTrack(events) {
     return data;
 }
 
+// --- Pitch bend ------------------------------------------------------------
+//
+// Standard MIDI File has no glissando message; a slide is a stream of pitch
+// bend events. Bend is 14-bit with 8192 at rest, and its span is whatever the
+// receiving device's pitch bend sensitivity says — 2 semitones by default,
+// which is far too narrow for a slide of an octave. So the sensitivity is set
+// explicitly, per track, via RPN 0 before any bend is sent.
+
+const BEND_CENTER = 8192;
+const BEND_STEPS = 32;        // points per slide; smooth without bloating the file
+const MAX_SENSITIVITY = 24;   // two octaves, the widest most devices accept
+
+/** Encode semitones as a 14-bit bend value for the given sensitivity. */
+function bendValue(semitones, sensitivity) {
+    const ratio = Math.max(-1, Math.min(1, semitones / sensitivity));
+    return Math.max(0, Math.min(16383, Math.round(BEND_CENTER + ratio * BEND_CENTER)));
+}
+
+function bendEvent(channel, tick, semitones, sensitivity, sortOrder = 2) {
+    const value = bendValue(semitones, sensitivity);
+    return {
+        tick,
+        sortOrder,
+        bytes: [0xe0 | channel, value & 0x7f, (value >> 7) & 0x7f],
+    };
+}
+
+/** RPN 0: set pitch bend sensitivity, in semitones. */
+function sensitivityEvents(channel, semitones) {
+    const value = Math.max(1, Math.min(MAX_SENSITIVITY, Math.ceil(semitones)));
+    return [
+        { tick: 0, sortOrder: -1, bytes: [0xb0 | channel, 101, 0] },
+        { tick: 0, sortOrder: -1, bytes: [0xb0 | channel, 100, 0] },
+        { tick: 0, sortOrder: -1, bytes: [0xb0 | channel, 6, value] },
+        { tick: 0, sortOrder: -1, bytes: [0xb0 | channel, 38, 0] },
+    ];
+}
+
+/**
+ * Turn a track's pitch modulations into bend events.
+ *
+ * Only the continuous pitch articulations produce bend: glissando and
+ * portamento sweep from the note to a target, bend offsets by a fixed amount.
+ * Each returns to centre when the note ends, so the next note starts in tune.
+ */
+function pitchBendEvents(track, channel, ticksPerBeat) {
+    let modulations = [];
+    try {
+        modulations = compileEvents(track).modulations || [];
+    } catch (_) {
+        return { events: [], sensitivity: 0 };
+    }
+
+    const slides = modulations.filter((m) =>
+        m.type === "pitch" &&
+        (m.subtype === "glissando" || m.subtype === "portamento" || m.subtype === "bend")
+    );
+    if (slides.length === 0) return { events: [], sensitivity: 0 };
+
+    const depthOf = (m) => m.subtype === "bend" ? (m.amount || 0) : (m.to - m.from);
+    const sensitivity = Math.min(
+        MAX_SENSITIVITY,
+        Math.max(2, ...slides.map((m) => Math.abs(depthOf(m))))
+    );
+
+    const events = [];
+    for (const modulation of slides) {
+        const depth = depthOf(modulation);
+        const startTick = Math.round(modulation.start * ticksPerBeat);
+        const endTick = Math.round(modulation.end * ticksPerBeat);
+        // The sweep finishes one tick early so that the return to centre can
+        // sit exactly on the note boundary. Otherwise the reset lands inside
+        // the following note and reads back as a bend belonging to it.
+        const span = Math.max(1, endTick - startTick - 1);
+
+        for (let step = 0; step <= BEND_STEPS; step++) {
+            const progress = step / BEND_STEPS;
+            events.push(bendEvent(
+                channel,
+                startTick + Math.round(progress * span),
+                depth * progress,
+                sensitivity,
+            ));
+        }
+
+        // Back to centre once the note is over — a bend left hanging would
+        // detune everything that follows on this channel.
+        events.push(bendEvent(channel, endTick, 0, sensitivity, 3));
+    }
+
+    return { events: [...sensitivityEvents(channel, sensitivity), ...events], sensitivity };
+}
+
 function buildMidiFile(composition) {
     const bpm = composition.tempo || composition.bpm || 120;
     const ticksPerBeat = 480;
@@ -146,6 +239,13 @@ function buildMidiFile(composition) {
                 });
             }
         }
+
+        // Slides become pitch bend streams. Without this a glissando is
+        // flattened to its starting note by the export.
+        const { events: bendEvents } = pitchBendEvents(
+            { ...track, notes: notesWithTime }, channel, ticksPerBeat,
+        );
+        events.push(...bendEvents);
 
         trackChunks.push(encodeTrack(events));
     }

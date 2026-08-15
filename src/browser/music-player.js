@@ -522,6 +522,10 @@ export function createPlayer(composition, options = {}) {
 
       // Schedule notes
       partEvents.forEach((note, noteIndex) => {
+        // A rest is silence. Scheduling one reached the synth as
+        // triggerAttackRelease(null, ...), which is at best a wasted event.
+        if (note.pitch === null || note.pitch === undefined) return;
+
         const time = typeof note.time === "number" ? toSeconds(note.time) : note.time;
         // A duration spans from the note's own onset, so it is the difference
         // between two integrated positions, not a scaled length.

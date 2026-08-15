@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 240 tests across ten
+- A test suite that fails on a broken assertion: 263 tests across eleven
   `node:test` suites, all run by CI.
 
 ### Changed
@@ -166,13 +166,41 @@ starting note. The browser player and the WAV renderer perform it.
 - The MusicXML writer emitted `<sound tempo="${tempo}"/>` literally — the line
   used single quotes, so the placeholder was never interpolated.
 
+### Glissando survives MIDI export
+
+Standard MIDI File has no glissando message, so the writer now emits a pitch
+bend sweep, preceded by an RPN 0 that widens the bend range — the 2-semitone
+default cannot express a slide of a fifth. The parser reads bends and that
+range back, and the importer reconstructs the articulation from the envelope.
+
+    { pitch: 60, articulations: [{ type: "glissando", target: 67 }] }
+      -> midi -> back, unchanged
+
+Portamento and bend travel the same way. Each sweep returns to centre exactly
+on the note boundary, so the following notes are in tune and do not read back
+as bends of their own.
+
+### src/browser/ is covered
+
+`tests/helpers/fake-browser.mjs` provides a minimal DOM and a recording
+Tone.js. The player touches very little of a browser — `createElement`,
+`head`, `requestAnimationFrame` — so stubbing it runs the real player and lets
+the interesting layer be asserted: what it schedules, when, on which node.
+This tests the library's decisions rather than Tone's behaviour, and needs no
+browser, no network and no new dependency.
+
+`tests/music-player.test.js` — 18 tests over note placement, tempo maps moving
+what follows them, GM programs and explicit synth types, `customPresets`
+resolution, audioGraph construction, automation reaching a parameter, and a
+`midi.cc` channel driving nothing without a hint and something with one.
+
+It immediately found one: rests were scheduled and reached the synth as
+`triggerAttackRelease(null, ...)`. There was no rest guard in the note loop.
+
 ### Known gaps
 
-- `src/browser/` still has no automated coverage of the parts that need a live
-  Tone.js: the note scheduler and the synth constructors. Everything
-  extractable from it has been extracted and covered — `src/utils/timeline.js`
-  and `resolveSynthPreset`.
-- Standard MIDI File export carries no pitch bend, so glissando, portamento
-  and bend do not survive it.
+None outstanding. The pieces that genuinely need a live Tone.js — sample
+loading and the audio graph's actual sound — are exercised by
+`tests/integration/`, which is honest about being observation rather than test.
 
 [1.2.0]: https://github.com/jmonlabs/algo/releases/tag/v1.2.0

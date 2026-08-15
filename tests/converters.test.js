@@ -301,3 +301,80 @@ test("preset resolution leaves everything else alone", async () => {
   assert.deepEqual(resolveSynthPreset({ type: "MonoSynth" }, presets), { type: "MonoSynth" });
   assert.equal(resolveSynthPreset("lead", null), "lead", "no presets, no resolution");
 });
+
+/* --- glissando through MIDI ---------------------------------------------- */
+
+test("a glissando survives jmon -> midi -> jmon", async () => {
+  // Standard MIDI File has no glissando message, so the writer emits a pitch
+  // bend sweep — preceded by an RPN 0 that widens the bend range, since the
+  // 2-semitone default cannot express a slide of a fifth.
+  const slide = {
+    format: "jmon", version: "1.0", tempo: 120,
+    tracks: [{
+      label: "lead",
+      notes: [{ ...note(60, 0, 2), articulations: [{ type: "glissando", target: 67 }] }],
+    }],
+  };
+
+  const back = await midiToJmon(await midiBytes(slide));
+  const recovered = back.tracks[0].notes[0];
+
+  assert.equal(recovered.pitch, 60);
+  assert.deepEqual(recovered.articulations, [{ type: "glissando", target: 67 }]);
+});
+
+test("a descending slide keeps its direction", async () => {
+  const slide = {
+    format: "jmon", version: "1.0", tempo: 120,
+    tracks: [{
+      label: "lead",
+      notes: [{ ...note(72, 0, 2), articulations: [{ type: "glissando", target: 60 }] }],
+    }],
+  };
+
+  const back = await midiToJmon(await midiBytes(slide));
+  assert.deepEqual(back.tracks[0].notes[0].articulations, [{ type: "glissando", target: 60 }]);
+});
+
+test("the bend returns to centre, so following notes are in tune", async () => {
+  const mixed = {
+    format: "jmon", version: "1.0", tempo: 120,
+    tracks: [{
+      label: "lead",
+      notes: [
+        { ...note(60, 0, 2), articulations: [{ type: "glissando", target: 67 }] },
+        note(72, 2, 1),
+        note(74, 3, 1),
+      ],
+    }],
+  };
+
+  const back = await midiToJmon(await midiBytes(mixed));
+  const [slid, plain, alsoPlain] = back.tracks[0].notes;
+
+  assert.deepEqual(slid.articulations, [{ type: "glissando", target: 67 }]);
+  assert.equal(plain.articulations, undefined, "the return to centre is not a bend of its own");
+  assert.equal(alsoPlain.articulations, undefined);
+});
+
+test("the writer sets a bend range wide enough for the slide", async () => {
+  const bytes = await midiBytes({
+    format: "jmon", version: "1.0", tempo: 120,
+    tracks: [{
+      label: "lead",
+      notes: [{ ...note(60, 0, 2), articulations: [{ type: "glissando", target: 72 }] }],
+    }],
+  });
+
+  const parsed = parseMidiFile(bytes);
+  const track = parsed.tracks.find((t) => t.notes.length > 0);
+  assert.ok(track.pitchBendRange >= 12, `range ${track.pitchBendRange} cannot express an octave`);
+  assert.ok(track.pitchBends.length > 8, "expected a sweep, not a single jump");
+});
+
+test("a plain composition emits no pitch bend at all", async () => {
+  const parsed = parseMidiFile(await midiBytes(COMPOSITION));
+  for (const track of parsed.tracks) {
+    assert.equal(track.pitchBends.length, 0, "nothing here slides");
+  }
+});
