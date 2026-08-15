@@ -13,6 +13,22 @@
  * to trust.
  */
 
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+function midiToNoteName(midi) {
+  const rounded = Math.round(Number(midi));
+  return `${NOTE_NAMES[((rounded % 12) + 12) % 12]}${Math.floor(rounded / 12) - 1}`;
+}
+
+function noteNameToMidi(value) {
+  if (typeof value === "number") return value;
+  const match = String(value).match(/^([A-G][#b]?)(-?\d+)$/);
+  if (!match) return Number(value) || 60;
+  const [, name, octave] = match;
+  const index = NOTE_NAMES.indexOf(name.replace("b", "#"));
+  return (index < 0 ? 0 : index) + (Number(octave) + 1) * 12;
+}
+
 /** A DOM node with just enough surface for the player's UI building. */
 function element(tag = "div") {
   return {
@@ -79,6 +95,10 @@ export function createFakeTone() {
       this.wet = new RecordingParam(1, record.params, `${type}.wet`);
       this.frequency = new RecordingParam(440, record.params, `${type}.frequency`);
       this.depth = new RecordingParam(0, record.params, `${type}.depth`);
+      // Real Tone synths expose `detune` as a rampable Signal, which is how a
+      // glissando is performed. Not every instrument has one — see the
+      // glissando tests, which remove it to model that.
+      this.detune = new RecordingParam(0, record.params, `${type}.detune`);
       this.loaded = Promise.resolve();
     }
     toDestination() { return this; }
@@ -121,7 +141,18 @@ export function createFakeTone() {
     start: async () => {},
     loaded: async () => {},
     now: () => 0,
-    Frequency: (value) => ({ toNote: () => String(value), toMidi: () => Number(value) }),
+    // Enough of Tone.Frequency for the player: note names, MIDI numbers and
+    // Hz all convert between each other. A glissando needs toFrequency() to
+    // work out its interval in cents.
+    Frequency: (value, units) => {
+      const midi = units === "midi" ? Number(value) : noteNameToMidi(value);
+      return {
+        toNote: () => midiToNoteName(midi),
+        toMidi: () => midi,
+        toFrequency: () => 440 * Math.pow(2, (midi - 69) / 12),
+        valueOf: () => midi,
+      };
+    },
     Time: () => ({ toTicks: () => 0, toSeconds: () => 0 }),
     Panner: class extends Node {
       constructor(pan) { super("Panner", { pan }); this.pan = new RecordingParam(pan ?? 0, record.params, "Panner.pan"); }

@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 263 tests across eleven
+- A test suite that fails on a broken assertion: 268 tests across eleven
   `node:test` suites, all run by CI.
 
 ### Changed

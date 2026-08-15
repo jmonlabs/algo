@@ -251,3 +251,107 @@ test("the player returns a DOM element with controls attached", async () => {
   assert.ok(ui, "createPlayer should return an element");
   assert.ok(ui.children.length > 0, "the player should have built some UI");
 });
+
+/* --- glissando ----------------------------------------------------------- */
+
+/** Play a slide with `detune` removed from the named synth types. */
+async function slideWith(trackSpec, withoutDetune = []) {
+  const restore = installFakeBrowser();
+  try {
+    const { Tone, record } = createFakeTone();
+    for (const type of withoutDetune) {
+      const Base = Tone[type];
+      Tone[type] = class extends Base {
+        constructor(options) { super(options); delete this.detune; }
+      };
+    }
+    globalThis.Tone = Tone;
+
+    const { createPlayer } = await import(`../src/browser/music-player.js?${withoutDetune.join("-")}`);
+    const ui = createPlayer(composition([{
+      ...trackSpec,
+      notes: [{ ...note(60, 0, 2), articulations: [{ type: "glissando", target: 67 }] }],
+    }]), { Tone });
+
+    const { collectHandlers } = await import("./helpers/fake-browser.mjs");
+    const play = collectHandlers(ui).find((h) => typeof h.click === "function");
+    await play.click();
+    for (const event of record.scheduled) event.callback(0);
+
+    return record;
+  } finally {
+    restore();
+  }
+}
+
+test("a glissando is performed as a detune ramp in cents", async () => {
+  const record = await slideWith({ label: "lead", synth: { type: "MonoSynth" } });
+  const ramps = record.params.filter((p) => p.param.endsWith(".detune"));
+
+  assert.ok(ramps.length >= 2, "expected a start value and a ramp");
+  assert.equal(ramps[0].value, 0, "the slide starts at the written pitch");
+  // 60 -> 67 is a perfect fifth: seven semitones, 700 cents.
+  assert.ok(Math.abs(ramps.at(-1).value - 700) < 1, `ended at ${ramps.at(-1).value} cents`);
+});
+
+test("the slide runs on the track's own synth when it has a detune", async () => {
+  const record = await slideWith({ label: "lead", synth: { type: "MonoSynth" } });
+
+  assert.deepEqual(record.nodes.map((n) => n.type), ["MonoSynth"],
+    "no extra instrument should be needed");
+  assert.ok(record.params.some((p) => p.param === "MonoSynth.detune"));
+});
+
+test("a synth without detune gets a substitute instrument for the slide", async () => {
+  // Tone's PolySynth and Sampler expose no rampable `detune` Signal, so the
+  // player builds a bare MonoSynth to carry the slide. It stays audible — at
+  // the cost of the track's timbre for that note.
+  for (const [spec, missing, own] of [
+    [{ label: "lead" }, ["PolySynth"], "PolySynth"],
+    [{ label: "violin", synth: 40 }, ["Sampler"], "Sampler"],
+  ]) {
+    const record = await slideWith(spec, missing);
+    const types = record.nodes.map((n) => n.type);
+
+    assert.ok(types.includes(own), `the track's own ${own} should still be built`);
+    assert.ok(types.includes("MonoSynth"), "a substitute should carry the slide");
+
+    const ramps = record.params.filter((p) => p.param === "MonoSynth.detune");
+    assert.ok(ramps.length >= 2, `${own}: the slide should still ramp`);
+    assert.ok(Math.abs(ramps.at(-1).value - 700) < 1, `${own}: ended at ${ramps.at(-1).value}c`);
+  }
+});
+
+test("a descending slide ramps downwards", async () => {
+  const restore = installFakeBrowser();
+  try {
+    const { Tone, record } = createFakeTone();
+    globalThis.Tone = Tone;
+    const { createPlayer } = await import("../src/browser/music-player.js?down");
+    const ui = createPlayer(composition([{
+      label: "lead", synth: { type: "MonoSynth" },
+      notes: [{ ...note(72, 0, 2), articulations: [{ type: "glissando", target: 60 }] }],
+    }]), { Tone });
+
+    const { collectHandlers } = await import("./helpers/fake-browser.mjs");
+    await collectHandlers(ui).find((h) => typeof h.click === "function").click();
+    for (const event of record.scheduled) event.callback(0);
+
+    const ramps = record.params.filter((p) => p.param.endsWith(".detune"));
+    assert.ok(Math.abs(ramps.at(-1).value + 1200) < 1, `ended at ${ramps.at(-1).value} cents`);
+  } finally {
+    restore();
+  }
+});
+
+test("a note without a slide sets no detune ramp", async () => {
+  const { record } = await playAndRecord(composition([
+    { label: "lead", synth: { type: "MonoSynth" }, notes: [note(60, 0), note(64, 1)] },
+  ]));
+  for (const event of record.scheduled) event.callback(0);
+
+  assert.equal(
+    record.params.filter((p) => p.param.endsWith(".detune")).length, 0,
+    "plain notes should leave detune alone",
+  );
+});
