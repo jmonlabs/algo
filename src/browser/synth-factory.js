@@ -55,12 +55,54 @@ export function resolveConnectTarget(track, audioGraph, graphNodes, fallbackTarg
  *   - `isShared` — true if the synth came from `sharedSynth`; caller should
  *     not disconnect or reconfigure its routing
  */
-export function createTrackSynth(track, ToneLib, sharedSynth = null) {
+/**
+ * Resolve a track's `synth` field against a composition's `customPresets`.
+ *
+ * A preset is `{ id, type, options }`. A track referencing it by id — as a
+ * bare string or as `{ preset: "id" }` — gets the preset's `{ type, options }`
+ * in its place, with any inline options layered on top so a track can borrow
+ * a preset and still adjust one value.
+ *
+ * Pure and exported so it can be tested without Tone.js.
+ *
+ * @param {*} synthSpec - The track's `synth` field
+ * @param {Array<{id: string, type: string, options: Object}>} [presets]
+ * @returns {*} The spec with any preset reference expanded
+ */
+export function resolveSynthPreset(synthSpec, presets) {
+  if (!Array.isArray(presets) || presets.length === 0) return synthSpec;
+
+  const find = (id) => presets.find((preset) => preset && preset.id === id);
+
+  if (typeof synthSpec === "string") {
+    const preset = find(synthSpec);
+    return preset ? { type: preset.type, options: { ...preset.options } } : synthSpec;
+  }
+
+  if (synthSpec && typeof synthSpec === "object" && typeof synthSpec.preset === "string") {
+    const preset = find(synthSpec.preset);
+    if (!preset) {
+      console.warn(`Unknown preset "${synthSpec.preset}". Falling back to the inline spec.`);
+      const { preset: _ignored, ...rest } = synthSpec;
+      return rest;
+    }
+    const { preset: _dropped, options: inline, ...rest } = synthSpec;
+    return {
+      type: preset.type,
+      ...rest,
+      options: { ...preset.options, ...inline },
+    };
+  }
+
+  return synthSpec;
+}
+
+export function createTrackSynth(track, ToneLib, sharedSynth = null, presets = null) {
   if (sharedSynth && (!track || track.synth === undefined)) {
     return { synth: sharedSynth, isLoadable: false, isShared: true };
   }
 
-  const synthSpec = track && track.synth;
+  const synthSpec = resolveSynthPreset(track && track.synth, presets);
 
   if (typeof synthSpec === "number") {
     const urls = generateSamplerUrls(synthSpec);

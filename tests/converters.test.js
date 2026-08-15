@@ -229,3 +229,75 @@ test("constructing the validator prints nothing", () => {
   }
   assert.deepEqual(seen, []);
 });
+
+/* --- mid-score changes in MusicXML --------------------------------------- */
+
+test("MusicXML carries key, metre, tempo and annotation changes", async () => {
+  const { musicxml } = await import("../src/converters/verovio.js");
+
+  const xml = musicxml({
+    format: "jmon", version: "1.0", tempo: 120, timeSignature: "4/4", keySignature: "C",
+    keySignatureMap: [{ time: 8, keySignature: "G" }],
+    timeSignatureMap: [{ time: 8, timeSignature: "3/4" }],
+    tempoMap: [{ time: 0, tempo: 120 }, { time: 4, tempo: 90 }],
+    annotations: [{ time: 0, text: "Intro", type: "rehearsal" }, { time: 4, text: "dolce" }],
+    tracks: [{
+      label: "t",
+      notes: Array.from({ length: 12 }, (_, i) => note(60 + i, i, 1)),
+    }],
+  });
+
+  assert.match(xml, /<rehearsal>Intro<\/rehearsal>/);
+  assert.match(xml, /<words>dolce<\/words>/);
+  assert.match(xml, /<per-minute>90<\/per-minute>/, "the tempo change should appear");
+  assert.match(xml, /<fifths>1<\/fifths>/, "G major is one sharp");
+  assert.match(xml, /<beats>3<\/beats>/, "the metre change should appear");
+});
+
+test("MusicXML interpolates the tempo instead of writing it literally", async () => {
+  const { musicxml } = await import("../src/converters/verovio.js");
+  const xml = musicxml({
+    format: "jmon", version: "1.0", tempo: 96,
+    tracks: [{ label: "t", notes: [note(60, 0)] }],
+  });
+
+  assert.match(xml, /<sound tempo="96"\/>/);
+  assert.ok(!xml.includes("${tempo}"), "the template placeholder leaked into the output");
+});
+
+test("a composition with no maps produces no stray mid-score attributes", async () => {
+  const { musicxml } = await import("../src/converters/verovio.js");
+  const xml = musicxml({
+    format: "jmon", version: "1.0", tempo: 120,
+    tracks: [{ label: "t", notes: Array.from({ length: 8 }, (_, i) => note(60, i, 1)) }],
+  });
+
+  assert.equal((xml.match(/<attributes>/g) || []).length, 1, "only the opening attributes");
+  assert.equal((xml.match(/<per-minute>/g) || []).length, 1, "only the opening tempo");
+});
+
+/* --- custom presets ------------------------------------------------------ */
+
+test("a track's synth resolves against customPresets", async () => {
+  const { resolveSynthPreset } = await import("../src/browser/synth-factory.js");
+  const presets = [{ id: "lead", type: "PolySynth", options: { volume: -6, detune: 5 } }];
+
+  assert.deepEqual(resolveSynthPreset("lead", presets), {
+    type: "PolySynth", options: { volume: -6, detune: 5 },
+  });
+
+  // Inline options layer over the preset's.
+  assert.deepEqual(resolveSynthPreset({ preset: "lead", options: { volume: -12 } }, presets), {
+    type: "PolySynth", options: { volume: -12, detune: 5 },
+  });
+});
+
+test("preset resolution leaves everything else alone", async () => {
+  const { resolveSynthPreset } = await import("../src/browser/synth-factory.js");
+  const presets = [{ id: "lead", type: "PolySynth", options: {} }];
+
+  assert.equal(resolveSynthPreset(40, presets), 40, "a GM number is not a preset id");
+  assert.equal(resolveSynthPreset("absent", presets), "absent", "an unknown id passes through");
+  assert.deepEqual(resolveSynthPreset({ type: "MonoSynth" }, presets), { type: "MonoSynth" });
+  assert.equal(resolveSynthPreset("lead", null), "lead", "no presets, no resolution");
+});

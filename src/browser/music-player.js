@@ -7,6 +7,9 @@ import {
   beatsToSeconds,
   automationChannels,
   parseAutomationTarget,
+  timeSignatureSegments,
+  resolveCcHint,
+  scaleToRange,
 } from "../utils/timeline.js";
 import { createTrackSynth, resolveConnectTarget } from "./synth-factory.js";
 
@@ -304,7 +307,7 @@ export function createPlayer(composition, options = {}) {
         masterGain,
       );
 
-      const { synth, isShared } = createTrackSynth(originalTrack, ToneLib, sharedSynth);
+      const { synth, isShared } = createTrackSynth(originalTrack, ToneLib, sharedSynth, composition.customPresets);
       if (!isShared) synth.connect(connectTarget);
 
       activeSynths.push(synth);
@@ -377,6 +380,30 @@ export function createPlayer(composition, options = {}) {
   }
 
   /**
+   * Follow the composition's timeSignatureMap.
+   *
+   * Note placement is unaffected — JMON times are quarter notes, which do not
+   * depend on the metre. What this fixes is everything that reads the
+   * transport's musical position: bars:beats:ticks readouts, and any Tone
+   * musical-time value resolved during playback.
+   */
+  function scheduleTimeSignatureChanges(toSeconds) {
+    const segments = timeSignatureSegments(composition);
+    if (segments.length === 0) return;
+
+    for (const segment of segments) {
+      const value = [segment.numerator, segment.denominator];
+      if (segment.time === 0) {
+        ToneLib.Transport.timeSignature = value;
+        continue;
+      }
+      scheduledEvents.push(ToneLib.Transport.schedule(() => {
+        ToneLib.Transport.timeSignature = value;
+      }, toSeconds(segment.time)));
+    }
+  }
+
+  /**
    * Follow the composition's `automation` channels.
    *
    * A target names a parameter: `"reverb.wet"` addresses a node in the
@@ -392,8 +419,16 @@ export function createPlayer(composition, options = {}) {
     if (channels.length === 0) return;
 
     for (const channel of channels) {
-      const parsed = parseAutomationTarget(channel.target);
-      if (parsed.kind === "midi") continue;
+      let parsed = parseAutomationTarget(channel.target);
+      let range;
+      if (parsed.kind === "midi") {
+        // A control change means nothing on the audio path by itself.
+        // converterHints.tone says what it should drive.
+        const hint = resolveCcHint(parsed.cc, composition);
+        if (!hint) continue;
+        parsed = hint;
+        range = hint.range;
+      }
 
       const param = resolveAutomationParam(parsed, channel);
       if (!param) {
@@ -406,12 +441,13 @@ export function createPlayer(composition, options = {}) {
         scheduledEvents.push(ToneLib.Transport.schedule((audioTime) => {
           const previous = channel.points[i - 1];
           const rampSeconds = previous ? at - toSeconds(previous.time) : 0;
+          const value = scaleToRange(point.value, range);
           if (rampSeconds > 0 && typeof param.linearRampToValueAtTime === "function") {
-            param.linearRampToValueAtTime(point.value, audioTime + rampSeconds);
+            param.linearRampToValueAtTime(value, audioTime + rampSeconds);
           } else if (typeof param.setValueAtTime === "function") {
-            param.setValueAtTime(point.value, audioTime);
+            param.setValueAtTime(value, audioTime);
           } else {
-            param.value = point.value;
+            param.value = value;
           }
         }, at));
       });
@@ -445,6 +481,7 @@ export function createPlayer(composition, options = {}) {
       : (beats) => beats * 60 / tempo;
 
     scheduleTempoChanges(toSeconds);
+    scheduleTimeSignatureChanges(toSeconds);
     scheduleAutomation(toSeconds);
 
     trackConfigs.forEach(({ synth, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN }) => {

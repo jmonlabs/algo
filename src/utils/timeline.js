@@ -201,3 +201,95 @@ export function parseAutomationTarget(target) {
 
   return { kind: "node", node: parts.slice(0, -1).join("."), param: parts.at(-1) };
 }
+
+/**
+ * Normalise a composition's time signature into a sorted list of segments,
+ * the same way {@link tempoSegments} does for tempo.
+ *
+ * @param {Object} composition - JMON composition
+ * @returns {Array<{time: number, numerator: number, denominator: number, beatsPerBar: number}>}
+ */
+export function timeSignatureSegments(composition = {}) {
+  const beatsPerBar = readBeatsPerBar(composition);
+  const base = parseSignature(composition.timeSignature) ?? { numerator: 4, denominator: 4 };
+
+  const segments = (composition.timeSignatureMap || [])
+    .map((entry) => {
+      const parsed = parseSignature(entry?.timeSignature ?? entry);
+      if (!parsed) return null;
+      return { time: Math.max(0, readTime(entry.time, beatsPerBar)), ...parsed };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.time - b.time);
+
+  if (segments.length === 0 || segments[0].time > 0) {
+    segments.unshift({ time: 0, ...base });
+  }
+
+  return segments
+    .filter((segment, i) =>
+      i === segments.length - 1 || segment.time !== segments[i + 1].time
+    )
+    .map((segment) => ({
+      ...segment,
+      beatsPerBar: segment.numerator * (4 / segment.denominator),
+    }));
+}
+
+/** Read `"3/4"`, `[3, 4]` or `{ numerator, denominator }` into a pair. */
+function parseSignature(value) {
+  if (!value) return null;
+  if (Array.isArray(value) && value.length === 2) {
+    return { numerator: Number(value[0]), denominator: Number(value[1]) };
+  }
+  if (typeof value === "string" && value.includes("/")) {
+    const [numerator, denominator] = value.split("/").map(Number);
+    if (numerator > 0 && denominator > 0) return { numerator, denominator };
+    return null;
+  }
+  if (typeof value === "object" && value.numerator && value.denominator) {
+    return { numerator: Number(value.numerator), denominator: Number(value.denominator) };
+  }
+  return null;
+}
+
+/**
+ * Resolve a `midi.ccN` automation target through the composition's
+ * `converterHints.tone`, which maps a controller number onto something the
+ * audio graph actually has.
+ *
+ * Without a hint a control change has nothing to address on the audio path, so
+ * the channel is skipped. With one — `converterHints.tone.cc1 =
+ * { target: "vibrato", parameter: "depth" }` — it becomes an ordinary
+ * parameter target.
+ *
+ * @param {number} cc - Controller number
+ * @param {Object} composition - JMON composition
+ * @returns {{kind: 'node', node: string, param: string, range?: Array<number>}|null}
+ */
+export function resolveCcHint(cc, composition = {}) {
+  const hints = composition.converterHints?.tone;
+  if (!hints || cc === null || cc === undefined) return null;
+
+  const hint = hints[`cc${cc}`];
+  if (!hint || !hint.target) return null;
+
+  return {
+    kind: "node",
+    node: hint.target,
+    param: hint.parameter || "value",
+    range: Array.isArray(hint.range) && hint.range.length === 2 ? hint.range : undefined,
+  };
+}
+
+/**
+ * Map a value from an automation channel's own range onto a target range.
+ * Automation values arrive normalised (a MIDI CC is 0..1 after import), and a
+ * hint may say what that should mean for the parameter it drives.
+ */
+export function scaleToRange(value, range) {
+  if (!Array.isArray(range) || range.length !== 2) return value;
+  const [min, max] = range;
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return value;
+  return min + value * (max - min);
+}

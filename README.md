@@ -203,7 +203,7 @@ as in [chapter 6](userguide/06-walks.html).
 node --test tests/*.test.js
 ```
 
-Nine `node:test` suites, 207 assertion-backed tests, no dependencies to
+Ten `node:test` suites, 240 assertion-backed tests, no dependencies to
 install. The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`,
 Verovio or Bun and are observations rather than tests — see the README there.
 

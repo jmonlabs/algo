@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 207 tests across nine
+- A test suite that fails on a broken assertion: 240 tests across ten
   `node:test` suites, all run by CI.
 
 ### Changed
@@ -125,16 +125,54 @@ is tested without a browser.
   the curve each loop iteration. `midi.cc*` targets are skipped on the audio
   path, where a control change has no meaning.
 
+### The rest of the schema is honoured
+
+Every property the schema declared is now implemented, so it describes the
+library rather than an intention.
+
+- `timeSignatureMap` — followed by both players, and emitted into the score.
+  Note placement is unaffected (JMON times are quarter notes, which do not
+  depend on the metre); what it fixes is everything reading the transport's
+  musical position, including the live player's `next-bar` swap.
+- `keySignatureMap` — key changes emitted into the MusicXML at the measure
+  they land on.
+- `annotations` — emitted as `<words>`, or `<rehearsal>` when
+  `type: "rehearsal"`.
+- `customPresets` — a track's `synth` may name a preset, or say
+  `{ preset: "id", options }` to layer overrides on the preset's own. Honoured
+  by both players and the WAV renderer, which share one synth factory.
+- `converterHints` — `converterHints.tone.ccN` maps a MIDI control change onto
+  an audio target. That is what closes the last gap in automation: a
+  `midi.ccN` channel, which is exactly what the MIDI importer emits, can now
+  drive a real parameter instead of being skipped.
+
+Mid-score `tempoMap` changes are also emitted into the score, so a printed
+part agrees with what is played.
+
+### Glissando is covered
+
+The slide path had no test anywhere — five one-line files claimed it and
+asserted nothing. `tests/articulation-compile.test.js` covers both pure
+stages: `compileEvents`, which turns declarative articulations into the
+modulation events the players and the WAV renderer read, and
+`deriveVisualFromArticulations`, which turns them into notation hints.
+
+One limitation is now documented by a test rather than left to be discovered:
+Standard MIDI File export emits no pitch bend, so a glissando flattens to its
+starting note. The browser player and the WAV renderer perform it.
+
+### Also fixed
+
+- The MusicXML writer emitted `<sound tempo="${tempo}"/>` literally — the line
+  used single quotes, so the placeholder was never interpolated.
+
 ### Known gaps
 
-- `src/browser/` has no automated coverage of its Tone.js-dependent paths —
-  the note scheduler, the synth factory, the score renderer. The logic that
-  could be extracted from it has been: `src/utils/timeline.js` is covered.
-  Glissando has no coverage in any converter.
-- `keySignatureMap`, `annotations`, `customPresets` and `converterHints` are
-  declared in the schema and implemented nowhere. `timeSignatureMap` is
-  produced by the MIDI importer but not followed during playback.
-- `schemas/jmon-schema.json` remains the written specification rather than an
-  enforced contract; see the validator's own notes.
+- `src/browser/` still has no automated coverage of the parts that need a live
+  Tone.js: the note scheduler and the synth constructors. Everything
+  extractable from it has been extracted and covered — `src/utils/timeline.js`
+  and `resolveSynthPreset`.
+- Standard MIDI File export carries no pitch bend, so glissando, portamento
+  and bend do not survive it.
 
 [1.2.0]: https://github.com/jmonlabs/algo/releases/tag/v1.2.0

@@ -18,6 +18,7 @@ import {
   tempoSegments,
   automationChannels,
   parseAutomationTarget,
+  timeSignatureSegments,
 } from "../../utils/timeline.js";
 
 // Tone.js — ESM build via jsDelivr (matches the rest of algo). Tone's ESM
@@ -154,7 +155,7 @@ function getOrCreatePanner(label) {
 // data is ready (or immediately for non-Sampler synths).
 function buildTrackSynth(label, spec) {
   const panner = getOrCreatePanner(label);
-  const { synth } = createTrackSynth({ synth: spec }, Tone);
+  const { synth } = createTrackSynth({ synth: spec }, Tone, null, session.pattern?.customPresets);
   synth.connect(panner);
   // Tone.Sampler exposes .loaded as a Promise that resolves once all sample
   // URLs are fetched and decoded. Non-Sampler synths don't have it; treat as
@@ -427,6 +428,29 @@ function applyTempoMap(pattern) {
 }
 
 /**
+ * Follow a pattern's timeSignatureMap.
+ *
+ * Notes are placed in quarter notes, which the metre does not change, so this
+ * is about the transport agreeing with the music: the loop-boundary readout
+ * and the `next-bar` swap mode both ask the transport where the bar line is.
+ */
+function applyTimeSignatureMap(pattern) {
+  if (!pattern) return;
+  const segments = timeSignatureSegments(pattern);
+
+  for (const segment of segments) {
+    const value = [segment.numerator, segment.denominator];
+    if (segment.time === 0) {
+      Tone.Transport.timeSignature = value;
+      continue;
+    }
+    timelineIds.push(Tone.Transport.schedule(() => {
+      Tone.Transport.timeSignature = value;
+    }, beatsToTicks(segment.time)));
+  }
+}
+
+/**
  * Follow a pattern's automation channels.
  *
  * Targets resolve against what this player actually owns: `track.<label>.<param>`
@@ -481,6 +505,7 @@ async function applyPattern(pattern, mode) {
     Tone.Transport.bpm.value = pattern.tempo;
   }
   applyTempoMap(pattern);
+  applyTimeSignatureMap(pattern);
 
   // Cheap diff: if the JSON is byte-identical to the last applied pattern,
   // don't tear down the running loop.

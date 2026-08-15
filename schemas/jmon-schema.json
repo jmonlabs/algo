@@ -32,7 +32,7 @@
     },
     "keySignatureMap": {
       "type": "array",
-      "description": "Map of key signature changes over time. STATUS: Declared, not yet implemented: no converter or player reads it.",
+      "description": "Map of key signature changes over time. Key changes are emitted into the MusicXML score at the measure they land on.",
       "items": {
         "type": "object",
         "required": [
@@ -168,7 +168,7 @@
     },
     "customPresets": {
       "type": "array",
-      "description": "Array of custom user-defined presets for synths or effects. STATUS: Declared, not yet implemented.",
+      "description": "Array of custom user-defined presets for synths or effects. A track's `synth` may reference a preset id as a string, or as { preset: id, options } to layer overrides on top.",
       "items": {
         "type": "object",
         "required": [
@@ -1300,7 +1300,7 @@
     },
     "annotations": {
       "type": "array",
-      "description": "Annotations (e.g., lyrics, rehearsal marks, comments) in the composition. STATUS: Declared, not yet implemented.",
+      "description": "Annotations (e.g., lyrics, rehearsal marks, comments) in the composition. Emitted into the MusicXML score as <words>, or <rehearsal> when type is 'rehearsal'.",
       "items": {
         "type": "object",
         "required": [
@@ -1349,7 +1349,7 @@
     },
     "timeSignatureMap": {
       "type": "array",
-      "description": "Map of time signature changes over time. STATUS: Produced by midiToJmon; not yet followed during playback.",
+      "description": "Map of time signature changes over time. Followed by both players and emitted into the MusicXML score.",
       "items": {
         "type": "object",
         "required": [
@@ -1460,7 +1460,7 @@
     },
     "converterHints": {
       "type": "object",
-      "description": "Optional hints to guide specific converters. STATUS: Declared, not yet implemented.",
+      "description": "Optional hints to guide specific converters. converterHints.tone.ccN maps a MIDI CC onto an audio target, which is what lets a 'midi.ccN' automation channel drive something on the audio path.",
       "properties": {
         "tone": {
           "type": "object",

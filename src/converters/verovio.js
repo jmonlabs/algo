@@ -1,3 +1,4 @@
+import { tempoSegments, timeSignatureSegments, readTime } from "../utils/timeline.js";
 /**
  * Verovio (MusicXML) Converter
  * Converts JMON compositions to MusicXML format for use with Verovio.
@@ -66,6 +67,11 @@ export function musicxml(composition) {
     return splitIntoMeasures(track.notes, measureDuration, totalDuration);
   });
 
+  // Mid-score changes, indexed by the beat they land on. JMON declares these
+  // as maps at composition level; the score is where a reader actually sees
+  // them, so they are emitted into the measure whose start they fall on.
+  const changes = buildScoreChanges(composition, measureDuration);
+
   // Generate MusicXML
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n';
@@ -93,11 +99,20 @@ export function musicxml(composition) {
     const clef = track.clef || 'treble';
     const measures = trackMeasures[trackIndex];
 
+
     xml += `  <part id="${partId}">\n`;
 
     measures.forEach((measure, measureIndex) => {
       const measureNumber = measureIndex + 1;
       xml += `    <measure number="${measureNumber}">\n`;
+
+      // Mid-score changes. The first measure already carries the opening
+      // key, metre and tempo in its <attributes>, so it is skipped here.
+      if (measureIndex > 0) {
+        xml += midScoreAttributes(measureIndex, measureDuration, changes);
+        xml += midScoreTempo(measureIndex, measureDuration, changes);
+      }
+      xml += annotationsAt(measureIndex, measureDuration, changes);
 
       // First measure: add attributes
       if (measureIndex === 0) {
@@ -125,7 +140,7 @@ export function musicxml(composition) {
         xml += `            <per-minute>${tempo}</per-minute>\n`;
         xml += '          </metronome>\n';
         xml += '        </direction-type>\n';
-        xml += '        <sound tempo="${tempo}"/>\n';
+        xml += `        <sound tempo="${tempo}"/>\n`;
         xml += '      </direction>\n';
       }
 
@@ -444,5 +459,105 @@ function createEmptyMusicXML(title, tempo, beatsPerMeasure, beatValue, fifths, m
   xml += '    </measure>\n';
   xml += '  </part>\n';
   xml += '</score-partwise>\n';
+  return xml;
+}
+
+/**
+ * Collect the composition's mid-score changes into per-beat buckets.
+ *
+ * `keySignatureMap`, `timeSignatureMap`, `tempoMap` and `annotations` all say
+ * "at this beat, something changes". They are gathered once here so the
+ * measure loop can ask a single question per measure.
+ */
+function buildScoreChanges(composition, measureDuration) {
+  const beatsPerBar = measureDuration;
+  const at = (time) => readTime(time, beatsPerBar);
+
+  const keys = (composition.keySignatureMap || [])
+    .filter((entry) => entry && entry.keySignature)
+    .map((entry) => ({ beat: at(entry.time), keySignature: entry.keySignature }));
+
+  // The opening entries are already in the first measure's <attributes>.
+  const meters = timeSignatureSegments(composition).filter((s) => s.time > 0);
+  const tempos = tempoSegments(composition).filter((s) => s.time > 0);
+
+  const annotations = (composition.annotations || [])
+    .filter((entry) => entry && (entry.text || entry.label))
+    .map((entry) => ({
+      beat: at(entry.time),
+      text: String(entry.text ?? entry.label),
+      type: entry.type || "text",
+    }));
+
+  return { keys, meters, tempos, annotations };
+}
+
+/** Anything landing inside the measure that starts at `measureIndex`. */
+function within(items, measureIndex, measureDuration, key = "beat") {
+  const start = measureIndex * measureDuration;
+  const end = start + measureDuration;
+  return items.filter((item) => {
+    const beat = item[key] ?? item.time;
+    return beat >= start && beat < end;
+  });
+}
+
+/** `<attributes>` for a key or metre change at this measure. */
+function midScoreAttributes(measureIndex, measureDuration, changes) {
+  const keys = within(changes.keys, measureIndex, measureDuration);
+  const meters = within(changes.meters, measureIndex, measureDuration, "time");
+  if (keys.length === 0 && meters.length === 0) return "";
+
+  let xml = "      <attributes>\n";
+  if (keys.length > 0) {
+    const { fifths, mode } = parseKeySignature(keys.at(-1).keySignature);
+    xml += "        <key>\n";
+    xml += `          <fifths>${fifths}</fifths>\n`;
+    xml += `          <mode>${mode}</mode>\n`;
+    xml += "        </key>\n";
+  }
+  if (meters.length > 0) {
+    const meter = meters.at(-1);
+    xml += "        <time>\n";
+    xml += `          <beats>${meter.numerator}</beats>\n`;
+    xml += `          <beat-type>${meter.denominator}</beat-type>\n`;
+    xml += "        </time>\n";
+  }
+  xml += "      </attributes>\n";
+  return xml;
+}
+
+/** A metronome mark for a tempo change at this measure. */
+function midScoreTempo(measureIndex, measureDuration, changes) {
+  const tempos = within(changes.tempos, measureIndex, measureDuration, "time");
+  if (tempos.length === 0) return "";
+
+  const tempo = tempos.at(-1).tempo;
+  let xml = '      <direction placement="above">\n';
+  xml += "        <direction-type>\n";
+  xml += "          <metronome>\n";
+  xml += "            <beat-unit>quarter</beat-unit>\n";
+  xml += `            <per-minute>${Math.round(tempo)}</per-minute>\n`;
+  xml += "          </metronome>\n";
+  xml += "        </direction-type>\n";
+  xml += `        <sound tempo="${Math.round(tempo)}"/>\n`;
+  xml += "      </direction>\n";
+  return xml;
+}
+
+/** Free text — rehearsal marks, expression marks — placed above the staff. */
+function annotationsAt(measureIndex, measureDuration, changes) {
+  const items = within(changes.annotations, measureIndex, measureDuration);
+  if (items.length === 0) return "";
+
+  let xml = "";
+  for (const item of items) {
+    const tag = item.type === "rehearsal" ? "rehearsal" : "words";
+    xml += '      <direction placement="above">\n';
+    xml += "        <direction-type>\n";
+    xml += `          <${tag}>${escapeXML(item.text)}</${tag}>\n`;
+    xml += "        </direction-type>\n";
+    xml += "      </direction>\n";
+  }
   return xml;
 }

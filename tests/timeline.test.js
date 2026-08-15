@@ -259,3 +259,66 @@ test("a midiToJmon-shaped automation channel is understood", async () => {
   assert.equal(channels.length, 1);
   assert.equal(parseAutomationTarget(channels[0].target).kind, "midi");
 });
+
+/* --- time signature maps ------------------------------------------------- */
+
+test("a composition without a timeSignatureMap yields one segment", async () => {
+  const { timeSignatureSegments } = await import("../src/utils/timeline.js");
+  assert.deepEqual(timeSignatureSegments({}), [
+    { time: 0, numerator: 4, denominator: 4, beatsPerBar: 4 },
+  ]);
+  assert.equal(timeSignatureSegments({ timeSignature: "3/4" })[0].beatsPerBar, 3);
+});
+
+test("time signature segments sort and compute beats per bar", async () => {
+  const { timeSignatureSegments } = await import("../src/utils/timeline.js");
+  const segments = timeSignatureSegments({
+    timeSignature: "4/4",
+    timeSignatureMap: [{ time: 12, timeSignature: "5/4" }, { time: 8, timeSignature: "7/8" }],
+  });
+
+  assert.deepEqual(segments.map((s) => s.time), [0, 8, 12]);
+  assert.equal(segments[1].beatsPerBar, 3.5, "7/8 is three and a half quarter notes");
+  assert.equal(segments[2].beatsPerBar, 5);
+});
+
+test("time signatures parse from strings, pairs and objects", async () => {
+  const { timeSignatureSegments } = await import("../src/utils/timeline.js");
+  const forms = [
+    { timeSignatureMap: [{ time: 4, timeSignature: "6/8" }] },
+    { timeSignatureMap: [{ time: 4, timeSignature: [6, 8] }] },
+    { timeSignatureMap: [{ time: 4, timeSignature: { numerator: 6, denominator: 8 } }] },
+  ];
+  for (const composition of forms) {
+    const segment = timeSignatureSegments(composition).at(-1);
+    assert.equal(segment.numerator, 6);
+    assert.equal(segment.denominator, 8);
+  }
+});
+
+/* --- CC hints ------------------------------------------------------------ */
+
+test("a midi.cc target resolves through converterHints", async () => {
+  const { resolveCcHint, scaleToRange } = await import("../src/utils/timeline.js");
+  const composition = {
+    converterHints: { tone: { cc1: { target: "vibrato", parameter: "depth", range: [0, 0.8] } } },
+  };
+
+  const hint = resolveCcHint(1, composition);
+  assert.deepEqual(hint, { kind: "node", node: "vibrato", param: "depth", range: [0, 0.8] });
+  assert.equal(scaleToRange(0.5, hint.range), 0.4);
+});
+
+test("an unhinted CC resolves to nothing, so the channel is skipped", async () => {
+  const { resolveCcHint } = await import("../src/utils/timeline.js");
+  assert.equal(resolveCcHint(7, { converterHints: { tone: { cc1: { target: "x" } } } }), null);
+  assert.equal(resolveCcHint(1, {}), null);
+  assert.equal(resolveCcHint(null, {}), null);
+});
+
+test("a hint without a range leaves values untouched", async () => {
+  const { resolveCcHint, scaleToRange } = await import("../src/utils/timeline.js");
+  const hint = resolveCcHint(1, { converterHints: { tone: { cc1: { target: "filter" } } } });
+  assert.equal(hint.param, "value", "parameter defaults sensibly");
+  assert.equal(scaleToRange(0.5, hint.range), 0.5);
+});

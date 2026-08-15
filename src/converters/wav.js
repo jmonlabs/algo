@@ -90,7 +90,7 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 				null,
 			);
 
-			const { synth, isLoadable, isShared } = createTrackSynth(track, Tone, sharedSynth);
+			const { synth, isLoadable, isShared } = createTrackSynth(track, Tone, sharedSynth, composition.customPresets);
 			if (isLoadable) samplers.push(synth);
 			if (!isShared) {
 				if (connectTarget) synth.connect(connectTarget);
