@@ -13,8 +13,9 @@ directly:
 import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
 ```
 
-Pin to a tag (`@v1.1.0`) or a commit SHA when you need a stable version
-for production work. Use `@main` while iterating.
+Pin to a tag (`@v1.2.0`) or a commit SHA when you need a stable version
+for production work. Use `@main` while iterating. Releases are listed in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Getting Started
 
@@ -199,8 +200,12 @@ as in [chapter 6](userguide/06-walks.html).
 ## Tests
 
 ```bash
-deno task test
+node --test tests/*.test.js
 ```
+
+Eight `node:test` suites, 184 assertions-backed tests, no dependencies to
+install. The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`,
+Verovio or Bun and are observations rather than tests — see the README there.
 
 ## License
 

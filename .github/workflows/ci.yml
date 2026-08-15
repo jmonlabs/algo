@@ -20,9 +20,10 @@ jobs:
           node-version: "22"
 
       # node:test + assert throughout — a broken assertion fails the build.
-      # Listed explicitly rather than globbing tests/, because the remaining
-      # legacy suites there (all-features, gaussian-processes, tone-esm-compat,
-      # bun-compatibility) need npm dependencies this job does not install.
+      # Listed explicitly rather than globbing, so adding a file to tests/
+      # is a deliberate act. The console.log scripts that need an installed
+      # Tone.js, @tangent.to/ds or Verovio live in tests/integration/ and are
+      # not tests — see the README there.
       - name: Unit tests
         run: |
           node --test \
@@ -30,6 +31,8 @@ jobs:
             tests/key-context.test.js \
             tests/generative-algorithms.test.js \
             tests/analysis.test.js \
+            tests/converters.test.js \
+            tests/corruptor.test.js \
             tests/plot-data.test.js \
             tests/utils-transforms.test.js
 

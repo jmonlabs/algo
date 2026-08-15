@@ -4,7 +4,8 @@
  * Follows existing patterns from music-player.js and other converters
  */
 
-import { JmonValidator } from "../utils/jmon-validator.browser.js";
+import { parseMidiFile } from "./midi-parser.js";
+import { JmonValidator } from "../utils/jmon-validator.js";
 
 /**
  * MIDI to JMON Converter Class
@@ -13,6 +14,10 @@ import { JmonValidator } from "../utils/jmon-validator.browser.js";
 export class MidiToJmon {
   constructor(options = {}) {
     this.options = {
+      // Injectable MIDI parser. Defaults to the built-in Standard MIDI File
+      // reader, which needs no audio library. Pass `@tonejs/midi`'s `Midi`
+      // class here if you would rather use it.
+      parser: null,
       Tone: null,
       trackNaming: "auto", // 'auto', 'numbered', 'channel', 'instrument'
       mergeDrums: true,
@@ -41,19 +46,15 @@ export class MidiToJmon {
    * @returns {Promise<Object>} JMON composition
    */
   convertToJmon(midiData) {
-    // Initialize Tone.js instance
-    const Tone = this.initializeTone();
-
-    // Parse MIDI using Tone.js Midi
     let parsed;
     try {
-      parsed = new Tone.Midi(midiData);
+      parsed = this.parseMidi(midiData);
     } catch (error) {
       throw new Error(`Failed to parse MIDI file: ${error.message}`);
     }
 
     // Convert to JMON format
-    const composition = this.buildJmonComposition(parsed, Tone);
+    const composition = this.buildJmonComposition(parsed, null);
 
     // Validate output using existing validator
     const validator = new JmonValidator();
@@ -73,12 +74,18 @@ export class MidiToJmon {
    * Initialize Tone.js instance
    * @returns {Object} Tone.js instance
    */
-  initializeTone() {
-    const Tone = this.options.Tone;
-    if (!Tone) {
-      throw new Error("Tone.js instance required. Please provide Tone via options: { Tone: Tone }");
+  parseMidi(midiData) {
+    // An explicit parser wins; then a `Midi` class handed in as `Tone`
+    // (that is what @tonejs/midi exports, and what this converter used to
+    // require); otherwise the built-in reader, which is the default.
+    const injected = this.options.parser ??
+      (this.options.Tone && this.options.Tone.Midi) ??
+      null;
+
+    if (injected) {
+      return new injected(midiData);
     }
-    return Tone;
+    return parseMidiFile(midiData);
   }
 
   /**
@@ -146,7 +153,7 @@ export class MidiToJmon {
 
       // Convert notes
       const notes = track.notes.map((note) =>
-        this.convertNote(note, Tone, track)
+        this.convertNote(note, Tone, track, parsed?.timeUnit || "seconds")
       );
 
       // Apply quantization if requested
@@ -195,18 +202,23 @@ export class MidiToJmon {
    * @param {Object} track - Parent track for context
    * @returns {Object} JMON note
    */
-  convertNote(note, Tone, track) {
+  convertNote(note, Tone, track, timeUnit = "seconds") {
+    const inBeats = timeUnit === "beats";
+
+    // The built-in parser reports quarter notes, which is what JMON stores, so
+    // the values pass straight through and round-trip exactly. An injected
+    // @tonejs/midi reports seconds, which have to be converted — and its
+    // duration gets snapped to the nearest note value, which is lossy.
     const jmonNote = {
-      pitch: note.midi, // Use MIDI number as primary format
-      time: note.time, // Tone.js already converts to seconds, we'll convert to quarters
-      duration: this.convertDurationToNoteValue(note.duration),
+      pitch: note.midi,
+      time: inBeats
+        ? note.time
+        : this.convertSecondsToQuarterNotes(note.time, note.tempo || 120),
+      duration: inBeats
+        ? note.duration
+        : this.convertDurationToNoteValue(note.duration),
       velocity: note.velocity,
     };
-
-    // Convert time from seconds to quarter notes
-    // Tone.js gives us time in seconds, but JMON prefers quarter note units
-    const bpm = note.tempo || 120; // Use note tempo or default
-    jmonNote.time = this.convertSecondsToQuarterNotes(note.time, bpm);
 
     // Add modulations if present on this note
     if (this.options.includeModulations && note.controlChanges) {

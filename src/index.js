@@ -6,7 +6,7 @@
  * be safely imported in Node test environments and browser bundles.
  */
 
-import { JmonValidator } from "./utils/jmon-validator.browser.js";
+import { JmonValidator } from "./utils/jmon-validator.js";
 import algorithms from "./algorithms/index.js";
 import {
   midi,
@@ -342,7 +342,8 @@ const jm = {
     getDrumKit,
   },
 
-  VERSION: "1.0.0",
+  // Keep in step with package.json; tests/converters asserts they match.
+  VERSION: "1.2.0",
 };
 
 // Named and default exports

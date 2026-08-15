@@ -3,7 +3,12 @@
   "title": "JSON Music Object Notation (JMON) Schema",
   "description": "A human-readable, western-ish declarative music format based on JSON.",
   "type": "object",
-  "required": ["format", "version", "tempo", "tracks"],
+  "required": [
+    "format",
+    "version",
+    "tempo",
+    "tracks"
+  ],
   "properties": {
     "format": {
       "type": "string",
@@ -27,10 +32,13 @@
     },
     "keySignatureMap": {
       "type": "array",
-      "description": "Map of key signature changes over time.",
+      "description": "Map of key signature changes over time. STATUS: Declared, not yet implemented: no converter or player reads it.",
       "items": {
         "type": "object",
-        "required": ["time", "keySignature"],
+        "required": [
+          "time",
+          "keySignature"
+        ],
         "properties": {
           "time": {
             "oneOf": [
@@ -62,10 +70,13 @@
     },
     "tempoMap": {
       "type": "array",
-      "description": "Map of tempo changes over time.",
+      "description": "Map of tempo changes over time. STATUS: Produced by midiToJmon; the players do not yet follow it.",
       "items": {
         "type": "object",
-        "required": ["time", "tempo"],
+        "required": [
+          "time",
+          "tempo"
+        ],
         "properties": {
           "time": {
             "oneOf": [
@@ -157,10 +168,14 @@
     },
     "customPresets": {
       "type": "array",
-      "description": "Array of custom user-defined presets for synths or effects.",
+      "description": "Array of custom user-defined presets for synths or effects. STATUS: Declared, not yet implemented.",
       "items": {
         "type": "object",
-        "required": ["id", "type", "options"],
+        "required": [
+          "id",
+          "type",
+          "options"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -182,12 +197,24 @@
       "type": "array",
       "description": "Audio node graph for synthesis. If not provided, a default synth->master setup will be created automatically.",
       "default": [
-        { "id": "synth", "type": "Synth", "options": {} },
-        { "id": "master", "type": "Destination", "options": {} }
+        {
+          "id": "synth",
+          "type": "Synth",
+          "options": {}
+        },
+        {
+          "id": "master",
+          "type": "Destination",
+          "options": {}
+        }
       ],
       "items": {
         "type": "object",
-        "required": ["id", "type", "options"],
+        "required": [
+          "id",
+          "type",
+          "options"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -367,7 +394,11 @@
             "if": {
               "properties": {
                 "type": {
-                  "enum": ["Reverb", "JCReverb", "Freeverb"]
+                  "enum": [
+                    "Reverb",
+                    "JCReverb",
+                    "Freeverb"
+                  ]
                 }
               }
             },
@@ -407,7 +438,11 @@
             "if": {
               "properties": {
                 "type": {
-                  "enum": ["Delay", "FeedbackDelay", "PingPongDelay"]
+                  "enum": [
+                    "Delay",
+                    "FeedbackDelay",
+                    "PingPongDelay"
+                  ]
                 }
               }
             },
@@ -445,7 +480,10 @@
             "if": {
               "properties": {
                 "type": {
-                  "enum": ["Filter", "AutoFilter"]
+                  "enum": [
+                    "Filter",
+                    "AutoFilter"
+                  ]
                 }
               }
             },
@@ -470,7 +508,12 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": ["lowpass", "highpass", "bandpass", "notch"],
+                      "enum": [
+                        "lowpass",
+                        "highpass",
+                        "bandpass",
+                        "notch"
+                      ],
                       "default": "lowpass",
                       "description": "Filter type"
                     }
@@ -484,7 +527,10 @@
             "if": {
               "properties": {
                 "type": {
-                  "enum": ["Chorus", "Phaser"]
+                  "enum": [
+                    "Chorus",
+                    "Phaser"
+                  ]
                 }
               }
             },
@@ -522,7 +568,11 @@
             "if": {
               "properties": {
                 "type": {
-                  "enum": ["Compressor", "Limiter", "Gate"]
+                  "enum": [
+                    "Compressor",
+                    "Limiter",
+                    "Gate"
+                  ]
                 }
               }
             },
@@ -569,7 +619,10 @@
             "if": {
               "properties": {
                 "type": {
-                  "enum": ["Distortion", "Chebyshev"]
+                  "enum": [
+                    "Distortion",
+                    "Chebyshev"
+                  ]
                 }
               }
             },
@@ -696,7 +749,12 @@
     "connections": {
       "type": "array",
       "description": "Array of audio graph connections. Each is a two-element array [source, target]. If not provided, default connections will be created automatically.",
-      "default": [["synth", "master"]],
+      "default": [
+        [
+          "synth",
+          "master"
+        ]
+      ],
       "items": {
         "type": "array",
         "minItems": 2,
@@ -711,7 +769,10 @@
       "description": "Musical tracks (sequences or parts).",
       "items": {
         "type": "object",
-        "required": ["label", "notes"],
+        "required": [
+          "label",
+          "notes"
+        ],
         "properties": {
           "label": {
             "type": "string",
@@ -750,7 +811,9 @@
               },
               {
                 "type": "object",
-                "required": ["type"],
+                "required": [
+                  "type"
+                ],
                 "properties": {
                   "type": {
                     "type": "string",
@@ -777,7 +840,12 @@
                   },
                   "modulationTarget": {
                     "type": "string",
-                    "enum": ["vibrato", "tremolo", "glissando", "filter"],
+                    "enum": [
+                      "vibrato",
+                      "tremolo",
+                      "glissando",
+                      "filter"
+                    ],
                     "description": "Target for modulation wheel (CC1) control"
                   }
                 },
@@ -789,7 +857,13 @@
           },
           "clef": {
             "type": "string",
-            "enum": ["treble", "bass", "alto", "tenor", "percussion"],
+            "enum": [
+              "treble",
+              "bass",
+              "alto",
+              "tenor",
+              "percussion"
+            ],
             "default": "treble",
             "description": "Clef for notation rendering of this track (treble/G clef, bass/F clef, alto/C clef, etc.)."
           },
@@ -802,7 +876,11 @@
             "description": "Array of note events.",
             "items": {
               "type": "object",
-              "required": ["pitch", "time", "duration"],
+              "required": [
+                "pitch",
+                "time",
+                "duration"
+              ],
               "properties": {
                 "pitch": {
                   "oneOf": [
@@ -818,7 +896,14 @@
                       "type": "array",
                       "description": "Chord (array of MIDI numbers or note names).",
                       "items": {
-                        "oneOf": [{ "type": "number" }, { "type": "string" }]
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ]
                       }
                     }
                   ]
@@ -862,7 +947,13 @@
                 },
                 "articulation": {
                   "type": "string",
-                  "enum": ["staccato", "accent", "tenuto", "legato", "marcato"],
+                  "enum": [
+                    "staccato",
+                    "accent",
+                    "tenuto",
+                    "legato",
+                    "marcato"
+                  ],
                   "description": "Performance instruction that affects how a note is played (e.g., 'staccato', 'accent')."
                 },
                 "ornaments": {
@@ -870,7 +961,9 @@
                   "description": "Array of melodic ornaments to apply to this note",
                   "items": {
                     "type": "object",
-                    "required": ["type"],
+                    "required": [
+                      "type"
+                    ],
                     "properties": {
                       "type": {
                         "type": "string",
@@ -890,14 +983,19 @@
                           {
                             "if": {
                               "properties": {
-                                "type": { "const": "grace_note" }
+                                "type": {
+                                  "const": "grace_note"
+                                }
                               }
                             },
                             "then": {
                               "properties": {
                                 "graceNoteType": {
                                   "type": "string",
-                                  "enum": ["acciaccatura", "appoggiatura"],
+                                  "enum": [
+                                    "acciaccatura",
+                                    "appoggiatura"
+                                  ],
                                   "description": "Type of grace note"
                                 },
                                 "gracePitches": {
@@ -917,12 +1015,18 @@
                                   "description": "Optional specific pitches for the grace note(s)"
                                 }
                               },
-                              "required": ["graceNoteType"]
+                              "required": [
+                                "graceNoteType"
+                              ]
                             }
                           },
                           {
                             "if": {
-                              "properties": { "type": { "const": "trill" } }
+                              "properties": {
+                                "type": {
+                                  "const": "trill"
+                                }
+                              }
                             },
                             "then": {
                               "properties": {
@@ -941,7 +1045,11 @@
                           },
                           {
                             "if": {
-                              "properties": { "type": { "const": "mordent" } }
+                              "properties": {
+                                "type": {
+                                  "const": "mordent"
+                                }
+                              }
                             },
                             "then": {
                               "properties": {
@@ -955,7 +1063,11 @@
                           },
                           {
                             "if": {
-                              "properties": { "type": { "const": "turn" } }
+                              "properties": {
+                                "type": {
+                                  "const": "turn"
+                                }
+                              }
                             },
                             "then": {
                               "properties": {
@@ -968,23 +1080,35 @@
                           },
                           {
                             "if": {
-                              "properties": { "type": { "const": "arpeggio" } }
+                              "properties": {
+                                "type": {
+                                  "const": "arpeggio"
+                                }
+                              }
                             },
                             "then": {
                               "properties": {
                                 "arpeggioDegrees": {
                                   "type": "array",
-                                  "items": { "type": "number" },
+                                  "items": {
+                                    "type": "number"
+                                  },
                                   "description": "Scale degrees for the arpeggio"
                                 },
                                 "direction": {
                                   "type": "string",
-                                  "enum": ["up", "down", "both"],
+                                  "enum": [
+                                    "up",
+                                    "down",
+                                    "both"
+                                  ],
                                   "default": "up",
                                   "description": "Direction of the arpeggio"
                                 }
                               },
-                              "required": ["arpeggioDegrees"]
+                              "required": [
+                                "arpeggioDegrees"
+                              ]
                             }
                           }
                         ]
@@ -1008,11 +1132,19 @@
                   "description": "Per-note modulation events (CC, pitch bend, aftertouch).",
                   "items": {
                     "type": "object",
-                    "required": ["type", "value", "time"],
+                    "required": [
+                      "type",
+                      "value",
+                      "time"
+                    ],
                     "properties": {
                       "type": {
                         "type": "string",
-                        "enum": ["cc", "pitchBend", "aftertouch"],
+                        "enum": [
+                          "cc",
+                          "pitchBend",
+                          "aftertouch"
+                        ],
                         "description": "Type of MIDI modulation event."
                       },
                       "controller": {
@@ -1021,7 +1153,7 @@
                       },
                       "value": {
                         "type": "number",
-                        "description": "Value for this modulation: 0-127 for CC, -8192 to +8192 for pitchBend (14-bit, maps to ±2 semitones), 0-127 for aftertouch."
+                        "description": "Value for this modulation: 0-127 for CC, -8192 to +8192 for pitchBend (14-bit, maps to \u00b12 semitones), 0-127 for aftertouch."
                       },
                       "time": {
                         "oneOf": [
@@ -1046,7 +1178,14 @@
             }
           },
           "loop": {
-            "oneOf": [{ "type": "boolean" }, { "type": "string" }],
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ],
             "description": "Whether this sequence loops, or string for musical duration."
           },
           "loopEnd": {
@@ -1059,7 +1198,9 @@
             "description": "Sequence-level effects.",
             "items": {
               "type": "object",
-              "required": ["type"],
+              "required": [
+                "type"
+              ],
               "properties": {
                 "type": {
                   "type": "string",
@@ -1090,7 +1231,7 @@
     },
     "automation": {
       "type": "object",
-      "description": "Multi-level automation system with interpolation support.",
+      "description": "Multi-level automation system with interpolation support. STATUS: Produced by midiToJmon and read by Corruptor; the players do not yet follow it.",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -1123,7 +1264,11 @@
           "description": "Legacy automation events (deprecated, use channels instead).",
           "items": {
             "type": "object",
-            "required": ["target", "time", "value"],
+            "required": [
+              "target",
+              "time",
+              "value"
+            ],
             "properties": {
               "target": {
                 "type": "string",
@@ -1155,10 +1300,13 @@
     },
     "annotations": {
       "type": "array",
-      "description": "Annotations (e.g., lyrics, rehearsal marks, comments) in the composition.",
+      "description": "Annotations (e.g., lyrics, rehearsal marks, comments) in the composition. STATUS: Declared, not yet implemented.",
       "items": {
         "type": "object",
-        "required": ["text", "time"],
+        "required": [
+          "text",
+          "time"
+        ],
         "properties": {
           "text": {
             "type": "string",
@@ -1201,10 +1349,13 @@
     },
     "timeSignatureMap": {
       "type": "array",
-      "description": "Map of time signature changes over time.",
+      "description": "Map of time signature changes over time. STATUS: Produced by midiToJmon; the players do not yet follow it.",
       "items": {
         "type": "object",
-        "required": ["time", "timeSignature"],
+        "required": [
+          "time",
+          "timeSignature"
+        ],
         "properties": {
           "time": {
             "oneOf": [
@@ -1250,7 +1401,12 @@
         },
         "modulationTarget": {
           "type": "string",
-          "enum": ["vibrato", "tremolo", "glissando", "filter"],
+          "enum": [
+            "vibrato",
+            "tremolo",
+            "glissando",
+            "filter"
+          ],
           "description": "Default target for modulation wheel (CC1) control across all tracks."
         },
         "options": {
@@ -1304,7 +1460,7 @@
     },
     "converterHints": {
       "type": "object",
-      "description": "Optional hints to guide specific converters.",
+      "description": "Optional hints to guide specific converters. STATUS: Declared, not yet implemented.",
       "properties": {
         "tone": {
           "type": "object",
@@ -1329,12 +1485,16 @@
                 "depthRange": {
                   "type": "array",
                   "description": "Min/max depth or frequency range for the parameter.",
-                  "items": { "type": "number" },
+                  "items": {
+                    "type": "number"
+                  },
                   "minItems": 2,
                   "maxItems": 2
                 }
               },
-              "required": ["target"],
+              "required": [
+                "target"
+              ],
               "additionalProperties": false
             }
           },
@@ -1365,7 +1525,11 @@
     "automationChannel": {
       "type": "object",
       "description": "Automation channel with interpolation support and anchor points.",
-      "required": ["id", "target", "anchorPoints"],
+      "required": [
+        "id",
+        "target",
+        "anchorPoints"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1381,7 +1545,11 @@
         },
         "level": {
           "type": "string",
-          "enum": ["global", "sequence", "note"],
+          "enum": [
+            "global",
+            "sequence",
+            "note"
+          ],
           "default": "global",
           "description": "Automation level: global (entire composition), sequence (per track), or note (per note velocity)."
         },
@@ -1391,15 +1559,25 @@
         },
         "range": {
           "type": "array",
-          "items": { "type": "number" },
+          "items": {
+            "type": "number"
+          },
           "minItems": 2,
           "maxItems": 2,
-          "default": [0, 127],
+          "default": [
+            0,
+            127
+          ],
           "description": "Value range [min, max] for this automation parameter."
         },
         "interpolation": {
           "type": "string",
-          "enum": ["linear", "quadratic", "cubic", "daw"],
+          "enum": [
+            "linear",
+            "quadratic",
+            "cubic",
+            "daw"
+          ],
           "default": "daw",
           "description": "Interpolation type: linear, quadratic (curve), cubic (smoothstep), or daw (Hermite splines)."
         },
@@ -1413,7 +1591,10 @@
           "description": "Automation anchor points defining the curve.",
           "items": {
             "type": "object",
-            "required": ["time", "value"],
+            "required": [
+              "time",
+              "value"
+            ],
             "properties": {
               "time": {
                 "oneOf": [

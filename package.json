@@ -1,7 +1,7 @@
 {
   "name": "@jmon/algo",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Algorithmic music composition library. Distributed as ESM source via jsDelivr from GitHub — no build, no npm/JSR publish.",
   "type": "module",
   "license": "GPL-3.0-or-later",

@@ -1,12 +1,17 @@
-// Browser-compatible JMON validator (simplified version without ajv)
-// For full validation, use the Node.js version with ajv
+// JMON validator.
+//
+// Structural, not schema-driven: it checks and repairs the shape a composition
+// must have to be played or exported — tracks present, notes well-formed,
+// timing numeric — and normalises the shorthand forms (a bare note array, a
+// single-track object) into a full composition.
+//
+// It deliberately does not validate against `schemas/jmon-schema.json`. Doing
+// that would mean shipping a JSON Schema validator, and `jmon/algo` is
+// dependency-free ESM served straight from source. The schema is the written
+// specification; this is the runtime guard.
 
 export class JmonValidator {
-  constructor() {
-    console.warn(
-      "[JMON] Using simplified browser validator. For full validation, use Node.js environment.",
-    );
-  }
+  constructor() {}
 
   /**
    * Basic validation and normalization for browser use
