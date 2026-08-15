@@ -4,6 +4,38 @@ import { createTrackSynth, resolveConnectTarget } from "../browser/synth-factory
 import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
 import { normalizeAudioGraph } from "../utils/normalize.js";
 
+/**
+ * Slide a Sampler's sounding voices by ramping their playback rate.
+ *
+ * Tone's Sampler has no `detune` Signal, but it does keep its sounding
+ * `ToneBufferSource`s, whose `playbackRate` is an automatable Param. Ramping
+ * that resamples the instrument — which is what a soundfont engine does to
+ * bend a note — instead of swapping in a different sound.
+ *
+ * `_activeSources` is Tone-internal, so this is feature-detected and reports
+ * whether it managed to do anything.
+ *
+ * @returns {boolean} Whether the slide was applied
+ */
+function slideSamplerVoices(synth, midi, cents, startTime, slideDuration) {
+	const sources = synth?._activeSources?.get?.(Math.round(midi));
+	if (!Array.isArray(sources) || sources.length === 0) return false;
+
+	const ratio = Math.pow(2, cents / 1200);
+	let applied = false;
+
+	for (const source of sources) {
+		const rate = source?.playbackRate;
+		if (!rate || typeof rate.linearRampToValueAtTime !== "function") continue;
+		const from = rate.value ?? 1;
+		rate.setValueAtTime(from, startTime);
+		rate.linearRampToValueAtTime(from * ratio, startTime + slideDuration);
+		applied = true;
+	}
+	return applied;
+}
+
+
 // ...existing code...
 export function wav(composition, options = {}) {
 	return {
@@ -236,11 +268,24 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 							synth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
 							synth.triggerRelease(time + noteDuration);
 						} else {
-							const glissSynth = new Tone.MonoSynth().toDestination();
-							glissSynth.triggerAttack(noteName, time, note.velocity || 0.8);
-							glissSynth.detune.setValueAtTime(microtuningCents, time);
-							glissSynth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
-							glissSynth.triggerRelease(time + noteDuration);
+							// No detune Signal — a Sampler, or a PolySynth. Resample
+							// the instrument's own voices if we can, so the slide keeps
+							// the track's sound; only substitute if we cannot.
+							synth.triggerAttack(noteName, time, note.velocity || 0.8);
+							const midi = typeof note.pitch === "number"
+								? note.pitch
+								: Tone.Frequency(noteName).toMidi();
+
+							if (slideSamplerVoices(synth, midi, cents, time, noteDuration)) {
+								synth.triggerRelease(noteName, time + noteDuration);
+							} else {
+								synth.triggerRelease(noteName, time);
+								const glissSynth = new Tone.MonoSynth().toDestination();
+								glissSynth.triggerAttack(noteName, time, note.velocity || 0.8);
+								glissSynth.detune.setValueAtTime(microtuningCents, time);
+								glissSynth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
+								glissSynth.triggerRelease(time + noteDuration);
+							}
 						}
 					} else if (bend && synth.detune) {
 						// Bend : detune ramps from baseline to `amount` cents

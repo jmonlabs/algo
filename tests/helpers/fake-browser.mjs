@@ -114,6 +114,36 @@ export function createFakeTone() {
 
   const named = (type) => class extends Node { constructor(options) { super(type, options); } };
 
+  /**
+   * A Sampler shaped like Tone's real one, verified against 14.8.49: it has
+   * no `detune` Signal, and it keeps its sounding voices in `_activeSources`,
+   * each a buffer source whose `playbackRate` is an automatable Param. That
+   * pair is what lets a slide resample the instrument instead of replacing it.
+   */
+  class FakeSampler extends Node {
+    constructor(options) {
+      super("Sampler", options);
+      delete this.detune;
+      this._activeSources = new Map();
+    }
+    triggerAttack(notes, time, velocity) {
+      for (const note of [].concat(notes)) {
+        const midi = Math.round(noteNameToMidi(note));
+        const source = { playbackRate: new RecordingParam(1, record.params, "Sampler.playbackRate") };
+        if (!this._activeSources.has(midi)) this._activeSources.set(midi, []);
+        this._activeSources.get(midi).push(source);
+        record.triggered.push({ pitch: note, time, velocity });
+      }
+      return this;
+    }
+    triggerRelease() { return this; }
+  }
+
+  /** PolySynth, likewise: options are set through `set()`, not a Signal. */
+  class FakePolySynth extends Node {
+    constructor(options) { super("PolySynth", options); delete this.detune; }
+  }
+
   const Transport = {
     bpm: new RecordingParam(120, record.params, "transport.bpm"),
     timeSignature: [4, 4],
@@ -160,14 +190,17 @@ export function createFakeTone() {
   };
 
   for (const type of [
-    "PolySynth", "Synth", "MonoSynth", "FMSynth", "AMSynth", "DuoSynth",
-    "MembraneSynth", "MetalSynth", "PluckSynth", "NoiseSynth", "Sampler",
+    "Synth", "MonoSynth", "FMSynth", "AMSynth", "DuoSynth",
+    "MembraneSynth", "MetalSynth", "PluckSynth", "NoiseSynth",
     "Reverb", "Delay", "FeedbackDelay", "PingPongDelay", "Chorus", "Phaser",
     "Tremolo", "Vibrato", "Distortion", "Chebyshev", "BitCrusher", "Filter",
     "AutoFilter", "EQ3", "Compressor", "Limiter", "Gain", "Volume",
   ]) {
     Tone[type] = named(type);
   }
+
+  Tone.Sampler = FakeSampler;
+  Tone.PolySynth = FakePolySynth;
 
   return { Tone, record };
 }

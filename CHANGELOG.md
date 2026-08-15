@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 268 tests across eleven
+- A test suite that fails on a broken assertion: 269 tests across eleven
   `node:test` suites, all run by CI.
 
 ### Changed
@@ -196,6 +196,27 @@ resolution, audioGraph construction, automation reaching a parameter, and a
 
 It immediately found one: rests were scheduled and reached the synth as
 `triggerAttackRelease(null, ...)`. There was no rest guard in the note loop.
+
+### A glissando keeps the instrument's timbre
+
+Tone's `Sampler` exposes no `detune` Signal, so a slide on a sampled
+instrument used to be handed to a throwaway `MonoSynth` — audible, but the
+track's sound was thrown away for that note. A GM violin glissando did not
+sound like a violin.
+
+`Sampler` does keep its sounding `ToneBufferSource`s, and each one's
+`playbackRate` is an automatable Param. Ramping that resamples the instrument
+rather than replacing it — the same lever a soundfont engine pulls to bend a
+note, which is how SCAMP gets a clean glissando out of soundfonts. Both the
+player and the WAV renderer now do this, falling back to the substitute synth
+only when neither a detune Signal nor reachable voices exist (PolySynth).
+
+    GM 40 violin, C4 -> G4
+      before: Sampler + MonoSynth, detune 0 -> 700 cents on the MonoSynth
+      after:  Sampler alone, playbackRate 1 -> 1.4983 (= 2^(7/12))
+
+`_activeSources` is Tone-internal, so the path is feature-detected and
+degrades to the previous behaviour if a future version moves it.
 
 ### Known gaps
 

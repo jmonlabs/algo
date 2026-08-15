@@ -302,24 +302,39 @@ test("the slide runs on the track's own synth when it has a detune", async () =>
   assert.ok(record.params.some((p) => p.param === "MonoSynth.detune"));
 });
 
-test("a synth without detune gets a substitute instrument for the slide", async () => {
-  // Tone's PolySynth and Sampler expose no rampable `detune` Signal, so the
-  // player builds a bare MonoSynth to carry the slide. It stays audible — at
-  // the cost of the track's timbre for that note.
-  for (const [spec, missing, own] of [
-    [{ label: "lead" }, ["PolySynth"], "PolySynth"],
-    [{ label: "violin", synth: 40 }, ["Sampler"], "Sampler"],
-  ]) {
-    const record = await slideWith(spec, missing);
-    const types = record.nodes.map((n) => n.type);
+test("a sampled instrument slides by resampling, keeping its timbre", async () => {
+  // Tone's Sampler has no detune Signal, but it keeps its sounding buffer
+  // sources and their playbackRate is automatable — the same lever a soundfont
+  // engine pulls to bend a note. Ramping it slides the violin as a violin,
+  // rather than handing the note to a substitute synth.
+  const record = await slideWith({ label: "violin", synth: 40 });
+  const types = record.nodes.map((n) => n.type);
 
-    assert.ok(types.includes(own), `the track's own ${own} should still be built`);
-    assert.ok(types.includes("MonoSynth"), "a substitute should carry the slide");
+  assert.ok(types.includes("Sampler"));
+  assert.ok(!types.includes("MonoSynth"), "no substitute should be needed");
 
-    const ramps = record.params.filter((p) => p.param === "MonoSynth.detune");
-    assert.ok(ramps.length >= 2, `${own}: the slide should still ramp`);
-    assert.ok(Math.abs(ramps.at(-1).value - 700) < 1, `${own}: ended at ${ramps.at(-1).value}c`);
-  }
+  const rates = record.params.filter((p) => p.param === "Sampler.playbackRate");
+  assert.ok(rates.length >= 2, "expected a starting rate and a ramp");
+  assert.equal(rates[0].value, 1, "the slide starts at the sample's own pitch");
+  // A perfect fifth resamples by 2^(7/12).
+  assert.ok(
+    Math.abs(rates.at(-1).value - Math.pow(2, 7 / 12)) < 1e-4,
+    `ended at rate ${rates.at(-1).value}`,
+  );
+});
+
+test("a synth with neither detune nor voices falls back to a substitute", async () => {
+  // PolySynth exposes options through set(), not a Signal, and keeps no
+  // reachable sources — so the slide does need a stand-in instrument. Still
+  // audible; the timbre is what is lost.
+  const record = await slideWith({ label: "lead" });
+  const types = record.nodes.map((n) => n.type);
+
+  assert.ok(types.includes("PolySynth"), "the track's own synth is still built");
+  assert.ok(types.includes("MonoSynth"), "a substitute carries the slide");
+
+  const ramps = record.params.filter((p) => p.param === "MonoSynth.detune");
+  assert.ok(Math.abs(ramps.at(-1).value - 700) < 1, `ended at ${ramps.at(-1).value}c`);
 });
 
 test("a descending slide ramps downwards", async () => {

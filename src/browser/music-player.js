@@ -471,6 +471,39 @@ export function createPlayer(composition, options = {}) {
     return node?.[parsed.param] ?? null;
   }
 
+  /**
+   * Slide a Sampler's sounding voices by ramping their playback rate.
+   *
+   * Tone's Sampler exposes no `detune` Signal, so a slide on a sampled
+   * instrument used to be handed to a throwaway MonoSynth — audible, but with
+   * the track's timbre thrown away for that note. It does keep its sounding
+   * `ToneBufferSource`s, and each of those has `playbackRate` as an
+   * automatable Param, which is the same lever a soundfont engine pulls when
+   * SCAMP bends a note: resample the instrument rather than replace it.
+   *
+   * `_activeSources` is Tone-internal, so this is feature-detected and falls
+   * back to the substitute synth if a future version moves it.
+   *
+   * @returns {boolean} Whether the slide was applied
+   */
+  function slideSampler(synth, midi, cents, startTime, slideDuration) {
+    const sources = synth?._activeSources?.get?.(Math.round(midi));
+    if (!Array.isArray(sources) || sources.length === 0) return false;
+
+    const ratio = Math.pow(2, cents / 1200);
+    let applied = false;
+
+    for (const source of sources) {
+      const rate = source?.playbackRate;
+      if (!rate || typeof rate.linearRampToValueAtTime !== "function") continue;
+      const from = rate.value ?? 1;
+      rate.setValueAtTime(from, startTime);
+      rate.linearRampToValueAtTime(from * ratio, startTime + slideDuration);
+      applied = true;
+    }
+    return applied;
+  }
+
   function scheduleNotes() {
     clearScheduledEvents();
 
@@ -582,11 +615,28 @@ export function createPlayer(composition, options = {}) {
               synth.triggerRelease(t + duration);
             }, time));
           } else {
-            const glissSynth = new ToneLib.MonoSynth();
-            glissSynth.connect(masterGain);
-            activeSynths.push(glissSynth);
+            // No detune Signal — a Sampler, or a PolySynth. Try resampling the
+            // instrument's own voices first, so the slide keeps the track's
+            // sound; only build a substitute if that is not available.
+            const midi = typeof note.pitch === "number"
+              ? note.pitch
+              : ToneLib.Frequency(noteName).toMidi();
 
+            let glissSynth = null;
             scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              synth.triggerAttack(noteName, t, velocity);
+              if (slideSampler(synth, midi, cents, t, duration)) {
+                synth.triggerRelease(noteName, t + duration);
+                return;
+              }
+
+              // Fall back to a bare synth that does have a detune.
+              if (!glissSynth) {
+                glissSynth = new ToneLib.MonoSynth();
+                glissSynth.connect(masterGain);
+                activeSynths.push(glissSynth);
+              }
+              synth.triggerRelease(noteName, t);
               glissSynth.triggerAttack(noteName, t, velocity);
               glissSynth.detune.setValueAtTime(startDetune, t);
               glissSynth.detune.linearRampToValueAtTime(endDetune, t + duration);
