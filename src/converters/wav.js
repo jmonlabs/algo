@@ -1,42 +1,15 @@
 /* JMON WAV - WAV audio generation from JMON format */
 import { compileEvents } from "../algorithms/audio/index.js";
-import { createTrackSynth, resolveConnectTarget } from "../browser/synth-factory.js";
+import {
+	applyPitchAnchors,
+	createGlideVoice,
+	createTrackSynth,
+	hasDetuneParam,
+	resolveConnectTarget,
+} from "../browser/synth-factory.js";
 import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
 import { normalizeAudioGraph } from "../utils/normalize.js";
 
-/**
- * Slide a Sampler's sounding voices by ramping their playback rate.
- *
- * Tone's Sampler has no `detune` Signal, but it does keep its sounding
- * `ToneBufferSource`s, whose `playbackRate` is an automatable Param. Ramping
- * that resamples the instrument — which is what a soundfont engine does to
- * bend a note — instead of swapping in a different sound.
- *
- * `_activeSources` is Tone-internal, so this is feature-detected and reports
- * whether it managed to do anything.
- *
- * @returns {boolean} Whether the slide was applied
- */
-function slideSamplerVoices(synth, midi, cents, startTime, slideDuration) {
-	const sources = synth?._activeSources?.get?.(Math.round(midi));
-	if (!Array.isArray(sources) || sources.length === 0) return false;
-
-	const ratio = Math.pow(2, cents / 1200);
-	let applied = false;
-
-	for (const source of sources) {
-		const rate = source?.playbackRate;
-		if (!rate || typeof rate.linearRampToValueAtTime !== "function") continue;
-		const from = rate.value ?? 1;
-		rate.setValueAtTime(from, startTime);
-		rate.linearRampToValueAtTime(from * ratio, startTime + slideDuration);
-		applied = true;
-	}
-	return applied;
-}
-
-
-// ...existing code...
 export function wav(composition, options = {}) {
 	return {
 		sampleRate: options.sampleRate || 44100,
@@ -179,7 +152,22 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 				}
 			}
 
-			trackSynths.push({ synth, vibratoEffect, tremoloEffect });
+			// Dedicated glide voice for pitch curves when the track synth has
+			// no detune signal (PolySynth, Sampler) — mirrors music-player.js.
+			let glideVoice = null;
+			const hasPitchCurves = trackModulations.some(
+				(m) => m.type === "pitch" && Array.isArray(m.anchors) && m.anchors.length > 0
+			);
+			if (hasPitchCurves && !hasDetuneParam(synth)) {
+				glideVoice = createGlideVoice(track, Tone);
+				if (glideVoice) {
+					const entry = vibratoEffect || tremoloEffect || connectTarget;
+					if (entry) glideVoice.connect(entry);
+					else glideVoice.toDestination();
+				}
+			}
+
+			trackSynths.push({ synth, glideVoice, vibratoEffect, tremoloEffect });
 		});
 
 		// Phase 2: Wait for all samplers to finish loading
@@ -192,7 +180,7 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 		tracks.forEach((track, trackIndex) => {
 			const notes = track.events || track.notes || [];
 			const trackModulations = compiledModulations[trackIndex] || [];
-			const { synth, vibratoEffect, tremoloEffect } = trackSynths[trackIndex];
+			const { synth, glideVoice, vibratoEffect, tremoloEffect } = trackSynths[trackIndex];
 
 			// Schedule effect enable/disable
 			trackModulations.forEach((mod) => {
@@ -231,11 +219,10 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 				const noteDuration = (note.duration || 1) * secondsPerQuarterNote;
 				const noteMods = modsByNote[noteIndex] || [];
 
-				const glissando = noteMods.find(
-					(m) => m.type === "pitch" && (m.subtype === "glissando" || m.subtype === "portamento")
-				);
-				const bend = noteMods.find(
-					(m) => m.type === "pitch" && m.subtype === "bend"
+				// Unified pitch curve: glissando, portamento, bend, and pitch
+				// envelopes all compile to the same anchors representation.
+				const pitchCurve = noteMods.find(
+					(m) => m.type === "pitch" && Array.isArray(m.anchors) && m.anchors.length > 0
 				);
 
 				const mt = note.microtuning || 0;
@@ -253,62 +240,20 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 							? Tone.Frequency(note.pitch, "midi").toNote()
 							: note.pitch;
 
-					if (glissando && glissando.to !== undefined) {
-						const toNote = typeof glissando.to === "number"
-							? Tone.Frequency(glissando.to, "midi").toNote()
-							: glissando.to;
-						const startFreq = Tone.Frequency(noteName).toFrequency();
-						const endFreq = Tone.Frequency(toNote).toFrequency();
-						const cents = 1200 * Math.log2(endFreq / startFreq);
+					// Pitch curves ramp the detune signal of the track synth, or
+					// of the dedicated glide voice when the synth has none.
+					const curveVoice = pitchCurve
+						? (hasDetuneParam(synth) ? synth : glideVoice)
+						: null;
+					if (pitchCurve && curveVoice) {
 						const microtuningCents = mt * 100;
-
-						if (synth.detune) {
-							synth.triggerAttack(noteName, time, note.velocity || 0.8);
-							synth.detune.setValueAtTime(microtuningCents, time);
-							synth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
-							synth.triggerRelease(time + noteDuration);
-						} else {
-							// No detune Signal — a Sampler, or a PolySynth. Resample
-							// the instrument's own voices if we can, so the slide keeps
-							// the track's sound; only substitute if we cannot.
-							synth.triggerAttack(noteName, time, note.velocity || 0.8);
-							const midi = typeof note.pitch === "number"
-								? note.pitch
-								: Tone.Frequency(noteName).toMidi();
-
-							if (slideSamplerVoices(synth, midi, cents, time, noteDuration)) {
-								synth.triggerRelease(noteName, time + noteDuration);
-							} else {
-								synth.triggerRelease(noteName, time);
-								const glissSynth = new Tone.MonoSynth().toDestination();
-								glissSynth.triggerAttack(noteName, time, note.velocity || 0.8);
-								glissSynth.detune.setValueAtTime(microtuningCents, time);
-								glissSynth.detune.linearRampToValueAtTime(microtuningCents + cents, time + noteDuration);
-								glissSynth.triggerRelease(time + noteDuration);
-							}
-						}
-					} else if (bend && synth.detune) {
-						// Bend : detune ramps from baseline to `amount` cents
-						// over a fast attack (~30% of note, capped 0.25s), then
-						// holds or returns. Reset slightly after release so
-						// subsequent notes start clean.
-						const microtuningCents = mt * 100;
-						const startDetune = microtuningCents;
-						const peakDetune = microtuningCents + bend.amount;
-						const rampTime = Math.min(0.25, noteDuration * 0.3);
-						const playNote = mt
-							? Tone.Frequency(note.pitch + mt, "midi").toFrequency()
-							: noteName;
-						synth.detune.cancelScheduledValues(time);
-						synth.detune.setValueAtTime(startDetune, time);
-						synth.detune.linearRampToValueAtTime(peakDetune, time + rampTime);
-						if (bend.returnToOriginal) {
-							synth.detune.linearRampToValueAtTime(startDetune, time + noteDuration);
-						} else {
-							synth.detune.setValueAtTime(peakDetune, time + noteDuration);
-							synth.detune.setValueAtTime(startDetune, time + noteDuration + 0.05);
-						}
-						synth.triggerAttackRelease(playNote, noteDuration, time, note.velocity || 0.8);
+						// Anchor times are absolute beats; rebase to the note start.
+						const anchorsSec = pitchCurve.anchors.map((a) => ({
+							time: (a.time - pitchCurve.start) * secondsPerQuarterNote,
+							value: a.value,
+						}));
+						applyPitchAnchors(curveVoice.detune, time, anchorsSec, microtuningCents);
+						curveVoice.triggerAttackRelease(noteName, noteDuration, time, note.velocity || 0.8);
 					} else {
 						// Apply microtuning by converting to frequency
 						const playNote = mt

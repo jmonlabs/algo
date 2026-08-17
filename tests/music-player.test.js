@@ -255,7 +255,7 @@ test("the player returns a DOM element with controls attached", async () => {
 /* --- glissando ----------------------------------------------------------- */
 
 /** Play a slide with `detune` removed from the named synth types. */
-async function slideWith(trackSpec, withoutDetune = []) {
+async function slideWith(trackSpec, withoutDetune = [], extra = {}) {
   const restore = installFakeBrowser();
   try {
     const { Tone, record } = createFakeTone();
@@ -271,7 +271,7 @@ async function slideWith(trackSpec, withoutDetune = []) {
     const ui = createPlayer(composition([{
       ...trackSpec,
       notes: [{ ...note(60, 0, 2), articulations: [{ type: "glissando", target: 67 }] }],
-    }]), { Tone });
+    }], extra), { Tone });
 
     const { collectHandlers } = await import("./helpers/fake-browser.mjs");
     const play = collectHandlers(ui).find((h) => typeof h.click === "function");
@@ -288,10 +288,23 @@ test("a glissando is performed as a detune ramp in cents", async () => {
   const record = await slideWith({ label: "lead", synth: { type: "MonoSynth" } });
   const ramps = record.params.filter((p) => p.param.endsWith(".detune"));
 
-  assert.ok(ramps.length >= 2, "expected a start value and a ramp");
+  assert.ok(ramps.length >= 3, "expected a start value, a ramp and a reset");
   assert.equal(ramps[0].value, 0, "the slide starts at the written pitch");
   // 60 -> 67 is a perfect fifth: seven semitones, 700 cents.
-  assert.ok(Math.abs(ramps.at(-1).value - 700) < 1, `ended at ${ramps.at(-1).value} cents`);
+  const arrival = Math.max(...ramps.map((r) => r.value));
+  assert.ok(Math.abs(arrival - 700) < 1, `arrived at ${arrival} cents`);
+});
+
+test("the detune returns to its baseline once the slide is over", async () => {
+  // Without this the whole track stays transposed by whatever the last slide
+  // travelled: a glissando of a fifth leaves every following note a fifth
+  // sharp, on the same voice.
+  const record = await slideWith({ label: "lead", synth: { type: "MonoSynth" } });
+  const ramps = record.params.filter((p) => p.param.endsWith(".detune"));
+
+  assert.equal(ramps.at(-1).value, 0, "the signal ends where it started");
+  const arrivalAt = ramps.findLast((r) => Math.abs(r.value - 700) < 1).time;
+  assert.ok(ramps.at(-1).time > arrivalAt, "the reset comes after the arrival");
 });
 
 test("the slide runs on the track's own synth when it has a detune", async () => {
@@ -302,39 +315,59 @@ test("the slide runs on the track's own synth when it has a detune", async () =>
   assert.ok(record.params.some((p) => p.param === "MonoSynth.detune"));
 });
 
-test("a sampled instrument slides by resampling, keeping its timbre", async () => {
-  // Tone's Sampler has no detune Signal, but it keeps its sounding buffer
-  // sources and their playbackRate is automatable — the same lever a soundfont
-  // engine pulls to bend a note. Ramping it slides the violin as a violin,
-  // rather than handing the note to a substitute synth.
+test("a sampled instrument slides on a dedicated glide voice", async () => {
+  // Tone's Sampler exposes no detune Signal, so the slide cannot run on the
+  // track's own instrument. It runs on one extra Tone.Synth per track,
+  // routed through the same effect chain — audible and in place, but a
+  // violin glissando is a synth for the duration of that note. See the
+  // glissando table in userguide/OUTLINE.md.
   const record = await slideWith({ label: "violin", synth: 40 });
   const types = record.nodes.map((n) => n.type);
 
-  assert.ok(types.includes("Sampler"));
-  assert.ok(!types.includes("MonoSynth"), "no substitute should be needed");
+  assert.ok(types.includes("Sampler"), "the track's own instrument is still built");
+  assert.ok(types.includes("Synth"), "a glide voice carries the slide");
 
-  const rates = record.params.filter((p) => p.param === "Sampler.playbackRate");
-  assert.ok(rates.length >= 2, "expected a starting rate and a ramp");
-  assert.equal(rates[0].value, 1, "the slide starts at the sample's own pitch");
-  // A perfect fifth resamples by 2^(7/12).
-  assert.ok(
-    Math.abs(rates.at(-1).value - Math.pow(2, 7 / 12)) < 1e-4,
-    `ended at rate ${rates.at(-1).value}`,
+  const ramps = record.params.filter((p) => p.param === "Synth.detune");
+  const arrival = Math.max(...ramps.map((r) => r.value));
+  assert.ok(Math.abs(arrival - 700) < 1, `arrived at ${arrival} cents`);
+  assert.equal(
+    record.params.filter((p) => p.param === "Sampler.detune").length, 0,
+    "the Sampler has no detune to ramp",
   );
 });
 
-test("a synth with neither detune nor voices falls back to a substitute", async () => {
-  // PolySynth exposes options through set(), not a Signal, and keeps no
-  // reachable sources — so the slide does need a stand-in instrument. Still
-  // audible; the timbre is what is lost.
+test("a PolySynth slides on a glide voice too", async () => {
+  // PolySynth sets options through set(), not through a Signal, so it takes
+  // the same path as the Sampler.
   const record = await slideWith({ label: "lead" });
   const types = record.nodes.map((n) => n.type);
 
   assert.ok(types.includes("PolySynth"), "the track's own synth is still built");
-  assert.ok(types.includes("MonoSynth"), "a substitute carries the slide");
+  assert.ok(types.includes("Synth"), "a glide voice carries the slide");
 
-  const ramps = record.params.filter((p) => p.param === "MonoSynth.detune");
-  assert.ok(Math.abs(ramps.at(-1).value - 700) < 1, `ended at ${ramps.at(-1).value}c`);
+  const ramps = record.params.filter((p) => p.param === "Synth.detune");
+  const arrival = Math.max(...ramps.map((r) => r.value));
+  assert.ok(Math.abs(arrival - 700) < 1, `arrived at ${arrival} cents`);
+});
+
+test("the glide voice goes through the track's effects, not straight out", async () => {
+  // A slide that bypassed the chain would jump out of the mix — dry, and at
+  // the wrong level — for exactly the notes that slide.
+  const record = await slideWith(
+    { label: "lead", synth: { type: "PolySynth" } },
+    [],
+    { audioGraph: [{ id: "reverb", type: "Reverb", options: { decay: 2 } }] },
+  );
+
+  const glideTargets = record.connections.filter((c) => c.from === "Synth").map((c) => c.to);
+  const synthTargets = record.connections.filter((c) => c.from === "PolySynth").map((c) => c.to);
+
+  assert.ok(glideTargets.length > 0, "the glide voice should be connected to something");
+  assert.deepEqual(
+    glideTargets, synthTargets,
+    "the glide voice should land where the track synth lands",
+  );
+  assert.ok(glideTargets.includes("Reverb"), `routed to ${glideTargets.join(", ")}`);
 });
 
 test("a descending slide ramps downwards", async () => {
@@ -353,7 +386,9 @@ test("a descending slide ramps downwards", async () => {
     for (const event of record.scheduled) event.callback(0);
 
     const ramps = record.params.filter((p) => p.param.endsWith(".detune"));
-    assert.ok(Math.abs(ramps.at(-1).value + 1200) < 1, `ended at ${ramps.at(-1).value} cents`);
+    const arrival = Math.min(...ramps.map((r) => r.value));
+    assert.ok(Math.abs(arrival + 1200) < 1, `arrived at ${arrival} cents`);
+    assert.equal(ramps.at(-1).value, 0, "and comes back to centre");
   } finally {
     restore();
   }

@@ -200,12 +200,13 @@ as in [chapter 6](userguide/06-walks.html).
 ## Tests
 
 ```bash
-node --test tests/*.test.js
+node --test tests/*.test.js src/**/__tests__/*.test.js
 ```
 
-Eleven `node:test` suites, 269 assertion-backed tests, no dependencies to
-install. The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`,
-Verovio or Bun and are observations rather than tests — see the README there.
+279 assertion-backed tests, no dependencies to install: eleven `node:test`
+suites in `tests/`, plus four glissando suites next to the code they cover.
+The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`, Verovio or
+Bun and are observations rather than tests — see the README there.
 
 ## License
 

@@ -82,6 +82,7 @@ export function createFakeTone() {
   const record = {
     scheduled: [],     // { time, callback }
     nodes: [],         // { type, options }
+    connections: [],   // { from, to }
     params: [],        // { param, value, time, kind }
     triggered: [],     // { pitch, duration, time, velocity }
     transport: { starts: 0, stops: 0 },
@@ -101,8 +102,14 @@ export function createFakeTone() {
       this.detune = new RecordingParam(0, record.params, `${type}.detune`);
       this.loaded = Promise.resolve();
     }
-    toDestination() { return this; }
-    connect() { return this; }
+    toDestination() {
+      record.connections.push({ from: this.type, to: "destination" });
+      return this;
+    }
+    connect(target) {
+      record.connections.push({ from: this.type, to: target?.type ?? "destination" });
+      return this;
+    }
     disconnect() { return this; }
     dispose() {}
     triggerAttackRelease(pitch, duration, time, velocity) {

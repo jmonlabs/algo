@@ -33,8 +33,9 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 269 tests across eleven
-  `node:test` suites, all run by CI.
+- A test suite that fails on a broken assertion: 279 tests across eleven
+  `node:test` suites plus the four glissando suites under `src/**/__tests__/`,
+  all run by CI.
 
 ### Changed
 
@@ -178,7 +179,8 @@ range back, and the importer reconstructs the articulation from the envelope.
 
 Portamento and bend travel the same way. Each sweep returns to centre exactly
 on the note boundary, so the following notes are in tune and do not read back
-as bends of their own.
+as bends of their own — the arrival value and the recentre share that tick,
+and the writer orders them so the wheel is centred before the next note-on.
 
 ### src/browser/ is covered
 
@@ -197,31 +199,34 @@ resolution, audioGraph construction, automation reaching a parameter, and a
 It immediately found one: rests were scheduled and reached the synth as
 `triggerAttackRelease(null, ...)`. There was no rest guard in the note loop.
 
-### A glissando keeps the instrument's timbre
+### Every pitch curve takes one path
 
-Tone's `Sampler` exposes no `detune` Signal, so a slide on a sampled
-instrument used to be handed to a throwaway `MonoSynth` — audible, but the
-track's sound was thrown away for that note. A GM violin glissando did not
-sound like a violin.
+Glissando, portamento, bend and pitch envelopes all compile to the same
+`{ time, value }` anchors in cents, and everything downstream reads that one
+shape: the browser player, the WAV renderer and the MIDI writer. There is no
+longer a separate code path per articulation.
 
-`Sampler` does keep its sounding `ToneBufferSource`s, and each one's
-`playbackRate` is an automatable Param. Ramping that resamples the instrument
-rather than replacing it — the same lever a soundfont engine pulls to bend a
-note, which is how SCAMP gets a clean glissando out of soundfonts. Both the
-player and the WAV renderer now do this, falling back to the substitute synth
-only when neither a detune Signal nor reachable voices exist (PolySynth).
+A curve ramps the track synth's `detune` signal. `PolySynth` and `Sampler`
+expose none, so those tracks get one dedicated glide voice — a `Tone.Synth`
+built with the track's own voice options and connected to the same effect
+chain — which carries the notes that slide. The slide is audible and sits in
+the mix, but a sampled violin is a synth for the duration of that note.
+`userguide/OUTLINE.md` (III.1) tabulates what each instrument kind does.
 
-    GM 40 violin, C4 -> G4
-      before: Sampler + MonoSynth, detune 0 -> 700 cents on the MonoSynth
-      after:  Sampler alone, playbackRate 1 -> 1.4983 (= 2^(7/12))
-
-`_activeSources` is Tone-internal, so the path is feature-detected and
-degrades to the previous behaviour if a future version moves it.
+The signal returns to its baseline after each curve. Without that reset a
+glissando of a fifth left every following note on that voice a fifth sharp —
+measured, not theorised.
 
 ### Known gaps
 
-None outstanding. The pieces that genuinely need a live Tone.js — sample
-loading and the audio graph's actual sound — are exercised by
-`tests/integration/`, which is honest about being observation rather than test.
+A glissando on a `Sampler` does not keep the instrument's timbre. `Sampler`
+holds its sounding `ToneBufferSource`s and each one's `playbackRate` is
+automatable, which is the lever a soundfont engine pulls to bend a note — so
+resampling the instrument instead of substituting one is reachable, on
+Tone-internal API. It is not done yet.
+
+Otherwise the pieces that genuinely need a live Tone.js — sample loading and
+the audio graph's actual sound — are exercised by `tests/integration/`, which
+is honest about being observation rather than test.
 
 [1.2.0]: https://github.com/jmonlabs/algo/releases/tag/v1.2.0

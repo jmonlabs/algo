@@ -38,63 +38,72 @@ export function timeToBeats(timeString, beatsPerBar = 4, ticksPerBeat = 480) {
 }
 
 /**
- * Create a JMON part from a sequence of notes
+ * Create a JMON track from an array of notes.
+ *
+ * The label goes out as `label`, which is what the schema declares and what
+ * the players, the score renderer and the MIDI writer read. This used to
+ * emit `name`, so a track built here arrived unnamed everywhere.
+ *
  * @param {Array} notes - Array of notes in various formats
- * @param {string} name - Part name
- * @param {Object} options - Additional options
- * @returns {Object} JMON part object
+ * @param {string} label - Track label
+ * @param {Object} options - Additional track properties (synth, effects…)
+ * @returns {Object} JMON track object
  */
-export function createPart(notes, name = 'Untitled Part', options = {}) {
+export function createTrack(notes, label = 'Untitled Track', options = {}) {
   const normalizedNotes = normalizeNotes(notes);
-  
+
   return {
-    name,
+    label,
     notes: normalizedNotes,
     ...options
   };
 }
 
+/** @deprecated Use {@link createTrack}. JMON calls them tracks, not parts. */
+export const createPart = createTrack;
+
 /**
- * Create a complete JMON composition
- * @param {Array} parts - Array of parts or note sequences
- * @param {Object} metadata - Composition metadata
+ * Create a complete JMON composition.
+ *
+ * @param {Array} tracks - Array of tracks, or of bare note arrays
+ * @param {Object} metadata - Top-level properties (tempo, keySignature…)
  * @returns {Object} Complete JMON composition
  */
-export function createComposition(parts, metadata = {}) {
-  // Normalize parts
-  const normalizedParts = parts.map((part, index) => {
-    if (Array.isArray(part)) {
-      // If it's just an array of notes, create a part
-      return createPart(part, `Track ${index + 1}`);
-    } else if (part.name && part.notes) {
-      // Already a part, normalize the notes
-      return {
-        ...part,
-        notes: normalizeNotes(part.notes)
-      };
-    } else {
-      return part;
+export function createComposition(tracks, metadata = {}) {
+  const normalizedTracks = tracks.map((track, index) => {
+    if (Array.isArray(track)) {
+      return createTrack(track, `Track ${index + 1}`);
     }
+    if (track.notes) {
+      // `name` is accepted on the way in so older callers keep working, but
+      // only `label` goes out.
+      const { name, ...rest } = track;
+      return {
+        ...rest,
+        label: track.label || name || `Track ${index + 1}`,
+        notes: normalizeNotes(track.notes)
+      };
+    }
+    return track;
   });
 
-  // Create basic JMON structure
-  const composition = {
+  const { bpm, ...restMetadata } = metadata;
+
+  return {
     format: 'jmon',
     version: '1.0',
-    bpm: metadata.bpm || 120,
+    // The schema says `tempo`. `bpm` is accepted as a synonym on the way in;
+    // it is not emitted, so the result has one tempo, not two.
+    tempo: metadata.tempo || bpm || 120,
     keySignature: metadata.keySignature || 'C',
     timeSignature: metadata.timeSignature || '4/4',
-    tracks: normalizedParts,
-    ...metadata
+    tracks: normalizedTracks,
+    ...restMetadata
   };
-
-  // Remove metadata fields that are now top-level
-  delete composition.metadata?.bpm;
-  delete composition.metadata?.keySignature;
-  delete composition.metadata?.timeSignature;
-
-  return composition;
 }
+
+/** @deprecated Use {@link createComposition}. */
+export const createPiece = createComposition;
 
 /**
  * Normalize notes from various formats to JMON format

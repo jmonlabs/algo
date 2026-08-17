@@ -142,16 +142,34 @@ the one articulation whose result depends on the track's instrument:
 
 | Track's `synth` | What happens | Timbre |
 |---|---|---|
-| `MonoSynth`, `Synth`, `FMSynth`, … | its `detune` Signal ramps in cents | kept |
-| GM number (a `Sampler`) | its sounding voices' `playbackRate` ramps — the instrument is resampled, which is what a soundfont engine does to bend a note | kept |
-| `PolySynth` (the default) | Tone gives it neither a rampable `detune` nor reachable voices, so a bare `MonoSynth` is built to carry the slide | **lost for that note** |
+| `MonoSynth`, `Synth`, `FMSynth`, … | its own `detune` Signal ramps in cents | kept |
+| `PolySynth` (the default) | Tone exposes no rampable `detune`, so the track gets one dedicated glide voice — a `Tone.Synth` built from the track's voice options, connected to the same effect chain — and the sliding notes play on it | close |
+| GM number (a `Sampler`) | same glide voice | **lost for that note** — a sampled violin slides as a synth |
 
-So the practical advice for a reader: a glissando keeps the track's sound
-everywhere except on the default `PolySynth`. Naming a `MonoSynth`, or a GM
-program, fixes it. Worth stating plainly rather than leaving to be discovered.
+So the practical advice for a reader: a glissando keeps the track's sound on a
+mono synth, comes close on a `PolySynth`, and does not on a sampled
+instrument. Naming a `MonoSynth` is what fixes it. Worth stating plainly
+rather than leaving to be discovered.
 
-Cents are the unit throughout: C4 to G4 is a perfect fifth, so 700 cents, or a
-playback rate of 2^(7/12) ≈ 1.498.
+Cents are the unit throughout: C4 to G4 is a perfect fifth, so 700 cents.
+
+Two behaviours worth a sentence each, because both are surprising when you
+meet them without warning:
+
+- The detune **returns to its baseline** after each curve. It has to: without
+  the reset, a glissando of a fifth leaves every following note on that voice
+  a fifth sharp.
+- All four pitch articulations — `glissando`, `portamento`, `bend`, and pitch
+  envelopes — compile to the **same** representation, a list of
+  `{ time, value }` anchors in cents. They differ in how the anchors are
+  generated, not in how they are played. Explaining that once saves
+  explaining it four times.
+
+**Still open** (so it does not read as a promise): `Sampler` keeps its
+sounding buffer sources and each one's `playbackRate` is automatable —
+ramping that would resample the instrument instead of substituting one, which
+is how SCAMP gets a clean glissando out of soundfonts. Not implemented. Don't
+document it as if it were.
 
 ### III.2 Transformations
 
@@ -237,6 +255,108 @@ Not a chapter; a lookup table, useful enough to earn its own page.
   `findClosestPitchAtMeasureStart`.
 - The original djalgo notebooks for chapters II.1, II.2, II.3 and II.4 are in
   `userguide/djalgo-guide/`.
+
+---
+
+## Vocabulary — one word per thing
+
+From the `funny-gauss` branch, which went through the guide and found the same
+concept named three ways. Pick one word each and hold it, because the reader
+builds a mental model out of the nouns:
+
+| Use | Not | Why |
+|---|---|---|
+| **track** | part, sequence, voice, line | it is what the schema calls it, and what `tracks:` is keyed on |
+| **note** | event, item | `event` is what the *player* schedules, which is a different thing |
+| **composition** | piece, song | `jm.play(composition)` — the parameter is already named |
+| **Jmon** | JMON, JMon | in identifiers. `JMON` stays in prose for the format itself |
+
+`funny-gauss` went further and renamed the public helpers
+(`createPart` → `createTrack`, `createComposition` → `createPiece`). Half of
+that is now in: `createTrack` exists and `createPart` is kept as an alias.
+`createPiece` is an alias too, but **composition** is the word this outline
+uses — if you prefer *piece*, that is a decision to make once, here, and then
+apply everywhere including `jm.play`'s docs.
+
+Its other finding is fixed rather than documented: `createPart` used to emit
+`{ name }` and `createComposition` a stray `bpm`, neither of which anything
+downstream reads. Both now emit what the schema declares.
+
+Two more from that branch worth a line in the guide:
+
+- `@tangent.to/ds` is loaded lazily, so importing `jm` does not pull it in.
+  That is why Gaussian processes are used directly rather than through
+  `jm.generative` — mention it in II.2 instead of leaving the asymmetry
+  unexplained.
+- `Mandelbrot` answers to `mandelbrotIterations()` as well as its own method
+  name, for people arriving from Djalgo. Belongs in the appendix, not in II.3.
+
+---
+
+## Proposed file tree
+
+The guide is Observable Notebook Kit, so a chapter is one `.html` file. Two
+things drive the layout: a reader should be able to open one file and be in
+the right place, and adding a chapter to a collection should touch nothing
+else.
+
+```
+userguide/
+  index.html              landing page: the four parts, linked
+  OUTLINE.md              this file — the plan, not shipped to readers
+
+  1-foundations/
+    1-getting-started.html
+    2-harmony.html
+    3-rhythm.html
+    4-sound.html
+
+  2-generators/
+    1-minimalism.html
+    2-walks.html
+    3-fractals.html
+    4-genetic.html
+    5-loops.html
+
+  3-transforming/
+    1-ornaments.html
+    2-transformations.html
+    3-corruptor.html
+    4-analysis.html
+
+  4-playing/
+    1-live.html
+    2-exporting.html
+
+  appendix/
+    from-djalgo.html      the lookup table
+    djalgo-guide/         the original .py notebooks, kept as reference
+
+  shared/
+    header.js             the import block every chapter opens with
+    style.css
+
+  package.json            unchanged — `npx notebooks preview --root .`
+  vite.config.js
+```
+
+Why this rather than the current flat `01-`…`10-`:
+
+- **The number carries the part.** `2-generators/3-fractals.html` says where
+  it sits without a global counter. A sixth generator is `2-generators/6-…`
+  and nothing renames — which is the whole reason for the part structure.
+- **Directories are the only thing that reorders.** Moving a chapter between
+  parts is a `git mv`, not a renumber of everything after it.
+- **`shared/`** is what stops the import block drifting. Right now every
+  chapter repeats the jsDelivr URL, so a version bump is ten edits and one
+  of them gets missed.
+- **`appendix/`** keeps `djalgo-guide/` where it belongs — reference material,
+  not a chapter — instead of sitting at the top level looking like one.
+
+One thing to decide before moving files: the current names are what the README
+and every external link point at. Either keep redirect stubs at the old paths,
+or accept that links break once and fix the README in the same commit. For a
+guide read mostly from `index.html`, the second is probably fine.
 
 ---
 

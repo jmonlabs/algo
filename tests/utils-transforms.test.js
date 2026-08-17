@@ -279,3 +279,55 @@ test("everything migrated is reachable through jm.utils", async () => {
   // The djalgo tuple-based quantizer keeps its own name and stays available.
   assert.equal(typeof jm.utils.quantizeNotes, "function");
 });
+
+/* --- the JMON builders --------------------------------------------------- */
+
+test("createTrack labels a track the way the rest of the library reads it", async () => {
+  const { createTrack, createPart } = await import("../src/utils/jmon-utils.js");
+  const track = createTrack([{ pitch: 60, duration: 1, time: 0 }], "Bass");
+
+  assert.equal(track.label, "Bass", "the players and the score renderer read `label`");
+  assert.equal(track.name, undefined, "`name` is not a JMON field");
+  assert.equal(createPart, createTrack, "the old name still resolves");
+});
+
+test("createComposition emits one tempo, not a tempo and a bpm", async () => {
+  const { createComposition } = await import("../src/utils/jmon-utils.js");
+  const notes = [{ pitch: 60, duration: 1, time: 0 }];
+
+  const fromTempo = createComposition([notes], { tempo: 90 });
+  assert.equal(fromTempo.tempo, 90);
+  assert.equal(fromTempo.bpm, undefined, "a leftover bpm is a second source of truth");
+
+  // bpm is still accepted on the way in, so older callers keep working.
+  assert.equal(createComposition([notes], { bpm: 90 }).tempo, 90);
+  assert.equal(createComposition([notes]).tempo, 120, "and there is a default");
+});
+
+test("createComposition accepts tracks as note arrays or as track objects", async () => {
+  const { createComposition } = await import("../src/utils/jmon-utils.js");
+  const notes = [{ pitch: 60, duration: 1, time: 0 }];
+
+  const bare = createComposition([notes]);
+  assert.equal(bare.tracks[0].label, "Track 1", "a bare array gets a positional label");
+
+  const named = createComposition([{ label: "Lead", notes }, { name: "Pad", notes }]);
+  assert.deepEqual(named.tracks.map((t) => t.label), ["Lead", "Pad"],
+    "a track passed in as `name` comes out as `label`");
+  assert.equal(named.tracks[1].name, undefined);
+});
+
+test("a composition built by the helpers is playable as-is", async () => {
+  // The point of the fix: what comes out of createComposition should be
+  // what the player expects, with no renaming in between.
+  const { createComposition } = await import("../src/utils/jmon-utils.js");
+  const comp = createComposition(
+    [{ label: "Lead", notes: [{ pitch: 60, duration: 1, time: 0 }] }],
+    { tempo: 90 },
+  );
+
+  assert.equal(comp.format, "jmon");
+  assert.equal(comp.tempo, 90);
+  assert.equal(comp.tracks[0].label, "Lead");
+  assert.ok(Array.isArray(comp.tracks[0].notes) && comp.tracks[0].notes.length === 1);
+});

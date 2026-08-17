@@ -45,99 +45,6 @@ function encodeTrack(events) {
     return data;
 }
 
-// --- Pitch bend ------------------------------------------------------------
-//
-// Standard MIDI File has no glissando message; a slide is a stream of pitch
-// bend events. Bend is 14-bit with 8192 at rest, and its span is whatever the
-// receiving device's pitch bend sensitivity says — 2 semitones by default,
-// which is far too narrow for a slide of an octave. So the sensitivity is set
-// explicitly, per track, via RPN 0 before any bend is sent.
-
-const BEND_CENTER = 8192;
-const BEND_STEPS = 32;        // points per slide; smooth without bloating the file
-const MAX_SENSITIVITY = 24;   // two octaves, the widest most devices accept
-
-/** Encode semitones as a 14-bit bend value for the given sensitivity. */
-function bendValue(semitones, sensitivity) {
-    const ratio = Math.max(-1, Math.min(1, semitones / sensitivity));
-    return Math.max(0, Math.min(16383, Math.round(BEND_CENTER + ratio * BEND_CENTER)));
-}
-
-function bendEvent(channel, tick, semitones, sensitivity, sortOrder = 2) {
-    const value = bendValue(semitones, sensitivity);
-    return {
-        tick,
-        sortOrder,
-        bytes: [0xe0 | channel, value & 0x7f, (value >> 7) & 0x7f],
-    };
-}
-
-/** RPN 0: set pitch bend sensitivity, in semitones. */
-function sensitivityEvents(channel, semitones) {
-    const value = Math.max(1, Math.min(MAX_SENSITIVITY, Math.ceil(semitones)));
-    return [
-        { tick: 0, sortOrder: -1, bytes: [0xb0 | channel, 101, 0] },
-        { tick: 0, sortOrder: -1, bytes: [0xb0 | channel, 100, 0] },
-        { tick: 0, sortOrder: -1, bytes: [0xb0 | channel, 6, value] },
-        { tick: 0, sortOrder: -1, bytes: [0xb0 | channel, 38, 0] },
-    ];
-}
-
-/**
- * Turn a track's pitch modulations into bend events.
- *
- * Only the continuous pitch articulations produce bend: glissando and
- * portamento sweep from the note to a target, bend offsets by a fixed amount.
- * Each returns to centre when the note ends, so the next note starts in tune.
- */
-function pitchBendEvents(track, channel, ticksPerBeat) {
-    let modulations = [];
-    try {
-        modulations = compileEvents(track).modulations || [];
-    } catch (_) {
-        return { events: [], sensitivity: 0 };
-    }
-
-    const slides = modulations.filter((m) =>
-        m.type === "pitch" &&
-        (m.subtype === "glissando" || m.subtype === "portamento" || m.subtype === "bend")
-    );
-    if (slides.length === 0) return { events: [], sensitivity: 0 };
-
-    const depthOf = (m) => m.subtype === "bend" ? (m.amount || 0) : (m.to - m.from);
-    const sensitivity = Math.min(
-        MAX_SENSITIVITY,
-        Math.max(2, ...slides.map((m) => Math.abs(depthOf(m))))
-    );
-
-    const events = [];
-    for (const modulation of slides) {
-        const depth = depthOf(modulation);
-        const startTick = Math.round(modulation.start * ticksPerBeat);
-        const endTick = Math.round(modulation.end * ticksPerBeat);
-        // The sweep finishes one tick early so that the return to centre can
-        // sit exactly on the note boundary. Otherwise the reset lands inside
-        // the following note and reads back as a bend belonging to it.
-        const span = Math.max(1, endTick - startTick - 1);
-
-        for (let step = 0; step <= BEND_STEPS; step++) {
-            const progress = step / BEND_STEPS;
-            events.push(bendEvent(
-                channel,
-                startTick + Math.round(progress * span),
-                depth * progress,
-                sensitivity,
-            ));
-        }
-
-        // Back to centre once the note is over — a bend left hanging would
-        // detune everything that follows on this channel.
-        events.push(bendEvent(channel, endTick, 0, sensitivity, 3));
-    }
-
-    return { events: [...sensitivityEvents(channel, sensitivity), ...events], sensitivity };
-}
-
 function buildMidiFile(composition) {
     const bpm = composition.tempo || composition.bpm || 120;
     const ticksPerBeat = 480;
@@ -240,12 +147,9 @@ function buildMidiFile(composition) {
             }
         }
 
-        // Slides become pitch bend streams. Without this a glissando is
-        // flattened to its starting note by the export.
-        const { events: bendEvents } = pitchBendEvents(
-            { ...track, notes: notesWithTime }, channel, ticksPerBeat,
-        );
-        events.push(...bendEvents);
+        // Pitch curves (glissando, portamento, bend, pitch envelopes) compile
+        // to cents anchors; render them as MIDI pitch wheel events.
+        events.push(...buildPitchBendEvents(notesWithTime, channel, ticksPerBeat));
 
         trackChunks.push(encodeTrack(events));
     }
@@ -269,6 +173,102 @@ function buildMidiFile(composition) {
     }
 
     return new Uint8Array(fileBytes);
+}
+
+/**
+ * Render compiled pitch curves (anchors in cents) as MIDI pitch wheel events.
+ *
+ * Emits an RPN 0 (pitch bend sensitivity) setup sized to the widest curve on
+ * the track — MIDI's ±2 semitone default would clip wider glissandi — then
+ * samples each curve's linear segments and recenters the wheel at note end.
+ *
+ * @param {Array<Object>} notes - track notes with resolved numeric times
+ * @param {number} channel - MIDI channel (0-15)
+ * @param {number} ticksPerBeat
+ * @returns {Array<{tick:number,sortOrder:number,bytes:number[]}>}
+ */
+function buildPitchBendEvents(notes, channel, ticksPerBeat) {
+    let pitchMods = [];
+    try {
+        const perf = compileEvents({ events: notes });
+        pitchMods = (perf.modulations || []).filter(
+            m => m.type === 'pitch' && Array.isArray(m.anchors) && m.anchors.length > 0
+        );
+    } catch (_) {
+        return [];
+    }
+    if (pitchMods.length === 0) return [];
+
+    const maxCents = Math.max(
+        ...pitchMods.flatMap(m => m.anchors.map(a => Math.abs(a.value)))
+    );
+    const rangeSemitones = Math.min(24, Math.max(2, Math.ceil(maxCents / 100)));
+    const centerValue = 8192;
+
+    const events = [];
+
+    // RPN 0,0 = pitch bend sensitivity, in semitones (MSB) + cents (LSB),
+    // then deselect the RPN so later CCs can't change it accidentally.
+    const rpn = [[101, 0], [100, 0], [6, rangeSemitones], [38, 0], [101, 127], [100, 127]];
+    // Array sort is stable, so equal tick/sortOrder preserves RPN sequence.
+    rpn.forEach(([cc, value]) => {
+        events.push({ tick: 0, sortOrder: -1, bytes: [0xb0 | channel, cc, value] });
+    });
+
+    const toBendValue = (cents) => {
+        const v = centerValue + Math.round((cents / (rangeSemitones * 100)) * (centerValue - 1));
+        return Math.max(0, Math.min(16383, v));
+    };
+    const pushBend = (tick, value, sortOrder) => {
+        events.push({
+            tick,
+            sortOrder,
+            bytes: [0xe0 | channel, value & 0x7f, (value >> 7) & 0x7f]
+        });
+    };
+
+    // Sample each linear segment finely enough to sound continuous.
+    const stepTicks = Math.max(1, Math.round(ticksPerBeat / 16));
+
+    for (const mod of pitchMods) {
+        const anchors = mod.anchors;
+        // Initial value lands between note-off (0) and note-on (1) at the
+        // same tick so the wheel is set before the note sounds.
+        pushBend(Math.round(anchors[0].time * ticksPerBeat), toBendValue(anchors[0].value), 0.5);
+
+        for (let k = 1; k < anchors.length; k++) {
+            const a = anchors[k - 1];
+            const b = anchors[k];
+            const aTick = Math.round(a.time * ticksPerBeat);
+            const bTick = Math.round(b.time * ticksPerBeat);
+            let lastValue = toBendValue(a.value);
+            for (let tick = aTick + stepTicks; tick < bTick; tick += stepTicks) {
+                const frac = (tick - aTick) / (bTick - aTick);
+                const value = toBendValue(a.value + (b.value - a.value) * frac);
+                if (value === lastValue) continue;
+                pushBend(tick, value, 2);
+                lastValue = value;
+            }
+            // The arrival value lands on the note boundary, where the
+            // recenter (0.25) also sits. Order it just ahead of the recenter
+            // rather than at 2, or the wheel is left off-centre for whatever
+            // follows.
+            const isArrival = k === anchors.length - 1;
+            const endValue = toBendValue(b.value);
+            if (endValue !== lastValue || bTick === aTick) {
+                pushBend(bTick, endValue, isArrival ? 0.2 : 2);
+            }
+        }
+
+        // Recenter so the next note starts clean. sortOrder 0.25 keeps the
+        // reset ahead of a following curve's initial value at the same tick.
+        const last = anchors[anchors.length - 1];
+        if (toBendValue(last.value) !== centerValue) {
+            pushBend(Math.round(mod.end * ticksPerBeat), centerValue, 0.25);
+        }
+    }
+
+    return events;
 }
 
 // --- Public API ---

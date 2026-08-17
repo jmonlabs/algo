@@ -222,7 +222,15 @@ export class MidiToJmon {
     const end = note.time + note.duration;
     // Half-open: a bend sitting exactly on the note's end belongs to what
     // follows, not to this note.
-    const within = bends.filter((b) => b.time >= start - 1e-6 && b.time < end - 1e-6);
+    const inWindow = bends.filter((b) => b.time >= start - 1e-6 && b.time < end - 1e-6);
+    // The wheel holds one value at a time, so several bends stamped on the
+    // same tick are one state, not a movement. Only the last survives. This
+    // is what keeps a previous sweep's arrival and its recentre — both
+    // landing on the boundary tick — from reading as a bend of this note's
+    // own.
+    const within = inWindow.filter(
+      (b, i) => i === inWindow.length - 1 || Math.abs(inWindow[i + 1].time - b.time) > 1e-6,
+    );
     if (within.length < 2) return null;
 
     const first = within[0].value * range;
