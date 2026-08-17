@@ -1,10 +1,17 @@
 /**
- * General MIDI Instrument Mapping to FluidR3 Soundfonts
- * Maps GM program numbers to FluidR3 soundfont directory names
+ * General MIDI programs 0-127, mapped to their FluidR3 sample folder.
+ *
+ * The folder names are data, not a rule: most are the instrument name
+ * lowercased with underscores, but `honkytonk_piano-mp3` drops its hyphen,
+ * `lead_8_bass__lead-mp3` keeps a double underscore where the name had
+ * " + ", and `fx_8_scifi-mp3` loses its hyphen entirely. Every entry below
+ * was checked against the CDN rather than derived.
+ *
+ * Half the table used to be missing — 50-55, 59-63 and everything from 75 up,
+ * which is all the synth leads and pads, the ethnic and percussive banks and
+ * the sound effects. Those programs fell through to the piano.
  */
-
 export const GM_INSTRUMENTS = {
-  // Piano Family
   0: { name: "Acoustic Grand Piano", folder: "acoustic_grand_piano-mp3" },
   1: { name: "Bright Acoustic Piano", folder: "bright_acoustic_piano-mp3" },
   2: { name: "Electric Grand Piano", folder: "electric_grand_piano-mp3" },
@@ -13,8 +20,6 @@ export const GM_INSTRUMENTS = {
   5: { name: "Electric Piano 2", folder: "electric_piano_2-mp3" },
   6: { name: "Harpsichord", folder: "harpsichord-mp3" },
   7: { name: "Clavinet", folder: "clavinet-mp3" },
-
-  // Chromatic Percussion
   8: { name: "Celesta", folder: "celesta-mp3" },
   9: { name: "Glockenspiel", folder: "glockenspiel-mp3" },
   10: { name: "Music Box", folder: "music_box-mp3" },
@@ -23,8 +28,6 @@ export const GM_INSTRUMENTS = {
   13: { name: "Xylophone", folder: "xylophone-mp3" },
   14: { name: "Tubular Bells", folder: "tubular_bells-mp3" },
   15: { name: "Dulcimer", folder: "dulcimer-mp3" },
-
-  // Organ
   16: { name: "Drawbar Organ", folder: "drawbar_organ-mp3" },
   17: { name: "Percussive Organ", folder: "percussive_organ-mp3" },
   18: { name: "Rock Organ", folder: "rock_organ-mp3" },
@@ -33,8 +36,6 @@ export const GM_INSTRUMENTS = {
   21: { name: "Accordion", folder: "accordion-mp3" },
   22: { name: "Harmonica", folder: "harmonica-mp3" },
   23: { name: "Tango Accordion", folder: "tango_accordion-mp3" },
-
-  // Guitar
   24: { name: "Acoustic Guitar (nylon)", folder: "acoustic_guitar_nylon-mp3" },
   25: { name: "Acoustic Guitar (steel)", folder: "acoustic_guitar_steel-mp3" },
   26: { name: "Electric Guitar (jazz)", folder: "electric_guitar_jazz-mp3" },
@@ -43,8 +44,6 @@ export const GM_INSTRUMENTS = {
   29: { name: "Overdriven Guitar", folder: "overdriven_guitar-mp3" },
   30: { name: "Distortion Guitar", folder: "distortion_guitar-mp3" },
   31: { name: "Guitar Harmonics", folder: "guitar_harmonics-mp3" },
-
-  // Bass
   32: { name: "Acoustic Bass", folder: "acoustic_bass-mp3" },
   33: { name: "Electric Bass (finger)", folder: "electric_bass_finger-mp3" },
   34: { name: "Electric Bass (pick)", folder: "electric_bass_pick-mp3" },
@@ -53,8 +52,6 @@ export const GM_INSTRUMENTS = {
   37: { name: "Slap Bass 2", folder: "slap_bass_2-mp3" },
   38: { name: "Synth Bass 1", folder: "synth_bass_1-mp3" },
   39: { name: "Synth Bass 2", folder: "synth_bass_2-mp3" },
-
-  // Strings
   40: { name: "Violin", folder: "violin-mp3" },
   41: { name: "Viola", folder: "viola-mp3" },
   42: { name: "Cello", folder: "cello-mp3" },
@@ -63,13 +60,22 @@ export const GM_INSTRUMENTS = {
   45: { name: "Pizzicato Strings", folder: "pizzicato_strings-mp3" },
   46: { name: "Orchestral Harp", folder: "orchestral_harp-mp3" },
   47: { name: "Timpani", folder: "timpani-mp3" },
-
-  // Popular selections for common use
   48: { name: "String Ensemble 1", folder: "string_ensemble_1-mp3" },
   49: { name: "String Ensemble 2", folder: "string_ensemble_2-mp3" },
+  50: { name: "Synth Strings 1", folder: "synth_strings_1-mp3" },
+  51: { name: "Synth Strings 2", folder: "synth_strings_2-mp3" },
+  52: { name: "Choir Aahs", folder: "choir_aahs-mp3" },
+  53: { name: "Voice Oohs", folder: "voice_oohs-mp3" },
+  54: { name: "Synth Choir", folder: "synth_choir-mp3" },
+  55: { name: "Orchestra Hit", folder: "orchestra_hit-mp3" },
   56: { name: "Trumpet", folder: "trumpet-mp3" },
   57: { name: "Trombone", folder: "trombone-mp3" },
   58: { name: "Tuba", folder: "tuba-mp3" },
+  59: { name: "Muted Trumpet", folder: "muted_trumpet-mp3" },
+  60: { name: "French Horn", folder: "french_horn-mp3" },
+  61: { name: "Brass Section", folder: "brass_section-mp3" },
+  62: { name: "Synth Brass 1", folder: "synth_brass_1-mp3" },
+  63: { name: "Synth Brass 2", folder: "synth_brass_2-mp3" },
   64: { name: "Soprano Sax", folder: "soprano_sax-mp3" },
   65: { name: "Alto Sax", folder: "alto_sax-mp3" },
   66: { name: "Tenor Sax", folder: "tenor_sax-mp3" },
@@ -81,37 +87,164 @@ export const GM_INSTRUMENTS = {
   72: { name: "Piccolo", folder: "piccolo-mp3" },
   73: { name: "Flute", folder: "flute-mp3" },
   74: { name: "Recorder", folder: "recorder-mp3" },
+  75: { name: "Pan Flute", folder: "pan_flute-mp3" },
+  76: { name: "Blown Bottle", folder: "blown_bottle-mp3" },
+  77: { name: "Shakuhachi", folder: "shakuhachi-mp3" },
+  78: { name: "Whistle", folder: "whistle-mp3" },
+  79: { name: "Ocarina", folder: "ocarina-mp3" },
+  80: { name: "Lead 1 (square)", folder: "lead_1_square-mp3" },
+  81: { name: "Lead 2 (sawtooth)", folder: "lead_2_sawtooth-mp3" },
+  82: { name: "Lead 3 (calliope)", folder: "lead_3_calliope-mp3" },
+  83: { name: "Lead 4 (chiff)", folder: "lead_4_chiff-mp3" },
+  84: { name: "Lead 5 (charang)", folder: "lead_5_charang-mp3" },
+  85: { name: "Lead 6 (voice)", folder: "lead_6_voice-mp3" },
+  86: { name: "Lead 7 (fifths)", folder: "lead_7_fifths-mp3" },
+  87: { name: "Lead 8 (bass + lead)", folder: "lead_8_bass__lead-mp3" },
+  88: { name: "Pad 1 (new age)", folder: "pad_1_new_age-mp3" },
+  89: { name: "Pad 2 (warm)", folder: "pad_2_warm-mp3" },
+  90: { name: "Pad 3 (polysynth)", folder: "pad_3_polysynth-mp3" },
+  91: { name: "Pad 4 (choir)", folder: "pad_4_choir-mp3" },
+  92: { name: "Pad 5 (bowed)", folder: "pad_5_bowed-mp3" },
+  93: { name: "Pad 6 (metallic)", folder: "pad_6_metallic-mp3" },
+  94: { name: "Pad 7 (halo)", folder: "pad_7_halo-mp3" },
+  95: { name: "Pad 8 (sweep)", folder: "pad_8_sweep-mp3" },
+  96: { name: "FX 1 (rain)", folder: "fx_1_rain-mp3" },
+  97: { name: "FX 2 (soundtrack)", folder: "fx_2_soundtrack-mp3" },
+  98: { name: "FX 3 (crystal)", folder: "fx_3_crystal-mp3" },
+  99: { name: "FX 4 (atmosphere)", folder: "fx_4_atmosphere-mp3" },
+  100: { name: "FX 5 (brightness)", folder: "fx_5_brightness-mp3" },
+  101: { name: "FX 6 (goblins)", folder: "fx_6_goblins-mp3" },
+  102: { name: "FX 7 (echoes)", folder: "fx_7_echoes-mp3" },
+  103: { name: "FX 8 (sci-fi)", folder: "fx_8_scifi-mp3" },
+  104: { name: "Sitar", folder: "sitar-mp3" },
+  105: { name: "Banjo", folder: "banjo-mp3" },
+  106: { name: "Shamisen", folder: "shamisen-mp3" },
+  107: { name: "Koto", folder: "koto-mp3" },
+  108: { name: "Kalimba", folder: "kalimba-mp3" },
+  109: { name: "Bagpipe", folder: "bagpipe-mp3" },
+  110: { name: "Fiddle", folder: "fiddle-mp3" },
+  111: { name: "Shanai", folder: "shanai-mp3" },
+  112: { name: "Tinkle Bell", folder: "tinkle_bell-mp3" },
+  113: { name: "Agogo", folder: "agogo-mp3" },
+  114: { name: "Steel Drums", folder: "steel_drums-mp3" },
+  115: { name: "Woodblock", folder: "woodblock-mp3" },
+  116: { name: "Taiko Drum", folder: "taiko_drum-mp3" },
+  117: { name: "Melodic Tom", folder: "melodic_tom-mp3" },
+  118: { name: "Synth Drum", folder: "synth_drum-mp3" },
+  119: { name: "Reverse Cymbal", folder: "reverse_cymbal-mp3" },
+  120: { name: "Guitar Fret Noise", folder: "guitar_fret_noise-mp3" },
+  121: { name: "Breath Noise", folder: "breath_noise-mp3" },
+  122: { name: "Seashore", folder: "seashore-mp3" },
+  123: { name: "Bird Tweet", folder: "bird_tweet-mp3" },
+  124: { name: "Telephone Ring", folder: "telephone_ring-mp3" },
+  125: { name: "Helicopter", folder: "helicopter-mp3" },
+  126: { name: "Applause", folder: "applause-mp3" },
+  127: { name: "Gunshot", folder: "gunshot-mp3" },
 };
 
 /**
- * Available CDN sources for soundfonts with fallback support
- * raw.githubusercontent.com is more reliable for parallel audio file loading
+ * CDN sources for the FluidR3 samples, in preference order.
+ * raw.githubusercontent.com is more reliable for parallel audio file loading;
+ * jsDelivr is the fallback. See {@link resolveSoundfontBase}, which picks
+ * between them at runtime rather than trusting the first one to be up.
  */
 export const CDN_SOURCES = [
   "https://raw.githubusercontent.com/jmonlabs/midi-js-soundfonts/gh-pages/FluidR3_GM",
   "https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/FluidR3_GM",
 ];
 
+/** The source currently in use. Changed only by resolveSoundfontBase/setSoundfontBase. */
+let activeBase = CDN_SOURCES[0];
+
+/** The base URL samples are currently loaded from. */
+export function getSoundfontBase() {
+  return activeBase;
+}
+
 /**
- * Generate optimized Tone.js Sampler URLs using smart sampling strategy
+ * Force a base URL — your own mirror, or a local copy of the sample set.
+ * Passing `null` restores the default and re-enables probing.
+ */
+export function setSoundfontBase(url) {
+  activeBase = url || CDN_SOURCES[0];
+  pendingProbe = url ? Promise.resolve(activeBase) : null;
+}
+
+let pendingProbe = null;
+
+/**
+ * Pick a working CDN by asking each one for a single file, in order.
+ *
+ * `CDN_SOURCES` listed a fallback that nothing ever used: the URL builder
+ * always returned the primary, with a comment saying a real mechanism was
+ * left for later. This is that mechanism. One request decides for the whole
+ * session — the result is memoised — and every sample URL built afterwards
+ * uses the winner.
+ *
+ * If no source answers, the primary is kept: failing to load samples is a
+ * better outcome than failing to build the player.
+ *
+ * @param {Object} [options]
+ * @param {Array<string>} [options.sources=CDN_SOURCES] - Bases to try, in order
+ * @param {Function} [options.fetchImpl=globalThis.fetch] - Injectable for tests
+ * @returns {Promise<string>} The chosen base URL
+ */
+export function resolveSoundfontBase(options = {}) {
+  if (pendingProbe) return pendingProbe;
+
+  const { sources = CDN_SOURCES, fetchImpl = globalThis.fetch } = options;
+  const probePath = `${GM_INSTRUMENTS[0].folder}/C4.mp3`;
+
+  pendingProbe = (async () => {
+    if (typeof fetchImpl !== "function") return activeBase;
+
+    for (const source of sources) {
+      try {
+        const response = await fetchImpl(`${source}/${probePath}`, { method: "HEAD" });
+        if (response && response.ok) {
+          activeBase = source;
+          return source;
+        }
+      } catch {
+        // Try the next one.
+      }
+    }
+    return activeBase;
+  })();
+
+  return pendingProbe;
+}
+
+/**
+ * Build the Tone.js Sampler URL map for a GM program.
+ *
+ * `Sampler` resamples to fill the gaps, which is what a soundfont engine does
+ * anyway, so there is no need for a file per semitone. The default strategy is
+ * `balanced` — every major third, about 25 files — rather than `complete`,
+ * which is 88 requests per instrument and made a four-instrument piece fetch
+ * 352 files before its first note.
+ *
+ * Ask for `complete` explicitly when a sustained instrument's resampling
+ * artefacts matter more than load time.
+ *
  * @param {number} gmProgram - GM program number (0-127)
- * @param {string} baseUrl - Base CDN URL (default: first CDN source)
- * @param {Array<number>} noteRange - MIDI note range to map [min, max] (default: reduced range for better performance)
- * @param {string} strategy - Sampling strategy: 'minimal', 'balanced', 'quality', 'complete'
+ * @param {string} baseUrl - Base CDN URL (default: the resolved source)
+ * @param {Array<number>} noteRange - MIDI note range to map [min, max]
+ * @param {string} strategy - 'minimal' (9), 'balanced' (25), 'quality' (30), 'complete' (88)
  * @returns {Object} Sampler URLs object for Tone.js
  */
 export function generateSamplerUrls(
   gmProgram,
-  baseUrl = CDN_SOURCES[0], // using raw files on github, jsdelivr has issues with many parallel requests
+  baseUrl = getSoundfontBase(),
   noteRange = [21, 108],
-  strategy = "complete",
+  strategy = "balanced",
 ) {
   const instrument = GM_INSTRUMENTS[gmProgram];
   if (!instrument) {
     console.warn(
       `GM program ${gmProgram} not found, using Acoustic Grand Piano`,
     );
-    return generateSamplerUrls(0, baseUrl, noteRange);
+    return generateSamplerUrls(0, baseUrl, noteRange, strategy);
   }
 
   const urls = {};
@@ -169,28 +302,19 @@ export function generateSamplerUrls(
   // Generate URLs for selected notes
   for (const midi of selectedMidis) {
     const noteName = midiToNoteName(midi);
-    urls[noteName] = generateFallbackUrl(instrument.folder, noteName, baseUrl);
+    urls[noteName] = sampleUrl(instrument.folder, noteName, baseUrl);
   }
 
-  console.log(
-    `[GM INSTRUMENT] Generated ${
-      Object.keys(urls).length
-    } sample URLs for ${instrument.name} (${strategy} strategy)`,
-  );
   return urls;
 }
 
 /**
- * Generate a URL with fallback CDN sources
- * @param {string} folder - Instrument folder name
- * @param {string} noteName - Note name (e.g., "C4")
- * @param {string} preferredBaseUrl - Preferred CDN base URL
- * @returns {string} URL with fallback encoded as array
+ * Build one sample URL. Choosing *which* CDN happens once per session in
+ * {@link resolveSoundfontBase}, not per file — a URL string cannot fall back
+ * on its own, which is why the earlier attempt here did nothing.
  */
-function generateFallbackUrl(folder, noteName, preferredBaseUrl) {
-  // For now, return the primary URL. In the future, we could implement
-  // a more sophisticated fallback mechanism in the Tone.js integration
-  return `${preferredBaseUrl}/${folder}/${noteName}.mp3`;
+function sampleUrl(folder, noteName, baseUrl) {
+  return `${baseUrl}/${folder}/${noteName}.mp3`;
 }
 
 /**
@@ -202,7 +326,7 @@ function generateFallbackUrl(folder, noteName, preferredBaseUrl) {
  */
 export function generateCompleteSamplerUrls(
   gmProgram,
-  baseUrl = CDN_SOURCES[0],
+  baseUrl = getSoundfontBase(),
   noteRange = [21, 108],
 ) {
   const instrument = GM_INSTRUMENTS[gmProgram];
@@ -310,10 +434,10 @@ export function createGMInstrumentNode(
   if (!instrumentData) return null;
 
   const {
-    baseUrl = CDN_SOURCES[0],
-    noteRange = [21, 108], // Complete MIDI range for maximum quality
+    baseUrl = getSoundfontBase(),
+    noteRange = [21, 108],
     envelope = { attack: 0.1, release: 1.0 },
-    strategy = "complete", // Use complete sampling by default
+    strategy = "balanced",
   } = options;
 
   return {

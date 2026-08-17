@@ -7,7 +7,7 @@
  * dispatch here is the only way to keep them in sync.
  */
 
-import { generateSamplerUrls } from "../utils/gm-instruments.js";
+import { generateSamplerUrls, resolveSoundfontBase } from "../utils/gm-instruments.js";
 import { parseDrumKitSpec } from "../utils/drumkits.js";
 import { midiToNoteName } from "./../utils/normalize.js";
 import { ALL_EFFECTS } from "../constants/audio-effects.js";
@@ -138,6 +138,27 @@ export function createTrackSynth(track, ToneLib, sharedSynth = null, presets = n
   }
 
   if (typeof synthSpec === "object" && synthSpec !== null) {
+    // `{ gm: 40, strategy: "complete" }` — the same GM sampler a bare number
+    // builds, but with the sampling density spelled out. The default is
+    // `balanced`, which is right for most material; a sustained instrument
+    // whose resampling artefacts you can hear wants `complete`.
+    const gmProgram = typeof synthSpec.gm === "number"
+      ? synthSpec.gm
+      : (typeof synthSpec.program === "number" ? synthSpec.program : null);
+    if (gmProgram !== null) {
+      const urls = generateSamplerUrls(
+        gmProgram,
+        synthSpec.baseUrl,
+        synthSpec.noteRange,
+        synthSpec.strategy,
+      );
+      return {
+        synth: new ToneLib.Sampler({ urls, baseUrl: "", ...(synthSpec.options || {}) }),
+        isLoadable: true,
+        isShared: false,
+      };
+    }
+
     const synthType = synthSpec.type || "PolySynth";
     const opts = synthSpec.options || {};
     try {
@@ -274,4 +295,33 @@ export function applyPitchAnchorsToSampler(synth, midi, startTime, anchors, base
     applied = true;
   }
   return applied;
+}
+
+/**
+ * Settle which CDN the FluidR3 samples come from, but only when the piece
+ * actually needs them — the probe costs one request, and a composition of
+ * pure Tone synths should not pay it.
+ *
+ * Call this before building synths. It never rejects: a failed probe keeps
+ * the primary source, so the worst case is the behaviour from before there
+ * was a fallback at all.
+ *
+ * @param {Array<Object>} tracks - JMON tracks
+ * @param {Array<Object>|null} presets - composition.customPresets
+ * @returns {Promise<string|null>} The chosen base, or null if none was needed
+ */
+export async function prepareSoundfonts(tracks, presets = null) {
+  const needed = (tracks || []).some((track) => {
+    const spec = resolveSynthPreset(track && track.synth, presets);
+    return typeof spec === "number"
+      || (spec && typeof spec === "object"
+          && (typeof spec.gm === "number" || typeof spec.program === "number"));
+  });
+  if (!needed) return null;
+
+  try {
+    return await resolveSoundfontBase();
+  } catch {
+    return null;
+  }
 }

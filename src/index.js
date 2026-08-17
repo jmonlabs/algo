@@ -41,28 +41,41 @@ async function __loadPlayer() {
   return createPlayer;
 }
 
-// GM instruments helpers (optional); load lazily on demand.
-let GM_INSTRUMENTS, createGMInstrumentNode, findGMProgramByName, generateSamplerUrls, getPopularInstruments;
 /**
- * Lazy-load GM instrument helpers.
- * Returns a cached module after first load.
+ * GM instrument helpers, loaded lazily so importing `jm` does not pull in the
+ * 128-program table.
+ *
+ * The helpers are copied *onto this object*, which is the one `jm.instruments`
+ * spreads. Assigning to module-level `let` bindings instead — as this did —
+ * left `jm.instruments.GM_INSTRUMENTS` undefined forever, because the object
+ * literal captured their values before `load()` ever ran.
  */
+const __gmHelpers = {};
+
+const __GM_EXPORTS = [
+  "GM_INSTRUMENTS",
+  "createGMInstrumentNode",
+  "findGMProgramByName",
+  "generateSamplerUrls",
+  "getPopularInstruments",
+  // Sample source: probed once per session across CDN_SOURCES, or pinned to
+  // your own mirror with setSoundfontBase(url).
+  "CDN_SOURCES",
+  "getSoundfontBase",
+  "setSoundfontBase",
+  "resolveSoundfontBase",
+];
+
+/** Lazy-load GM instrument helpers. Cached after the first call. */
 async function __loadGmInstruments() {
-  if (!GM_INSTRUMENTS && !createGMInstrumentNode) {
+  if (!__gmHelpers.GM_INSTRUMENTS) {
     const gm = await import("./utils/gm-instruments.js");
-    GM_INSTRUMENTS = gm.GM_INSTRUMENTS;
-    createGMInstrumentNode = gm.createGMInstrumentNode;
-    findGMProgramByName = gm.findGMProgramByName;
-    generateSamplerUrls = gm.generateSamplerUrls;
-    getPopularInstruments = gm.getPopularInstruments;
+    for (const name of __GM_EXPORTS) __gmHelpers[name] = gm[name];
+    // Also onto the namespace itself, so `jm.instruments.setSoundfontBase(...)`
+    // reads the way the docs write it.
+    Object.assign(jm.instruments, __gmHelpers);
   }
-  return {
-    GM_INSTRUMENTS,
-    createGMInstrumentNode,
-    findGMProgramByName,
-    generateSamplerUrls,
-    getPopularInstruments,
-  };
+  return __gmHelpers;
 }
 
 /**
@@ -330,11 +343,8 @@ const jm = {
     load: __loadGmInstruments,
     // These remain undefined until load() is called in environments where
     // gm-instruments are not preloaded.
-    GM_INSTRUMENTS,
-    generateSamplerUrls,
-    createGMInstrumentNode,
-    findGMProgramByName,
-    getPopularInstruments,
+    // Populated in place by load(); empty until then.
+    helpers: __gmHelpers,
     // Drum kits — registry is mutable, register custom kits with
     // jm.instruments.registerDrumKit(name, { baseUrl, samples }).
     drumKits,

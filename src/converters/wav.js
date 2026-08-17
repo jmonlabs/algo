@@ -7,6 +7,7 @@ import {
 	createGlideVoice,
 	createTrackSynth,
 	hasDetuneParam,
+	prepareSoundfonts,
 	resolveConnectTarget,
 } from "../browser/synth-factory.js";
 import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
@@ -37,6 +38,10 @@ export function wav(composition, options = {}) {
  */
 export async function downloadWav(composition, Tone, filename = "composition.wav", duration) {
 	normalizeAudioGraph(composition);
+
+	// Settle the sample CDN before entering the offline render, not inside it:
+	// Tone.Offline does not wait on network work started within its callback.
+	await prepareSoundfonts(composition.tracks || [], composition.customPresets);
 
 	// Calculate duration from composition if not provided
 	const maxTime = composition.tracks?.reduce((max, track) => {

@@ -418,3 +418,45 @@ test("a note without a slide sets no detune ramp", async () => {
     "plain notes should leave detune alone",
   );
 });
+
+/* --- GM soundfonts ------------------------------------------------------- */
+
+test("synth: { gm, strategy } asks for the density it names", async () => {
+  // A bare number takes the balanced default. Naming `complete` is how a
+  // sustained instrument gets one sample per semitone back.
+  const balanced = await playAndRecord(composition([
+    { label: "violin", synth: 40, notes: [note(60, 0)] },
+  ]));
+  const complete = await playAndRecord(composition([
+    { label: "violin", synth: { gm: 40, strategy: "complete" }, notes: [note(60, 0)] },
+  ]));
+
+  const urlCount = (r) =>
+    Object.keys(r.record.nodes.find((n) => n.type === "Sampler").options.urls).length;
+
+  assert.equal(urlCount(complete), 88);
+  assert.ok(
+    urlCount(balanced) < urlCount(complete),
+    `balanced ${urlCount(balanced)} should be lighter than complete`,
+  );
+});
+
+test("prepareSoundfonts probes only when a track needs samples", async () => {
+  const { prepareSoundfonts } = await import("../src/browser/synth-factory.js");
+
+  assert.equal(
+    await prepareSoundfonts([{ label: "a", synth: "MonoSynth" }, { label: "b" }]),
+    null,
+    "a piece of pure Tone synths should not pay for a request",
+  );
+  assert.notEqual(
+    await prepareSoundfonts([{ label: "a", synth: 40 }]), null,
+    "a GM number needs a base url",
+  );
+  assert.notEqual(
+    await prepareSoundfonts([{ label: "a", synth: { gm: 40 } }]), null,
+    "the object spelling counts too",
+  );
+  // A customPreset cannot name a GM program: the schema declares its `type`
+  // as a string. `synth: { gm: 40 }` on the track is the spelling for that.
+});

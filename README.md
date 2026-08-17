@@ -190,6 +190,22 @@ as in [chapter 6](userguide/06-walks.html).
 - WAV audio
 - SuperCollider
 
+### Instruments (`jm.instruments.*`)
+- General MIDI: `synth: 40` on a track loads FluidR3 soundfont samples into a
+  Tone.js `Sampler`. All 128 programs are mapped — `jm.instruments.load()`
+  first if you want the table itself.
+- `synth: { gm: 40, strategy: "complete" }` when you want a sample per
+  semitone; the default is `balanced` (~25 files), which resamples the gaps.
+- `jm.instruments.setSoundfontBase(url)` points at your own mirror. Otherwise
+  the CDN is probed once per session, with a fallback.
+- Your own samples, no GM involved:
+  `synth: { type: "Sampler", options: { baseUrl, urls } }`.
+- Drum kits: `jm.instruments.registerDrumKit(name, { baseUrl, samples })`.
+
+Note these are per-note sample sets (the *midi-js* layout), not `.sf2` files —
+there is no SoundFont parser. Convert an `.sf2` to a folder of per-note MP3s to
+use it.
+
 ### Utils (`jm.utils.*`)
 - Sequence transformations: `invert`, `retrograde`, `augment`, `transpose`,
   `applySwing`, `splitLongNotes`, `removeDuplicates`, `normalizeVelocities`
@@ -203,7 +219,7 @@ as in [chapter 6](userguide/06-walks.html).
 node --test tests/*.test.js src/**/__tests__/*.test.js
 ```
 
-296 assertion-backed tests, no dependencies to install: eleven `node:test`
+314 assertion-backed tests, no dependencies to install: twelve `node:test`
 suites in `tests/`, plus four glissando suites next to the code they cover.
 The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`, Verovio or
 Bun and are observations rather than tests — see the README there.

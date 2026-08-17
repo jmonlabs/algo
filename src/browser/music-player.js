@@ -18,6 +18,7 @@ import {
   createGlideVoice,
   createTrackSynth,
   hasDetuneParam,
+  prepareSoundfonts,
   resolveConnectTarget,
 } from "./synth-factory.js";
 
@@ -285,6 +286,10 @@ export function createPlayer(composition, options = {}) {
     const toSeconds = (beats) => beatsToSeconds(beats, segments);
     tempoPlan = { segments, toSeconds };
     const secondsPerQN = 60 / tempo;
+
+    // Settle which CDN the GM samples come from before any Sampler is built.
+    // No-op, and no request, for a piece that uses none.
+    await prepareSoundfonts(originalTracksSource, composition.customPresets);
 
     // Build per-track configs
     trackConfigs = convertedTracks.map((trackConfig) => {

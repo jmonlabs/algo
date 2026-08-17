@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 296 tests across eleven
+- A test suite that fails on a broken assertion: 314 tests across twelve
   `node:test` suites plus the four glissando suites under `src/**/__tests__/`,
   all run by CI.
 
@@ -298,6 +298,44 @@ it, so a rendered slide sounds like the one you heard.
 So a pitch curve now takes one of three paths, in order of how much of the
 track's sound it keeps: the synth's own `detune` (mono synths), resampling
 (`Sampler`), or the glide voice (`PolySynth`, which has neither).
+
+### Soundfonts load half as much, from a CDN that answers
+
+`synth: 40` on a track loads FluidR3 samples into a `Tone.Sampler`. Three
+things about that path were wrong.
+
+**The default asked for a file per semitone.** 88 requests per instrument, so
+a four-instrument piece fetched 352 files before its first note. `Sampler`
+resamples to fill gaps — which is what a soundfont engine does anyway — so the
+default is now `balanced`: every major third, about 25 files. Ask for the old
+behaviour with `synth: { gm: 40, strategy: "complete" }`, which is also the new
+way to say it from a composition; the strategy was previously unreachable from
+a track.
+
+**The CDN fallback did nothing.** `CDN_SOURCES` listed two sources, but the URL
+builder always returned the first, with a comment saying a real mechanism was
+left for later. `resolveSoundfontBase()` is that mechanism: one HEAD request
+decides for the session, memoised, and every sample URL follows it. If nothing
+answers the primary is kept — failing to load samples beats failing to build
+the player. `jm.instruments.setSoundfontBase(url)` pins your own mirror and
+skips the probe. The players only probe when a track actually needs samples.
+
+**Half the instruments were missing.** `GM_INSTRUMENTS` mapped 64 of the 128
+programs: 50-55, 59-63 and everything from 75 up — every synth lead and pad,
+the ethnic and percussive banks, the sound effects. Asking for `synth: 91`
+fell through to an acoustic piano. All 128 are mapped now, each folder name
+checked against the CDN rather than derived, because three of them break the
+naming pattern (`honkytonk_piano-mp3`, `lead_8_bass__lead-mp3`,
+`fx_8_scifi-mp3`).
+
+Also: `generateSamplerUrls` no longer logs a line per track, and its
+unknown-program fallback no longer drops the strategy argument — asking for
+`minimal` on an unmapped program used to quietly fetch 88 files.
+
+`jm.instruments` was a broken namespace besides. Its members were read out of
+module-level `let` bindings at object-literal time, so they were captured as
+`undefined` and stayed that way however many times you called `load()`. The
+loader now populates the namespace in place.
 
 ### Known gaps
 
