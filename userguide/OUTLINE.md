@@ -143,33 +143,30 @@ the one articulation whose result depends on the track's instrument:
 | Track's `synth` | What happens | Timbre |
 |---|---|---|
 | `MonoSynth`, `Synth`, `FMSynth`, … | its own `detune` Signal ramps in cents | kept |
-| `PolySynth` (the default) | Tone exposes no rampable `detune`, so the track gets one dedicated glide voice — a `Tone.Synth` built from the track's voice options, connected to the same effect chain — and the sliding notes play on it | close |
-| GM number (a `Sampler`) | same glide voice | **lost for that note** — a sampled violin slides as a synth |
+| GM number (a `Sampler`) | its sounding voices' `playbackRate` ramps — the instrument is resampled, which is what a soundfont engine does to bend a note | kept |
+| `PolySynth` (the default) | Tone gives it neither a rampable `detune` nor reachable voices, so the track gets a dedicated glide voice — a `Tone.Synth` built from the track's voice options, connected to the same effect chain | **lost for that note** |
 
-So the practical advice for a reader: a glissando keeps the track's sound on a
-mono synth, comes close on a `PolySynth`, and does not on a sampled
-instrument. Naming a `MonoSynth` is what fixes it. Worth stating plainly
-rather than leaving to be discovered.
+So the practical advice for a reader: a glissando keeps the track's sound
+everywhere except on the default `PolySynth`. Naming a `MonoSynth`, or a GM
+program, fixes it. Worth stating plainly rather than leaving to be discovered.
 
-Cents are the unit throughout: C4 to G4 is a perfect fifth, so 700 cents.
+Cents are the unit throughout: C4 to G4 is a perfect fifth, so 700 cents, or a
+playback rate of 2^(7/12) ≈ 1.498.
 
 Two behaviours worth a sentence each, because both are surprising when you
 meet them without warning:
 
-- The detune **returns to its baseline** after each curve. It has to: without
-  the reset, a glissando of a fifth leaves every following note on that voice
-  a fifth sharp.
+- On a detune Signal the value **returns to its baseline** after each curve.
+  It has to: the signal is shared by every note on that voice, so without the
+  reset a glissando of a fifth leaves everything after it a fifth sharp. The
+  `Sampler` path needs no reset — its voices belong to one note and are
+  discarded with it. Worth one sentence, because it explains why the two paths
+  are not symmetric.
 - All four pitch articulations — `glissando`, `portamento`, `bend`, and pitch
   envelopes — compile to the **same** representation, a list of
   `{ time, value }` anchors in cents. They differ in how the anchors are
   generated, not in how they are played. Explaining that once saves
   explaining it four times.
-
-**Still open** (so it does not read as a promise): `Sampler` keeps its
-sounding buffer sources and each one's `playbackRate` is automatable —
-ramping that would resample the instrument instead of substituting one, which
-is how SCAMP gets a clean glissando out of soundfonts. Not implemented. Don't
-document it as if it were.
 
 ### III.2 Transformations
 
@@ -225,22 +222,22 @@ function. Cross-link them rather than merging.
 What survives Standard MIDI File, since this is the question readers will
 actually have:
 
-- **Round-trips exactly**: pitches, times, durations, tracks, tempo,
-  `tempoMap` — one set-tempo event per segment, so a piece that slows down
-  exports as one — and glissando / portamento / bend, written as a pitch bend
-  sweep with the range widened via RPN 0 and read back into an articulation.
+- **Round-trips exactly**: pitches, times, durations, tracks, tempo and
+  `tempoMap` (one set-tempo event per segment), `timeSignature` /
+  `timeSignatureMap`, `keySignature` / `keySignatureMap`, and glissando /
+  portamento / bend — written as a pitch bend sweep with the range widened via
+  RPN 0 and read back into an articulation.
 - **Round-trips approximately**: velocity, to within MIDI's 7 bits (1/127).
+  And an accelerando: a tempo *ramp* written as `automation` targeting
+  `"tempo"` has no SMF message, so it is sampled as a staircase of set-tempo
+  events on a sixteenth grid. You hear the acceleration; you do not get the
+  curve back as automation on re-import — it returns as a `tempoMap`.
 - **Does not survive**: custom synths, the `audioGraph`, effects, microtuning.
   Those are Tone-side, and SMF has nowhere to put them.
-- **Not written yet**: `timeSignature` and `timeSignatureMap`. SMF has a meta
-  event for them (0x58) and the importer reads it, but the writer emits none —
-  so a piece in 3/4 opens in 4/4 in any DAW. Say so, or fix it before the
-  chapter is written.
 
-A tempo *ramp* — an accelerando written as `automation` targeting `"tempo"` —
-is a separate matter: SMF can only approximate it as a staircase of set-tempo
-events, and the writer does not do that either. `tempoMap` steps survive;
-continuous curves do not.
+The staircase is worth one honest sentence in the chapter: MIDI has no notion
+of a continuous tempo change, so every DAW that shows you an accelerando is
+showing you steps too. This is not a limitation of the library.
 
 `midiToJmon` needs no audio library — a MIDI file is bytes. Worth saying,
 because it used to require Tone.js and could not run.

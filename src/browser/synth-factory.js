@@ -215,3 +215,63 @@ export function applyPitchAnchors(detuneParam, startTime, anchors, baseCents = 0
   const last = anchors[anchors.length - 1];
   detuneParam.setValueAtTime(baseCents, startTime + last.time + resetDelay);
 }
+
+/**
+ * True when an instrument's sounding voices can be resampled — which is how a
+ * `Sampler` slides without losing its timbre.
+ *
+ * Tone's `Sampler` exposes no `detune` Signal, so a curve on a sampled
+ * instrument would otherwise go to a substitute synth and a violin glissando
+ * would not sound like a violin. It does keep its sounding
+ * `ToneBufferSource`s in `_activeSources`, and each one's `playbackRate` is an
+ * automatable Param. Ramping that resamples the instrument instead of
+ * replacing it — the same lever a soundfont engine pulls to bend a note.
+ *
+ * `_activeSources` is Tone-internal, so this is feature-detected: a future
+ * version that moves it simply falls back to the glide voice.
+ */
+export function canResample(synth) {
+  return typeof synth?._activeSources?.get === "function";
+}
+
+/**
+ * Schedule a compiled pitch curve on a Sampler's sounding voices.
+ *
+ * Unlike a shared `detune` Signal, these voices belong to this note alone and
+ * are discarded when it ends, so there is nothing to reset afterwards.
+ *
+ * @param {Object} synth — a Tone.Sampler
+ * @param {number} midi — the note's MIDI number, which keys `_activeSources`
+ * @param {number} startTime — absolute time in seconds of the note start
+ * @param {Array<{time:number,value:number}>} anchors — time in seconds
+ *   relative to `startTime`, value in cents relative to the written pitch
+ * @param {number} [baseCents=0] — baseline detune (e.g. microtuning * 100)
+ * @returns {boolean} whether any voice was reached
+ */
+export function applyPitchAnchorsToSampler(synth, midi, startTime, anchors, baseCents = 0) {
+  if (!Array.isArray(anchors) || anchors.length === 0) return false;
+  const sources = synth?._activeSources?.get?.(Math.round(midi));
+  if (!Array.isArray(sources) || sources.length === 0) return false;
+
+  const ratioAt = (cents) => Math.pow(2, (baseCents + cents) / 1200);
+  let applied = false;
+
+  for (const source of sources) {
+    const rate = source?.playbackRate;
+    if (!rate || typeof rate.linearRampToValueAtTime !== "function") continue;
+
+    const base = rate.value ?? 1;
+    if (typeof rate.cancelScheduledValues === "function") {
+      rate.cancelScheduledValues(startTime);
+    }
+    rate.setValueAtTime(
+      base * ratioAt(anchors[0].value),
+      startTime + Math.max(0, anchors[0].time),
+    );
+    for (let k = 1; k < anchors.length; k++) {
+      rate.linearRampToValueAtTime(base * ratioAt(anchors[k].value), startTime + anchors[k].time);
+    }
+    applied = true;
+  }
+  return applied;
+}

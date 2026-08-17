@@ -293,3 +293,95 @@ export function scaleToRange(value, range) {
   if (!Number.isFinite(min) || !Number.isFinite(max)) return value;
   return min + value * (max - min);
 }
+
+/* --- key signatures ------------------------------------------------------ */
+
+/**
+ * Key names by position on the circle of fifths, indexed `sharps + 7`, so
+ * index 7 is the key with no accidentals. Major and minor need separate
+ * tables: A minor and A major are both spelled "A" but carry nothing and
+ * three sharps respectively.
+ */
+export const KEY_NAMES_MAJOR = [
+  "Cb", "Gb", "Db", "Ab", "Eb", "Bb", "F",
+  "C", "G", "D", "A", "E", "B", "F#", "C#",
+];
+export const KEY_NAMES_MINOR = [
+  "Ab", "Eb", "Bb", "F", "C", "G", "D",
+  "A", "E", "B", "F#", "C#", "G#", "D#", "A#",
+];
+
+/** Normalise a key name for lookup: "bb" and "Bb" and "B-flat" all agree. */
+function normaliseKeyName(name) {
+  return String(name)
+    .trim()
+    .replace(/[-_\s]*(flat)\b/i, "b")
+    .replace(/[-_\s]*(sharp)\b/i, "#")
+    .replace(/^([a-g])/i, (c) => c.toUpperCase())
+    .replace(/^([A-G])B/, "$1b");
+}
+
+/**
+ * Read a JMON key signature into its position on the circle of fifths.
+ *
+ * `"C"`, `"Am"`, `"A minor"`, `"Bb"`, `"F# minor"` and
+ * `{ key: "D", scale: "minor" }` are all accepted. The mode matters: a minor
+ * key takes its relative major's accidentals, so A minor is 0 and not 3.
+ *
+ * @param {string|Object} value - A key signature
+ * @returns {{sharps: number, minor: boolean, key: string}} `sharps` is
+ *   negative for flats. Falls back to C major when the name is unknown.
+ */
+export function parseKeySignature(value) {
+  if (!value) return { sharps: 0, minor: false, key: "C" };
+
+  let name = value;
+  let minor = false;
+  if (typeof value === "object") {
+    name = value.key ?? value.keySignature ?? "C";
+    minor = /min/i.test(String(value.scale ?? value.mode ?? ""));
+  }
+
+  const text = String(name).trim();
+  if (!minor) {
+    // "Am", "A minor", "a min" — but not "Ab", where the b is an accidental.
+    minor = /(?:\bmin(?:or)?\b)|(?:^[A-Ga-g](?:#|b)?m$)/.test(text);
+  }
+
+  const bare = normaliseKeyName(
+    text.replace(/\b(major|maj|minor|min)\b/gi, "").replace(/^([A-Ga-g](?:#|b)?)m$/, "$1"),
+  );
+
+  const table = minor ? KEY_NAMES_MINOR : KEY_NAMES_MAJOR;
+  const index = table.indexOf(bare);
+  if (index === -1) return { sharps: 0, minor, key: table[7] };
+  return { sharps: index - 7, minor, key: bare };
+}
+
+/**
+ * Normalise a composition's key signature into a sorted list of segments, the
+ * same way {@link tempoSegments} and {@link timeSignatureSegments} do.
+ *
+ * @param {Object} composition - JMON composition
+ * @returns {Array<{time: number, sharps: number, minor: boolean, key: string}>}
+ */
+export function keySignatureSegments(composition = {}) {
+  const beatsPerBar = readBeatsPerBar(composition);
+  const base = parseKeySignature(composition.keySignature || "C");
+
+  const segments = (composition.keySignatureMap || [])
+    .filter((entry) => entry && (entry.keySignature || entry.key))
+    .map((entry) => ({
+      time: Math.max(0, readTime(entry.time, beatsPerBar)),
+      ...parseKeySignature(entry.keySignature ?? entry),
+    }))
+    .sort((a, b) => a.time - b.time);
+
+  if (segments.length === 0 || segments[0].time > 0) {
+    segments.unshift({ time: 0, ...base });
+  }
+
+  return segments.filter((segment, i) =>
+    i === segments.length - 1 || segment.time !== segments[i + 1].time
+  );
+}

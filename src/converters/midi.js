@@ -1,6 +1,12 @@
 /* jmon-to-midi.js - Convert JMON format to Standard MIDI File (no external deps) */
 import { compileEvents } from "../algorithms/audio/index.js";
-import { tempoSegments } from "../utils/timeline.js";
+import {
+    tempoSegments,
+    timeSignatureSegments,
+    keySignatureSegments,
+    automationChannels,
+    parseAutomationTarget,
+} from "../utils/timeline.js";
 
 // --- Built-in MIDI binary encoder ---
 
@@ -62,16 +68,49 @@ function buildMidiFile(composition) {
     // same helper the players integrate, so the file agrees with playback.
     // With no tempoMap there is exactly one segment and the output is
     // unchanged.
-    const tempoEvents = [];
+    // A tempo *ramp* — automation targeting `tempo` — has no MIDI message of
+    // its own, so it is approximated as a staircase of set-tempo events.
+    // Built first because a ramp anchor is the more specific instruction and
+    // wins at a tick the tempoMap also names: that is the order the players
+    // schedule them in, and the file has to agree with what you hear.
+    const tempoEvents = buildTempoRampEvents(composition, ticksPerBeat);
+    const rampTicks = new Set(tempoEvents.map(event => event.tick));
+
     for (const segment of tempoSegments(composition)) {
+        const tick = Math.round(segment.time * ticksPerBeat);
+        if (rampTicks.has(tick)) continue;
         const microsecondsPerBeat = Math.round(60000000 / segment.tempo);
         tempoEvents.push({
-            tick: Math.round(segment.time * ticksPerBeat),
+            tick,
             sortOrder: -1,
             bytes: [0xff, 0x51, 0x03,
                 (microsecondsPerBeat >> 16) & 0xff,
                 (microsecondsPerBeat >> 8) & 0xff,
                 microsecondsPerBeat & 0xff]
+        });
+    }
+
+    // Time signature (0x58). The writer used to emit none, so an exported
+    // piece opened in 4/4 whatever its metre — while the importer read the
+    // event back, making the round trip lossy in one direction only.
+    for (const segment of timeSignatureSegments(composition)) {
+        tempoEvents.push({
+            tick: Math.round(segment.time * ticksPerBeat),
+            sortOrder: -3,
+            bytes: [0xff, 0x58, 0x04,
+                segment.numerator,
+                Math.round(Math.log2(segment.denominator)),
+                24,  // MIDI clocks per metronome click
+                8]   // 32nd notes per quarter note
+        });
+    }
+
+    // Key signature (0x59). `sf` is signed: negative counts flats.
+    for (const segment of keySignatureSegments(composition)) {
+        tempoEvents.push({
+            tick: Math.round(segment.time * ticksPerBeat),
+            sortOrder: -3,
+            bytes: [0xff, 0x59, 0x02, segment.sharps & 0xff, segment.minor ? 1 : 0]
         });
     }
 
@@ -81,7 +120,7 @@ function buildMidiFile(composition) {
         const titleBytes = writeString(title);
         tempoEvents.push({
             tick: 0,
-            sortOrder: -2,
+            sortOrder: -4,
             bytes: [0xff, 0x03, ...writeVarLen(titleBytes.length), ...titleBytes]
         });
     }
@@ -195,6 +234,66 @@ function buildMidiFile(composition) {
  * @param {number} ticksPerBeat
  * @returns {Array<{tick:number,sortOrder:number,bytes:number[]}>}
  */
+/**
+ * Approximate a tempo ramp as a staircase of set-tempo events.
+ *
+ * An accelerando is written as automation targeting `tempo`, which the players
+ * ramp continuously on `Transport.bpm`. Standard MIDI File has no such
+ * message — a tempo is a step that holds until the next one — so a curve can
+ * only be sampled. Steps land on a sixteenth-note grid, and a step is skipped
+ * when it would repeat the previous rounded tempo, so a slow ramp does not
+ * fill the track with identical events.
+ *
+ * @param {Object} composition - JMON composition
+ * @param {number} ticksPerBeat
+ * @returns {Array<{tick: number, sortOrder: number, bytes: Array<number>}>}
+ */
+function buildTempoRampEvents(composition, ticksPerBeat) {
+    const ramps = automationChannels(composition)
+        .filter(channel => parseAutomationTarget(channel.target).kind === 'tempo');
+    if (ramps.length === 0) return [];
+
+    const events = [];
+    const stepBeats = 0.25;
+    const written = new Set();   // one tempo per tick, so ramps don't stack
+
+    const emit = (beat, bpm) => {
+        const tick = Math.round(beat * ticksPerBeat);
+        if (written.has(tick)) return;
+        written.add(tick);
+        const microsecondsPerBeat = Math.round(60000000 / bpm);
+        events.push({
+            tick,
+            sortOrder: -1,
+            bytes: [0xff, 0x51, 0x03,
+                (microsecondsPerBeat >> 16) & 0xff,
+                (microsecondsPerBeat >> 8) & 0xff,
+                microsecondsPerBeat & 0xff]
+        });
+    };
+
+    for (const ramp of ramps) {
+        for (let k = 0; k < ramp.points.length; k++) {
+            const from = ramp.points[k];
+            const to = ramp.points[k + 1];
+            emit(from.time, from.value);
+            if (!to || to.time <= from.time) continue;
+
+            let previous = Math.round(from.value);
+            const span = to.time - from.time;
+            for (let beat = from.time + stepBeats; beat < to.time; beat += stepBeats) {
+                const value = from.value + (to.value - from.value) * ((beat - from.time) / span);
+                const rounded = Math.round(value);
+                if (rounded === previous) continue;
+                emit(beat, rounded);
+                previous = rounded;
+            }
+        }
+    }
+
+    return events;
+}
+
 function buildPitchBendEvents(notes, channel, ticksPerBeat) {
     let pitchMods = [];
     try {

@@ -13,6 +13,8 @@ import {
 } from "../utils/timeline.js";
 import {
   applyPitchAnchors,
+  applyPitchAnchorsToSampler,
+  canResample,
   createGlideVoice,
   createTrackSynth,
   hasDetuneParam,
@@ -582,13 +584,15 @@ export function createPlayer(composition, options = {}) {
           ? ToneLib.Frequency(note.pitch, "midi").toNote()
           : note.pitch;
 
-        // Handle pitch curves via detune ramps. The track synth is used
-        // when it exposes a detune signal; otherwise the note plays on the
-        // track's dedicated glide voice (same routing/effects).
-        const curveVoice = pitchCurve
-          ? (hasDetuneParam(synth) ? synth : glideVoice)
-          : null;
-        if (pitchCurve && curveVoice) {
+        // Handle pitch curves. Three ways, in order of how much of the
+        // track's own sound they keep:
+        //   1. the synth's own `detune` Signal — mono synths;
+        //   2. resampling the instrument's sounding voices — Sampler, which
+        //      has no detune but does keep automatable buffer sources;
+        //   3. the track's dedicated glide voice — PolySynth, which has
+        //      neither, so the slide moves to a stand-in routed through the
+        //      same effect chain.
+        if (pitchCurve && (hasDetuneParam(synth) || canResample(synth) || glideVoice)) {
           const microtuningCents = (note.microtuning || 0) * 100;
           // Anchor times are absolute beats; rebase to the note start.
           const anchorsSec = pitchCurve.anchors.map((a) => ({
@@ -596,10 +600,37 @@ export function createPlayer(composition, options = {}) {
             value: a.value,
           }));
 
-          scheduledEvents.push(ToneLib.Transport.schedule((t) => {
-            applyPitchAnchors(curveVoice.detune, t, anchorsSec, microtuningCents);
-            curveVoice.triggerAttackRelease(noteName, duration, t, velocity);
-          }, time));
+          if (hasDetuneParam(synth)) {
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              applyPitchAnchors(synth.detune, t, anchorsSec, microtuningCents);
+              synth.triggerAttackRelease(noteName, duration, t, velocity);
+            }, time));
+          } else if (canResample(synth)) {
+            // The voices only exist once the note has been triggered, so
+            // attack and release are separate here.
+            const midi = typeof note.pitch === "number"
+              ? note.pitch
+              : ToneLib.Frequency(noteName).toMidi();
+
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              synth.triggerAttack(noteName, t, velocity);
+              const slid = applyPitchAnchorsToSampler(
+                synth, midi, t, anchorsSec, microtuningCents,
+              );
+              synth.triggerRelease(noteName, t + duration);
+              // If Tone moved `_activeSources` the note still sounds, just
+              // without the slide — the glide voice is the safety net.
+              if (!slid && glideVoice) {
+                applyPitchAnchors(glideVoice.detune, t, anchorsSec, microtuningCents);
+                glideVoice.triggerAttackRelease(noteName, duration, t, velocity);
+              }
+            }, time));
+          } else {
+            scheduledEvents.push(ToneLib.Transport.schedule((t) => {
+              applyPitchAnchors(glideVoice.detune, t, anchorsSec, microtuningCents);
+              glideVoice.triggerAttackRelease(noteName, duration, t, velocity);
+            }, time));
+          }
         } else {
           // Normal note — apply microtuning by converting to frequency
           const playNote = note.microtuning

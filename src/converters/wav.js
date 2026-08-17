@@ -2,6 +2,8 @@
 import { compileEvents } from "../algorithms/audio/index.js";
 import {
 	applyPitchAnchors,
+	applyPitchAnchorsToSampler,
+	canResample,
 	createGlideVoice,
 	createTrackSynth,
 	hasDetuneParam,
@@ -240,20 +242,39 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 							? Tone.Frequency(note.pitch, "midi").toNote()
 							: note.pitch;
 
-					// Pitch curves ramp the detune signal of the track synth, or
-					// of the dedicated glide voice when the synth has none.
-					const curveVoice = pitchCurve
-						? (hasDetuneParam(synth) ? synth : glideVoice)
-						: null;
-					if (pitchCurve && curveVoice) {
+					// Pitch curves take the same three paths as the player, so a
+					// rendered slide sounds like the one you heard: the synth's
+					// own detune, resampling a Sampler's voices, or the
+					// dedicated glide voice.
+					if (pitchCurve && (hasDetuneParam(synth) || canResample(synth) || glideVoice)) {
 						const microtuningCents = mt * 100;
 						// Anchor times are absolute beats; rebase to the note start.
 						const anchorsSec = pitchCurve.anchors.map((a) => ({
 							time: (a.time - pitchCurve.start) * secondsPerQuarterNote,
 							value: a.value,
 						}));
-						applyPitchAnchors(curveVoice.detune, time, anchorsSec, microtuningCents);
-						curveVoice.triggerAttackRelease(noteName, noteDuration, time, note.velocity || 0.8);
+						const velocity = note.velocity || 0.8;
+
+						if (hasDetuneParam(synth)) {
+							applyPitchAnchors(synth.detune, time, anchorsSec, microtuningCents);
+							synth.triggerAttackRelease(noteName, noteDuration, time, velocity);
+						} else if (canResample(synth)) {
+							const midi = typeof note.pitch === "number"
+								? note.pitch
+								: Tone.Frequency(noteName).toMidi();
+							synth.triggerAttack(noteName, time, velocity);
+							const slid = applyPitchAnchorsToSampler(
+								synth, midi, time, anchorsSec, microtuningCents,
+							);
+							synth.triggerRelease(noteName, time + noteDuration);
+							if (!slid && glideVoice) {
+								applyPitchAnchors(glideVoice.detune, time, anchorsSec, microtuningCents);
+								glideVoice.triggerAttackRelease(noteName, noteDuration, time, velocity);
+							}
+						} else {
+							applyPitchAnchors(glideVoice.detune, time, anchorsSec, microtuningCents);
+							glideVoice.triggerAttackRelease(noteName, noteDuration, time, velocity);
+						}
 					} else {
 						// Apply microtuning by converting to frequency
 						const playNote = mt

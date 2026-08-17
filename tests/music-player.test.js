@@ -315,25 +315,38 @@ test("the slide runs on the track's own synth when it has a detune", async () =>
   assert.ok(record.params.some((p) => p.param === "MonoSynth.detune"));
 });
 
-test("a sampled instrument slides on a dedicated glide voice", async () => {
-  // Tone's Sampler exposes no detune Signal, so the slide cannot run on the
-  // track's own instrument. It runs on one extra Tone.Synth per track,
-  // routed through the same effect chain — audible and in place, but a
-  // violin glissando is a synth for the duration of that note. See the
-  // glissando table in userguide/OUTLINE.md.
+test("a sampled instrument slides by resampling, keeping its timbre", async () => {
+  // Tone's Sampler exposes no detune Signal, but it keeps its sounding buffer
+  // sources and their playbackRate is automatable — the same lever a soundfont
+  // engine pulls to bend a note. Ramping it slides the violin as a violin,
+  // rather than handing the note to a stand-in.
   const record = await slideWith({ label: "violin", synth: 40 });
   const types = record.nodes.map((n) => n.type);
 
-  assert.ok(types.includes("Sampler"), "the track's own instrument is still built");
-  assert.ok(types.includes("Synth"), "a glide voice carries the slide");
-
-  const ramps = record.params.filter((p) => p.param === "Synth.detune");
-  const arrival = Math.max(...ramps.map((r) => r.value));
-  assert.ok(Math.abs(arrival - 700) < 1, `arrived at ${arrival} cents`);
+  assert.ok(types.includes("Sampler"), "the track's own instrument carries the slide");
   assert.equal(
     record.params.filter((p) => p.param === "Sampler.detune").length, 0,
     "the Sampler has no detune to ramp",
   );
+
+  const rates = record.params.filter((p) => p.param === "Sampler.playbackRate");
+  assert.ok(rates.length >= 2, "expected a starting rate and a ramp");
+  assert.equal(rates[0].value, 1, "the slide starts at the sample's own pitch");
+  // A perfect fifth resamples by 2^(7/12).
+  assert.ok(
+    Math.abs(rates.at(-1).value - Math.pow(2, 7 / 12)) < 1e-4,
+    `ended at rate ${rates.at(-1).value}`,
+  );
+});
+
+test("a Sampler slide needs no reset, unlike a shared detune signal", async () => {
+  // Each note gets fresh buffer sources that are discarded when it ends, so
+  // there is no lingering state to undo — which is why the rate ramp has no
+  // trailing return to 1 the way applyPitchAnchors has one to 0 cents.
+  const record = await slideWith({ label: "violin", synth: 40 });
+  const rates = record.params.filter((p) => p.param === "Sampler.playbackRate");
+
+  assert.ok(rates.at(-1).value > 1, "the rate ends where the slide arrives");
 });
 
 test("a PolySynth slides on a glide voice too", async () => {

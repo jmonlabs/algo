@@ -1,4 +1,9 @@
-import { tempoSegments, timeSignatureSegments, readTime } from "../utils/timeline.js";
+import {
+  tempoSegments,
+  timeSignatureSegments,
+  readTime,
+  parseKeySignature as readKeySignature,
+} from "../utils/timeline.js";
 /**
  * Verovio (MusicXML) Converter
  * Converts JMON compositions to MusicXML format for use with Verovio.
@@ -362,21 +367,15 @@ function getDurationType(duration) {
 }
 
 /**
- * Parse key signature to get fifths and mode
+ * Parse a key signature into MusicXML's `<fifths>` and `<mode>`.
+ *
+ * This used to keep its own major-only table, so every minor key was written
+ * with its parallel major's accidentals — A minor came out with three sharps.
+ * The shared reader knows that a minor key takes its *relative* major's.
  */
 function parseKeySignature(keySignature) {
-  const key = keySignature.replace(/[-_]?(major|minor|m)$/i, '').trim().toUpperCase();
-  const isMinor = /[-_]?(minor|m)$/i.test(keySignature);
-
-  const fifthsMap = {
-    'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5, 'F#': 6, 'C#': 7,
-    'F': -1, 'BB': -2, 'EB': -3, 'AB': -4, 'DB': -5, 'GB': -6, 'CB': -7
-  };
-
-  return {
-    fifths: fifthsMap[key] || 0,
-    mode: isMinor ? 'minor' : 'major'
-  };
+  const { sharps, minor } = readKeySignature(keySignature);
+  return { fifths: sharps, mode: minor ? 'minor' : 'major' };
 }
 
 /**

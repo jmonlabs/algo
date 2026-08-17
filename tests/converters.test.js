@@ -447,3 +447,175 @@ test("tempoMap entries in bars:beats:ticks are placed by beat", async () => {
   // Bar 2 of 4/4, zero-indexed by the shared time reader, is beat 8.
   assert.deepEqual(parsed.header.tempos.map((t) => t.time), [0, 8]);
 });
+
+/* --- metre and key through MIDI ------------------------------------------ */
+
+test("the time signature is written, so a waltz does not open in 4/4", async () => {
+  // The writer used to emit no 0x58 at all, while the importer read one — so
+  // the round trip lost the metre in one direction only.
+  const waltz = {
+    format: "jmon", version: "1.0", tempo: 120, timeSignature: "3/4",
+    tracks: [{ label: "lead", notes: [note(60, 0), note(62, 3)] }],
+  };
+  const parsed = parseMidiFile(await midiBytes(waltz));
+
+  assert.deepEqual(parsed.header.timeSignatures, [
+    { time: 0, numerator: 3, denominator: 4 },
+  ]);
+});
+
+test("a timeSignatureMap is written as one event per change", async () => {
+  const shifting = {
+    format: "jmon", version: "1.0", tempo: 120, timeSignature: "3/4",
+    timeSignatureMap: [
+      { time: 0, timeSignature: "3/4" },
+      { time: 12, timeSignature: "7/8" },
+    ],
+    tracks: [{ label: "lead", notes: [note(60, 0), note(62, 12)] }],
+  };
+  const parsed = parseMidiFile(await midiBytes(shifting));
+
+  assert.deepEqual(parsed.header.timeSignatures, [
+    { time: 0, numerator: 3, denominator: 4 },
+    { time: 12, numerator: 7, denominator: 8 },
+  ]);
+});
+
+test("the key signature is written, and a minor key is not its parallel major", async () => {
+  // A minor takes its *relative* major's accidentals — none. Writing three
+  // sharps would be A major.
+  const parsed = parseMidiFile(await midiBytes({
+    format: "jmon", version: "1.0", tempo: 120, keySignature: "Am",
+    tracks: [{ label: "lead", notes: [note(60, 0)] }],
+  }));
+
+  assert.deepEqual(parsed.header.keySignatures, [
+    { time: 0, key: "A", scale: "minor" },
+  ]);
+});
+
+test("flat keys survive the signed sharps byte", async () => {
+  const parsed = parseMidiFile(await midiBytes({
+    format: "jmon", version: "1.0", tempo: 120, keySignature: "Eb",
+    tracks: [{ label: "lead", notes: [note(60, 0)] }],
+  }));
+
+  assert.deepEqual(parsed.header.keySignatures, [
+    { time: 0, key: "Eb", scale: "major" },
+  ]);
+});
+
+test("a keySignatureMap is written as one event per change", async () => {
+  const modulating = {
+    format: "jmon", version: "1.0", tempo: 120, keySignature: "C",
+    keySignatureMap: [
+      { time: 0, keySignature: "C" },
+      { time: 16, keySignature: "F# minor" },
+    ],
+    tracks: [{ label: "lead", notes: [note(60, 0), note(62, 16)] }],
+  };
+  const parsed = parseMidiFile(await midiBytes(modulating));
+
+  assert.deepEqual(parsed.header.keySignatures, [
+    { time: 0, key: "C", scale: "major" },
+    { time: 16, key: "F#", scale: "minor" },
+  ]);
+});
+
+/* --- accelerando through MIDI -------------------------------------------- */
+
+const ACCELERANDO = {
+  format: "jmon", version: "1.0", tempo: 90,
+  automation: {
+    global: [{
+      id: "accel", target: "tempo",
+      anchorPoints: [{ time: 0, value: 90 }, { time: 8, value: 140 }],
+    }],
+  },
+  tracks: [{ label: "lead", notes: [note(60, 0), note(62, 8)] }],
+};
+
+test("a tempo ramp is approximated as a staircase of set-tempo events", async () => {
+  // SMF holds a tempo until the next event, so a continuous curve can only be
+  // sampled. The players ramp it properly; this is the export's best offer.
+  const tempos = parseMidiFile(await midiBytes(ACCELERANDO)).header.tempos;
+
+  assert.ok(tempos.length > 8, `expected a staircase, got ${tempos.length} steps`);
+  assert.equal(Math.round(tempos[0].bpm), 90, "it starts at the first anchor");
+  assert.equal(Math.round(tempos.at(-1).bpm), 140, "and reaches the last");
+  assert.equal(tempos.at(-1).time, 8, "on the beat the anchor names");
+});
+
+test("the staircase rises monotonically and never repeats a step", async () => {
+  const tempos = parseMidiFile(await midiBytes(ACCELERANDO)).header.tempos;
+
+  for (let i = 1; i < tempos.length; i++) {
+    assert.ok(tempos[i].time > tempos[i - 1].time, "one tempo per tick");
+    assert.ok(
+      Math.round(tempos[i].bpm) > Math.round(tempos[i - 1].bpm),
+      `step ${i} repeats or reverses: ${tempos[i - 1].bpm} -> ${tempos[i].bpm}`,
+    );
+  }
+});
+
+test("a ritardando falls", async () => {
+  const tempos = parseMidiFile(await midiBytes({
+    ...ACCELERANDO,
+    automation: {
+      global: [{
+        id: "rit", target: "tempo",
+        anchorPoints: [{ time: 0, value: 140 }, { time: 8, value: 60 }],
+      }],
+    },
+  })).header.tempos;
+
+  assert.equal(Math.round(tempos[0].bpm), 140);
+  assert.equal(Math.round(tempos.at(-1).bpm), 60);
+});
+
+test("automation that is not tempo leaves the tempo track alone", async () => {
+  const parsed = parseMidiFile(await midiBytes({
+    format: "jmon", version: "1.0", tempo: 120,
+    audioGraph: [{ id: "reverb", type: "Reverb", options: {} }],
+    automation: {
+      global: [{
+        id: "wet", target: "reverb.wet",
+        anchorPoints: [{ time: 0, value: 0 }, { time: 8, value: 1 }],
+      }],
+    },
+    tracks: [{ label: "lead", notes: [note(60, 0)] }],
+  }));
+
+  assert.equal(parsed.header.tempos.length, 1, "a wet curve is not a tempo curve");
+});
+
+test("a tempoMap and a ramp do not both claim the same tick", async () => {
+  const both = {
+    ...ACCELERANDO,
+    tempoMap: [{ time: 0, tempo: 90 }, { time: 8, tempo: 140 }],
+  };
+  const tempos = parseMidiFile(await midiBytes(both)).header.tempos;
+  const ticks = tempos.map((t) => t.time);
+
+  assert.equal(new Set(ticks).size, ticks.length, `duplicate tick in ${ticks.join(", ")}`);
+});
+
+test("at a shared tick the ramp anchor wins over the tempoMap", async () => {
+  // Both players schedule automation after tempo changes, so a ramp anchor is
+  // what you hear at a beat the tempoMap also names. The file has to agree.
+  const conflicting = {
+    format: "jmon", version: "1.0", tempo: 90,
+    tempoMap: [{ time: 0, tempo: 90 }],
+    automation: {
+      global: [{
+        id: "rit", target: "tempo",
+        anchorPoints: [{ time: 0, value: 140 }, { time: 8, value: 60 }],
+      }],
+    },
+    tracks: [{ label: "lead", notes: [note(60, 0), note(62, 8)] }],
+  };
+  const tempos = parseMidiFile(await midiBytes(conflicting)).header.tempos;
+
+  assert.equal(Math.round(tempos[0].bpm), 140, "the ramp's anchor, not the map's 90");
+  assert.equal(tempos[0].time, 0);
+});

@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 284 tests across eleven
+- A test suite that fails on a broken assertion: 296 tests across eleven
   `node:test` suites plus the four glissando suites under `src/**/__tests__/`,
   all run by CI.
 
@@ -189,10 +189,6 @@ the new one it establishes.
     tempoMap: [{time: 0, tempo: 120}, {time: 4, tempo: 60}, {time: 8, tempo: 90}]
       -> midi -> back, unchanged
 
-Still not written into the file: `timeSignature` and `timeSignatureMap`. The
-writer emits no 0x58 at all, so an exported piece opens in 4/4 whatever its
-metre, even though the importer reads the event back.
-
 ### Glissando survives MIDI export
 
 Standard MIDI File has no glissando message, so the writer now emits a pitch
@@ -232,32 +228,81 @@ Glissando, portamento, bend and pitch envelopes all compile to the same
 shape: the browser player, the WAV renderer and the MIDI writer. There is no
 longer a separate code path per articulation.
 
-A curve ramps the track synth's `detune` signal. `PolySynth` and `Sampler`
-expose none, so those tracks get one dedicated glide voice — a `Tone.Synth`
-built with the track's own voice options and connected to the same effect
-chain — which carries the notes that slide. The slide is audible and sits in
-the mix, but a sampled violin is a synth for the duration of that note.
+A curve ramps the track synth's `detune` signal where there is one. `Sampler`
+resamples its own voices instead, and `PolySynth` — which has neither — hands
+the sliding notes to a dedicated glide voice built from the track's own voice
+options and connected to the same effect chain.
 `userguide/OUTLINE.md` (III.1) tabulates what each instrument kind does.
 
 The signal returns to its baseline after each curve. Without that reset a
 glissando of a fifth left every following note on that voice a fifth sharp —
 measured, not theorised.
 
+### Metre and key survive MIDI export
+
+The writer emitted neither a time signature (0x58) nor a key signature (0x59),
+so an exported piece opened in 4/4 in C whatever it was written in — while the
+importer read both events back, making the round trip lossy in one direction
+only. Both are now written, one event per change, from `timeSignature` /
+`timeSignatureMap` and `keySignature` / `keySignatureMap`.
+
+Reading a key signature is now shared rather than reimplemented per converter,
+which fixed a bug in the score: the MusicXML writer kept a major-only table, so
+every minor key was written with its **parallel** major's accidentals instead
+of its **relative** major's. A minor came out with three sharps, E minor with
+four, D minor with two.
+
+    keySignature: "Am"
+      before: <fifths>3</fifths><mode>minor</mode>   (that is A major's armature)
+      after:  <fifths>0</fifths><mode>minor</mode>
+
+`parseKeySignature` accepts `"C"`, `"Am"`, `"A minor"`, `"F# minor"`, `"Bb"`
+and `{ key, scale }`, and is careful that the `b` in `"Ab"` is an accidental
+and not an abbreviation for minor.
+
+### An accelerando reaches the MIDI file
+
+A tempo ramp — `automation` targeting `tempo` — has no Standard MIDI File
+message: a tempo there is a step that holds until the next one. The export now
+approximates the curve as a staircase of set-tempo events on a sixteenth-note
+grid, skipping any step that would repeat the previous rounded tempo, so a
+slow ramp does not fill the track with identical events.
+
+    90 -> 140 over 8 beats: 33 steps, monotonic, arriving exactly at 140
+
+Where a ramp anchor and a `tempoMap` entry name the same beat, the anchor
+wins. That is the order both players schedule them in — automation is applied
+after tempo changes — so the file agrees with what you hear.
+
+### A glissando keeps a sampled instrument's timbre
+
+`Sampler` exposes no `detune` Signal, so a slide on a sampled instrument went
+to the track's glide voice: audible and in the right place, but a GM violin
+glissando was a synth for that note.
+
+`Sampler` does keep its sounding `ToneBufferSource`s, and each one's
+`playbackRate` is an automatable Param. Ramping that resamples the instrument
+rather than replacing it — the same lever a soundfont engine pulls to bend a
+note, which is how SCAMP gets a clean glissando out of soundfonts.
+
+    GM 40 violin, C4 -> G4
+      before: Sampler silent for the note, Tone.Synth sliding 0 -> 700 cents
+      after:  Sampler alone, playbackRate 1 -> 1.4983 (= 2^(7/12))
+
+Unlike a shared `detune` Signal, these voices belong to one note and are
+discarded with it, so nothing has to be reset afterwards. `_activeSources` is
+Tone-internal, so the path is feature-detected and falls back to the glide
+voice if a future version moves it. The player and the WAV renderer both take
+it, so a rendered slide sounds like the one you heard.
+
+So a pitch curve now takes one of three paths, in order of how much of the
+track's sound it keeps: the synth's own `detune` (mono synths), resampling
+(`Sampler`), or the glide voice (`PolySynth`, which has neither).
+
 ### Known gaps
 
-Standard MIDI File export writes no time signature. The meta event exists
-(0x58) and the importer reads it; the writer never emits one, so both
-`timeSignature` and `timeSignatureMap` are lost and a DAW opens the file in
-4/4. The score export does emit them — this gap is MIDI-only.
-
-A glissando on a `Sampler` does not keep the instrument's timbre. `Sampler`
-holds its sounding `ToneBufferSource`s and each one's `playbackRate` is
-automatable, which is the lever a soundfont engine pulls to bend a note — so
-resampling the instrument instead of substituting one is reachable, on
-Tone-internal API. It is not done yet.
-
-Otherwise the pieces that genuinely need a live Tone.js — sample loading and
-the audio graph's actual sound — are exercised by `tests/integration/`, which
-is honest about being observation rather than test.
+None outstanding. The pieces that genuinely need a live Tone.js — sample
+loading and the audio graph's actual sound — are exercised by
+`tests/integration/`, which is honest about being observation rather than test.
 
 [1.2.0]: https://github.com/jmonlabs/algo/releases/tag/v1.2.0
