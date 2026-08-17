@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 279 tests across eleven
+- A test suite that fails on a broken assertion: 284 tests across eleven
   `node:test` suites plus the four glissando suites under `src/**/__tests__/`,
   all run by CI.
 
@@ -167,6 +167,32 @@ starting note. The browser player and the WAV renderer perform it.
 - The MusicXML writer emitted `<sound tempo="${tempo}"/>` literally — the line
   used single quotes, so the placeholder was never interpolated.
 
+### tempoMap survives MIDI export
+
+The writer emitted a single set-tempo event at tick 0, taken from
+`composition.tempo`, and ignored `tempoMap` entirely — so a piece that changed
+tempo exported as one that did not, and played straight through at its opening
+rate. It now emits one event per segment, positioned by beat.
+
+Segments come from `tempoSegments()` in `src/utils/timeline.js`, the same
+helper both players integrate, so the exported file agrees with what you hear.
+A composition without a `tempoMap` yields exactly one segment and its output
+is unchanged.
+
+The import direction had a matching unit bug: `extractTempoMap` ran every
+event through `convertSecondsToQuarterNotes`, including those from the
+built-in parser, which reports quarter notes already. It now respects
+`timeUnit` the way note conversion does, and — for a parser that does report
+seconds — converts each event at the rate in force before it rather than at
+the new one it establishes.
+
+    tempoMap: [{time: 0, tempo: 120}, {time: 4, tempo: 60}, {time: 8, tempo: 90}]
+      -> midi -> back, unchanged
+
+Still not written into the file: `timeSignature` and `timeSignatureMap`. The
+writer emits no 0x58 at all, so an exported piece opens in 4/4 whatever its
+metre, even though the importer reads the event back.
+
 ### Glissando survives MIDI export
 
 Standard MIDI File has no glissando message, so the writer now emits a pitch
@@ -218,6 +244,11 @@ glissando of a fifth left every following note on that voice a fifth sharp —
 measured, not theorised.
 
 ### Known gaps
+
+Standard MIDI File export writes no time signature. The meta event exists
+(0x58) and the importer reads it; the writer never emits one, so both
+`timeSignature` and `timeSignatureMap` are lost and a DAW opens the file in
+4/4. The score export does emit them — this gap is MIDI-only.
 
 A glissando on a `Sampler` does not keep the instrument's timbre. `Sampler`
 holds its sounding `ToneBufferSource`s and each one's `playbackRate` is

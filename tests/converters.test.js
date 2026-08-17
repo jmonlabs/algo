@@ -378,3 +378,72 @@ test("a plain composition emits no pitch bend at all", async () => {
     assert.equal(track.pitchBends.length, 0, "nothing here slides");
   }
 });
+
+/* --- tempo changes through MIDI ------------------------------------------ */
+
+const SLOWING = {
+  format: "jmon", version: "1.0", tempo: 120,
+  tempoMap: [{ time: 0, tempo: 120 }, { time: 4, tempo: 60 }, { time: 8, tempo: 90 }],
+  tracks: [{
+    label: "lead",
+    notes: [note(60, 0), note(62, 4), note(64, 8)],
+  }],
+};
+
+test("a tempoMap is written as one set-tempo event per segment", async () => {
+  // It used to flatten to a single rate at tick 0, so an exported piece that
+  // slowed down played straight through at its opening tempo.
+  const parsed = parseMidiFile(await midiBytes(SLOWING));
+
+  assert.deepEqual(
+    parsed.header.tempos.map((t) => t.time), [0, 4, 8],
+    "each change should land on its own beat",
+  );
+  assert.deepEqual(
+    parsed.header.tempos.map((t) => Math.round(t.bpm)), [120, 60, 90],
+  );
+});
+
+test("a tempoMap survives jmon -> midi -> jmon", async () => {
+  const back = await midiToJmon(await midiBytes(SLOWING));
+
+  assert.deepEqual(back.tempoMap, SLOWING.tempoMap);
+  assert.deepEqual(
+    back.tracks[0].notes.map((n) => n.time), [0, 4, 8],
+    "note placement is in quarter notes, so a tempo change does not move it",
+  );
+});
+
+test("a composition with no tempoMap still emits exactly one tempo", async () => {
+  // The tempo track is shared code now, so this guards against a plain
+  // composition growing spurious events.
+  const parsed = parseMidiFile(await midiBytes(COMPOSITION));
+
+  assert.equal(parsed.header.tempos.length, 1);
+  assert.equal(Math.round(parsed.header.tempos[0].bpm), COMPOSITION.tempo);
+  assert.equal(parsed.header.tempos[0].time, 0);
+});
+
+test("a tempoMap that does not start at zero gets the base tempo first", async () => {
+  const late = {
+    format: "jmon", version: "1.0", tempo: 100,
+    tempoMap: [{ time: 8, tempo: 140 }],
+    tracks: [{ label: "lead", notes: [note(60, 0), note(62, 8)] }],
+  };
+  const parsed = parseMidiFile(await midiBytes(late));
+
+  assert.deepEqual(parsed.header.tempos.map((t) => t.time), [0, 8]);
+  assert.deepEqual(parsed.header.tempos.map((t) => Math.round(t.bpm)), [100, 140]);
+});
+
+test("tempoMap entries in bars:beats:ticks are placed by beat", async () => {
+  const inBars = {
+    format: "jmon", version: "1.0", tempo: 120, timeSignature: "4/4",
+    tempoMap: [{ time: 0, tempo: 120 }, { time: "2:0:0", tempo: 60 }],
+    tracks: [{ label: "lead", notes: [note(60, 0), note(62, 8)] }],
+  };
+  const parsed = parseMidiFile(await midiBytes(inBars));
+
+  // Bar 2 of 4/4, zero-indexed by the shared time reader, is beat 8.
+  assert.deepEqual(parsed.header.tempos.map((t) => t.time), [0, 8]);
+});

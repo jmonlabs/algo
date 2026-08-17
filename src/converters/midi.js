@@ -1,5 +1,6 @@
 /* jmon-to-midi.js - Convert JMON format to Standard MIDI File (no external deps) */
 import { compileEvents } from "../algorithms/audio/index.js";
+import { tempoSegments } from "../utils/timeline.js";
 
 // --- Built-in MIDI binary encoder ---
 
@@ -55,17 +56,24 @@ function buildMidiFile(composition) {
 
     const trackChunks = [];
 
-    // Track 0: tempo track
+    // Track 0: tempo track. One set-tempo meta event per segment of the
+    // composition's tempoMap, so a piece that changes tempo exports as one —
+    // it used to flatten to a single rate at tick 0. Segments come from the
+    // same helper the players integrate, so the file agrees with playback.
+    // With no tempoMap there is exactly one segment and the output is
+    // unchanged.
     const tempoEvents = [];
-    const microsecondsPerBeat = Math.round(60000000 / bpm);
-    tempoEvents.push({
-        tick: 0,
-        sortOrder: -1,
-        bytes: [0xff, 0x51, 0x03,
-            (microsecondsPerBeat >> 16) & 0xff,
-            (microsecondsPerBeat >> 8) & 0xff,
-            microsecondsPerBeat & 0xff]
-    });
+    for (const segment of tempoSegments(composition)) {
+        const microsecondsPerBeat = Math.round(60000000 / segment.tempo);
+        tempoEvents.push({
+            tick: Math.round(segment.time * ticksPerBeat),
+            sortOrder: -1,
+            bytes: [0xff, 0x51, 0x03,
+                (microsecondsPerBeat >> 16) & 0xff,
+                (microsecondsPerBeat >> 8) & 0xff,
+                microsecondsPerBeat & 0xff]
+        });
+    }
 
     // Title
     const title = composition.title || composition.metadata?.title || '';

@@ -225,12 +225,22 @@ function. Cross-link them rather than merging.
 What survives Standard MIDI File, since this is the question readers will
 actually have:
 
-- **Round-trips exactly**: pitches, times, durations, tracks, tempo, and
-  glissando / portamento / bend — written as a pitch bend sweep with the bend
-  range set wide enough via RPN 0, and read back into an articulation.
+- **Round-trips exactly**: pitches, times, durations, tracks, tempo,
+  `tempoMap` — one set-tempo event per segment, so a piece that slows down
+  exports as one — and glissando / portamento / bend, written as a pitch bend
+  sweep with the range widened via RPN 0 and read back into an articulation.
 - **Round-trips approximately**: velocity, to within MIDI's 7 bits (1/127).
 - **Does not survive**: custom synths, the `audioGraph`, effects, microtuning.
   Those are Tone-side, and SMF has nowhere to put them.
+- **Not written yet**: `timeSignature` and `timeSignatureMap`. SMF has a meta
+  event for them (0x58) and the importer reads it, but the writer emits none —
+  so a piece in 3/4 opens in 4/4 in any DAW. Say so, or fix it before the
+  chapter is written.
+
+A tempo *ramp* — an accelerando written as `automation` targeting `"tempo"` —
+is a separate matter: SMF can only approximate it as a staircase of set-tempo
+events, and the writer does not do that either. `tempoMap` steps survive;
+continuous curves do not.
 
 `midiToJmon` needs no audio library — a MIDI file is bytes. Worth saying,
 because it used to require Tone.js and could not run.

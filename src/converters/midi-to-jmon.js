@@ -582,14 +582,23 @@ export class MidiToJmon {
       }
     }
 
-    // Sort by time and convert to quarter notes
     allTempoEvents.sort((a, b) => a.time - b.time);
+
+    // The built-in parser already reports quarter notes, which is what JMON
+    // stores, so those pass straight through. An injected @tonejs/midi
+    // reports seconds and has to be converted — and each event has to be
+    // converted at the rate in force *before* it, not at its own new rate.
+    const inBeats = (parsed?.timeUnit || "seconds") === "beats";
+    let previousTempo = allTempoEvents[0]?.tempo || 120;
 
     for (const event of allTempoEvents) {
       tempoMap.push({
-        time: this.convertSecondsToQuarterNotes(event.time, event.tempo),
+        time: inBeats
+          ? event.time
+          : this.convertSecondsToQuarterNotes(event.time, previousTempo),
         tempo: event.tempo,
       });
+      previousTempo = event.tempo;
     }
 
     return tempoMap;
