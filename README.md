@@ -52,6 +52,18 @@ io.midi(piece);
 Take only what you need. Generating a MIDI file needs `algo` and `io`; no
 audio, no browser.
 
+For all four at once, [`jmon/studio`](https://github.com/jmonlabs/studio)
+assembles them and binds the injections, so a call site names what it does
+rather than where it comes from:
+
+```js
+import studio from "https://cdn.jsdelivr.net/gh/jmonlabs/studio@main/src/index.js";
+const jm = await studio();
+
+jm.play(piece);
+jm.midi(piece);
+```
+
 ## The JMON format
 
 ```js
