@@ -8,6 +8,7 @@
   </script>
   <script id="1" type="module" pinned="">
     import jm from "../src/index.js";
+    import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
     import * as Tone from "npm:tone";
     import verovio from "npm:verovio@4.3.1/wasm";
     import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
@@ -340,7 +341,7 @@
     };
 
     display(await jm.score(caPiece, { verovio, VerovioToolkit }));
-    display(await jm.play(caPiece, { Tone }));
+    display(await jm.play(caPiece, { Tone, sound }));
   </script>
   <script id="24" type="text/markdown">
     Because cellular automata generate repeating patterns, they perform nicely for rhythmic parts. However, they will fall short for melodies.
@@ -482,7 +483,7 @@
       }))
     };
 
-    display(await jm.play(drumPiece, { Tone }));
+    display(await jm.play(drumPiece, { Tone, sound }));
   </script>
   <script id="34" type="text/markdown">
     ## Mandelbrot
@@ -620,8 +621,8 @@
     };
 
     //display(await jm.score(mbPiece, { verovio, VerovioToolkit }));
-    display(await jm.play(mbPiece, { Tone }));
-    display(await jm.converters.downloadWav(mbPiece, Tone, "fractal.wav"));
+    display(await jm.play(mbPiece, { Tone, sound }));
+    display(await jm.converters.downloadWav(mbPiece, Tone, "fractal.wav", undefined, { sound }));
   </script>
   <script type="text/markdown">
     ## Julia Set
@@ -718,7 +719,7 @@
     };
 
     display(await jm.score(juliaPiece, { verovio, VerovioToolkit }));
-    display(await jm.play(juliaPiece, { Tone }));
+    display(await jm.play(juliaPiece, { Tone, sound }));
   </script>
   <script type="text/markdown">
     ## Burning Ship
@@ -980,7 +981,7 @@
     };
 
     display(await jm.score(lmPiece, { verovio, VerovioToolkit }));
-    display(await jm.play(lmPiece, { Tone }));
+    display(await jm.play(lmPiece, { Tone, sound }));
   </script>
   <script id="58" type="text/markdown">
     The logistic map creates interesting melodic patterns that have an underlying mathematical structure while still feeling organic and musical. The chaotic regions of the bifurcation diagram produce more unpredictable melodies, while the stable regions create more repetitive patterns.

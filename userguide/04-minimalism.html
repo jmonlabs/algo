@@ -10,6 +10,7 @@ The `jmon/algo` package includes well-known minimalistic mathematical operations
 
   <script type="module" pinned>
 import jm from "../src/index.js";
+import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
 import * as Tone from "npm:tone";
 import createVerovioModule from "npm:verovio@4.3.1/wasm";
 import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
@@ -202,7 +203,7 @@ const track1b_sb = new jm.generative.minimalism.Process({
 // Combine the processes
 const track1b = jm.utils.chain(track1b_af, track1b_sb); 
 
-display(await jm.play({ title:"track1b", tempo: 120, tracks: [{ notes: track1b }] }, { Tone }));
+display(await jm.play({ title:"track1b", tempo: 120, tracks: [{ notes: track1b }] }, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -282,7 +283,7 @@ const solfege_tintinabuli = {
 }
 display({ mVoice, tVoice });
 display(jm.score(solfege_tintinabuli, {verovio}));
-display(await jm.play(solfege_tintinabuli, { Tone }));
+display(await jm.play(solfege_tintinabuli, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -325,7 +326,7 @@ const piece_tintinabuli = {
   ]
 }
 
-display(await jm.play(piece_tintinabuli, { Tone }));
+display(await jm.play(piece_tintinabuli, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -411,7 +412,7 @@ const composition = {
   ]
 };
 
-display(await jm.play(composition, { Tone }));
+display(await jm.play(composition, { Tone, sound }));
   </script>
 
   <script type="text/markdown">

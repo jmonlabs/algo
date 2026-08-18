@@ -107,7 +107,7 @@
 
     Each JMON track may set `synth`, `pan`, `midiChannel`, and `midiProgram`. These are spec fields (see [chapter 5](05-sounds.html)); the live player honors them all:
 
-    - `synth` — a Tone.js synth type (`"PolySynth"`, `"MonoSynth"`, …), a GM program number (0–127, plays a FluidR3 SoundFont sampler), or an inline `{type, options}` object. Numbers are the same GM bank `jm.play` uses, so a track sounds the same live and offline.
+    - `synth` — a Tone.js synth type (`"PolySynth"`, `"MonoSynth"`, …), a GM program number (0–127), or an inline `{type, options}` object. Sampled instruments come from `jmon/sound`, which the live player loads itself rather than taking as an argument — the iframe fetches its own Tone.js too. It is the same bank and the same synth factory `jm.play` uses, so a track sounds the same live and offline.
     - `pan` — stereo position, -1 (left) to +1 (right). For MIDI tracks it's sent as CC 10.
     - `midiChannel` — set this to route the track over Web MIDI instead of Tone audio. 0..15.
     - `midiProgram` — General MIDI program (0..127) sent as a program change on `midiChannel`.

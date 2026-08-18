@@ -16,6 +16,7 @@
     </script>
     <script id="1" type="module" pinned="">
         import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+        import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
         import * as Tone from "npm:tone";
         import verovio from "npm:verovio@4.3.1/wasm";
         import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
@@ -148,7 +149,7 @@
         display(
             await jm.score(twinkleComposition, { verovio, VerovioToolkit }),
         );
-        display(await jm.play(twinkleComposition, { Tone }));
+        display(await jm.play(twinkleComposition, { Tone, sound }));
     </script>
     <script id="12" type="text/markdown">
         ## 3. Format conversion

@@ -16,6 +16,7 @@ This chapter covers the Loop class and techniques for creating repeating musical
 
   <script type="module" pinned>
 import jm from "../src/index.js";
+import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
 import * as Tone from "npm:tone";
 import verovio from "npm:verovio@4.3.1/wasm";
 import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
@@ -50,7 +51,7 @@ const simplePiece = {
 };
 
 display(await jm.score(simplePiece, { verovio, VerovioToolkit }));
-display(await jm.play(simplePiece, { Tone }));
+display(await jm.play(simplePiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -87,7 +88,7 @@ const ascendingPiece = {
   tracks: ascendingLoop.toJMonSequences()
 };
 
-display(await jm.play(ascendingPiece, { Tone }));
+display(await jm.play(ascendingPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -130,7 +131,7 @@ const polyloopPiece = {
   ]
 };
 
-display(await jm.play(polyloopPiece, { Tone }));
+display(await jm.play(polyloopPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -166,7 +167,7 @@ const euclideanPiece = {
   ]
 };
 
-display(await jm.play(euclideanPiece, { Tone }));
+display(await jm.play(euclideanPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -204,7 +205,7 @@ const isoPiece = {
   tracks: [{ notes: complexPattern }]
 };
 
-display(await jm.play(isoPiece, { Tone }));
+display(await jm.play(isoPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -229,7 +230,7 @@ const beatPiece = {
   tracks: [{ notes: beatPattern }]
 };
 
-display(await jm.play(beatPiece, { Tone }));
+display(await jm.play(beatPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -282,7 +283,7 @@ const phasePiece = {
   ]
 };
 
-display(await jm.play(phasePiece, { Tone }));
+display(await jm.play(phasePiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -326,7 +327,7 @@ const primePiece = {
   ]
 };
 
-display(await jm.play(primePiece, { Tone }));
+display(await jm.play(primePiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -377,7 +378,7 @@ const complexPiece = {
   ]
 };
 
-display(await jm.play(complexPiece, { Tone }));
+display(await jm.play(complexPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">

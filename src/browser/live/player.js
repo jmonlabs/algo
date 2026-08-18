@@ -9,8 +9,8 @@
 // an OS virtual MIDI port — IAC on macOS, loopMIDI on Windows, snd-virmidi on
 // Linux); everything else plays through Tone.js audio. Synth construction is
 // delegated to `../synth-factory.js`, the same factory the offline
-// `music-player` and `wav` renderers use — so a track sounds identical live
-// and offline.
+// `music-player` and `wav` renderers use, with the same `jmon/sound` provider
+// behind it — so a track sounds identical live and offline.
 
 import { Session } from "./session.js";
 import { createTrackSynth } from "../synth-factory.js";
@@ -37,6 +37,18 @@ const Tone = ToneRaw.Transport
           ? ToneRaw.getContext()
           : ToneRaw.context
     });
+
+// Sampled instruments — General MIDI, drum kits — come from jmon/sound,
+// fetched the same way Tone is. Optional on purpose: if it cannot be reached,
+// a track asking for a GM program falls back to a synth rather than the whole
+// player failing to start.
+let sound = null;
+try {
+  const mod = await import("https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js");
+  sound = mod.default || mod;
+} catch (e) {
+  console.warn("jmon/sound unavailable — General MIDI tracks will use a synth.", e);
+}
 
 const statusEl = document.getElementById("status");
 const patternLenEl = document.getElementById("pattern-length");
@@ -155,7 +167,9 @@ function getOrCreatePanner(label) {
 // data is ready (or immediately for non-Sampler synths).
 function buildTrackSynth(label, spec) {
   const panner = getOrCreatePanner(label);
-  const { synth } = createTrackSynth({ synth: spec }, Tone, null, session.pattern?.customPresets);
+  const { synth } = createTrackSynth(
+    { synth: spec }, Tone, null, session.pattern?.customPresets, sound,
+  );
   synth.connect(panner);
   // Tone.Sampler exposes .loaded as a Promise that resolves once all sample
   // URLs are fetched and decoded. Non-Sampler synths don't have it; treat as

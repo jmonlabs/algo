@@ -16,6 +16,7 @@
 
     <script type="module" pinned>
         import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+        import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
         import * as Tone from "npm:tone";
         import verovio from "npm:verovio@4.3.1/wasm";
         import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
@@ -88,7 +89,7 @@
         };
 
         display(await jm.score(cMajorPiece, { verovio, VerovioToolkit }));
-        display(await jm.play(cMajorPiece, { Tone }));
+        display(await jm.play(cMajorPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -114,7 +115,7 @@
 
         display(cMajorChord);
         display(await jm.score(chordPiece, { verovio, VerovioToolkit }));
-        display(await jm.play(chordPiece, { Tone }));
+        display(await jm.play(chordPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -182,7 +183,7 @@
             tempo: 120,
             tracks: [{ notes: withGraceNote }],
         };
-        display(await jm.play(graceNotePiece, { Tone }));
+        display(await jm.play(graceNotePiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -213,7 +214,7 @@
             tempo: 120,
             tracks: [{ notes: withTrill }],
         };
-        display(await jm.play(trillPiece, { Tone }));
+        display(await jm.play(trillPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -241,7 +242,7 @@
             tempo: 120,
             tracks: [{ notes: withMordent }],
         };
-        display(await jm.play(mordentPiece, { Tone }));
+        display(await jm.play(mordentPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -262,7 +263,7 @@
             tempo: 120,
             tracks: [{ notes: withTurn }],
         };
-        display(await jm.play(turnPiece, { Tone }));
+        display(await jm.play(turnPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -289,7 +290,7 @@
             tempo: 120,
             tracks: [{ notes: withArpeggio }],
         };
-        display(await jm.play(arpeggioPiece, { Tone }));
+        display(await jm.play(arpeggioPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -332,7 +333,7 @@
         };
 
         display(await jm.score(harmonizedPiece, { verovio, VerovioToolkit }));
-        display(await jm.play(harmonizedPiece, { Tone }));
+        display(await jm.play(harmonizedPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -379,7 +380,7 @@
         };
 
         display(await jm.score(progressionPiece, { verovio, VerovioToolkit }));
-        display(await jm.play(progressionPiece, { Tone }));
+        display(await jm.play(progressionPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -422,7 +423,7 @@
             tracks: [{ notes: smoothTrack }],
         };
         display(await jm.score(smoothPiece, { verovio, VerovioToolkit }));
-        display(await jm.play(smoothPiece, { Tone }));
+        display(await jm.play(smoothPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -475,7 +476,7 @@
             tracks: [{ notes: nrtTrack }],
         };
         display(await jm.score(nrtPiece, { verovio, VerovioToolkit }));
-        display(await jm.play(nrtPiece, { Tone }));
+        display(await jm.play(nrtPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -518,7 +519,7 @@
             tracks: [{ notes: walkTrack }],
         };
         display(await jm.score(walkPiece, { verovio, VerovioToolkit }));
-        display(await jm.play(walkPiece, { Tone }));
+        display(await jm.play(walkPiece, { Tone, sound }));
     </script>
 
     <script type="text/markdown">
@@ -577,6 +578,6 @@
         };
 
         display(await jm.score(twinkleComplete, { verovio, VerovioToolkit }));
-        display(await jm.play(twinkleComplete, { Tone }));
+        display(await jm.play(twinkleComplete, { Tone, sound }));
     </script>
 </notebook>

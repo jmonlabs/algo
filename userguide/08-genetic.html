@@ -50,6 +50,7 @@
   </script>
   <script id="1" type="module" pinned="">
     import jm from "../src/index.js";
+    import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
     import * as Tone from "npm:tone";
     import verovio from "npm:verovio@4.3.1/wasm";
     import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
@@ -401,7 +402,7 @@
     display(galapagosStars)
 
     //display(await jm.score(galapagosStars, { verovio, VerovioToolkit }));
-    display(await jm.play(galapagosStars, { Tone }));
+    display(await jm.play(galapagosStars, { Tone, sound }));
   </script>
   <script id="16" type="text/markdown">
     Each line below shows the best melody at a given generation - note position on x, MIDI pitch on y. Early generations (faint) stay close to the original Twinkle; later ones (darker) drift as mutations accumulate and selection reshapes the phrase.

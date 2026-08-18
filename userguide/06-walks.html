@@ -10,6 +10,7 @@ Random and kernel walks represent fascinating techniques that have found applica
 
   <script type="module" pinned>
 import jm from "../src/index.js";
+import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
 import * as Tone from "npm:tone";
 import verovio from "npm:verovio@4.3.1/wasm";
 import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
@@ -234,7 +235,7 @@ const rwPiece = {
   tempo: 120,
   tracks: rwNotes.map((notes, i) => ({ name: `Branch ${i+1}`, notes: notes, synth: 0 }))
 };
-display(await jm.play(rwPiece, { Tone }));
+display(await jm.play(rwPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -280,7 +281,7 @@ const rwTunedPiece = {
   tempo: 120,
   tracks: rwNotesTuned.map((notes, i) => ({ name: `Track ${i+1}`, notes: notes, synth: 0 }))
 };
-display(await jm.play(rwTunedPiece, { Tone }));
+display(await jm.play(rwTunedPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -498,7 +499,7 @@ const bluesPiece = {
 };
 
 display(await jm.score(bluesPiece, { verovio, VerovioToolkit }));
-display(await jm.play(bluesPiece, { Tone }));
+display(await jm.play(bluesPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -709,7 +710,7 @@ const gaussCanon = {
     }))
 };
 display(await jm.score(gaussCanon, { verovio, VerovioToolkit }));
-display(await jm.play(gaussCanon, { Tone }));
+display(await jm.play(gaussCanon, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -833,7 +834,7 @@ const celestialPiece = {
   tempo: 140,
   tracks: [{ notes: celestialTrack, synth: 31 }, { notes: voiceTrack, synth: 19 }]
 };
-display(await jm.play(celestialPiece, { Tone }));
+display(await jm.play(celestialPiece, { Tone, sound }));
 
 display(voiceTrack);
 
@@ -889,7 +890,7 @@ const fibonacciPiece = {
   tracks: [{ name: "Fibonacci", notes: fibonacciNotes }]
 };
 display(await jm.score(fibonacciPiece, { verovio, VerovioToolkit }));
-display(await jm.play(fibonacciPiece, { Tone }));
+display(await jm.play(fibonacciPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">

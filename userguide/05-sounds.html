@@ -10,6 +10,7 @@ This chapter covers how to shape sounds with JMON audio capabilities powered by 
 
   <script type="module" pinned>
 import jm from "../src/index.js";
+import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
 import * as Tone from "npm:tone";
 import verovio from "npm:verovio@4.3.1/wasm";
 import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
@@ -40,7 +41,7 @@ const defaultPiece = {
 };
 
 display(await jm.score(defaultPiece, { verovio, VerovioToolkit }));
-display(await jm.play(defaultPiece, { Tone }));
+display(await jm.play(defaultPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -65,14 +66,25 @@ for (const synthName of synthTypes) {
     tempo: 120,
     tracks: [{ notes: melody, synth: synthName }]
   };
-  display(await jm.play(piece, { Tone }));
+  display(await jm.play(piece, { Tone, sound }));
 }
   </script>
 
   <script type="text/markdown">
-## 3. GM instruments
+## 3. Sampled instruments
 
-Set `track.synth` to a **number** (0-127) to use a General MIDI instrument. These are real instrument samples from the FluidR3 soundfont, loaded from a CDN.
+Set `track.synth` to a **number** (0-127) for a General MIDI instrument: real recordings from the FluidR3 soundfont, fetched from a CDN. All 128 programs are available.
+
+These come from a separate package, **`jmon/sound`**, which you pass in the same way you pass `Tone` and `verovio`:
+
+```js
+import jm    from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
+
+jm.play(piece, { Tone, sound });
+```
+
+That split is deliberate. `jmon/algo` composes and schedules; playing the result with recorded instruments is a different job, and keeping it out means `jm.play()` stays small. **Leave `sound` out and everything still plays** — a track asking for a GM program falls back to a synth, audible and in time but not the instrument you wrote.
 
 Common GM program numbers:
 | Number | Instrument |
@@ -106,11 +118,64 @@ const gmPiece = {
 };
 
 display(await jm.score(gmPiece, { verovio, VerovioToolkit }));
-display(await jm.play(gmPiece, { Tone }));
+display(await jm.play(gmPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
-Note that GM instrument samples are loaded from a CDN, so they may take a moment to load on first use. The player will show a loading state while samples are being fetched.
+Samples are fetched on first use, so the opening notes may be silent while they load.
+
+### How many samples
+
+`Sampler` fills the gaps between recordings by resampling — the same thing a soundfont engine does — so there is no need for one file per semitone. The default asks for about 25 files per instrument, every major third:
+
+```js
+{ synth: 40 }                             // balanced, the default
+{ synth: { gm: 40, strategy: "minimal" } }   //  9 files — sketching
+{ synth: { gm: 40, strategy: "quality" } }   // 30 files
+{ synth: { gm: 40, strategy: "complete" } }  // 88 files — one per semitone
+```
+
+Resampling shifts formants, which is audible on voice, strings and brass, and inaudible on percussion. Reach for `complete` when a sustained instrument is exposed; the cost is 88 requests instead of 25.
+
+### What a sampled note does that a synth note does not
+
+Two behaviours worth knowing, because both are things you would otherwise notice and wonder about.
+
+**A held note keeps sounding.** Every FluidR3 recording is a fixed 3.19 seconds. A longer note used to run out of sound — a whole note at 60 BPM ended in silence. The sample's sustaining region is looped instead, with the join levelled and crossfaded so it neither clicks nor pulses. Recordings that *decay* — piano, guitar, anything plucked — are measured and left alone, because they are supposed to die away.
+
+**A glissando keeps the instrument.** A slide ramps the playback rate of the sounding voices, so a violin glissando is still a violin. On a plain `PolySynth` the slide has to move to a stand-in voice, and the timbre goes with it.
+
+Two things the loop cannot restore. The **attack** is intact — playback starts at the beginning of the recording. The **release** is not the sample's own tail, because the end of the recording is never reached; the note finishes on a 0.1 s fade, which is abrupt under a long string note:
+
+```js
+{ synth: { gm: 48, options: { release: 0.6 } } }   // a longer tail
+{ synth: { gm: 48, loopSustain: false } }          // don't loop at all
+```
+  </script>
+
+  <script type="text/markdown">
+### Naming an instrument once
+
+`customPresets` defines a synth at composition level so several tracks can share it — and a preset's `type` may be a Tone class name **or** a GM program number.
+  </script>
+
+  <script type="module" pinned>
+const quartet = {
+  title: "One preset, three tracks",
+  tempo: 90,
+  customPresets: [
+    { id: "strings", type: 48, strategy: "quality", options: { release: 0.6 } }
+  ],
+  tracks: [
+    { label: "Violin I",  synth: "strings", notes: [{ pitch: 72, duration: 4, time: 0, velocity: 0.5 }] },
+    { label: "Violin II", synth: "strings", notes: [{ pitch: 67, duration: 4, time: 0, velocity: 0.5 }] },
+    // A track can borrow the preset and still adjust one thing.
+    { label: "Cello", synth: { preset: "strings", options: { release: 1.2 } },
+      notes: [{ pitch: 48, duration: 4, time: 0, velocity: 0.6 }] }
+  ]
+};
+
+display(await jm.play(quartet, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -141,7 +206,7 @@ const customPiece = {
   }]
 };
 
-display(await jm.play(customPiece, { Tone }));
+display(await jm.play(customPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -169,7 +234,7 @@ const polyMonoPiece = {
 };
 
 display(await jm.score(polyMonoPiece, { verovio, VerovioToolkit }));
-display(await jm.play(polyMonoPiece, { Tone }));
+display(await jm.play(polyMonoPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -202,7 +267,7 @@ const reverbPiece = {
   ]
 };
 
-display(await jm.play(reverbPiece, { Tone }));
+display(await jm.play(reverbPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -239,7 +304,7 @@ const chainPiece = {
   ]
 };
 
-display(await jm.play(chainPiece, { Tone }));
+display(await jm.play(chainPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -283,7 +348,7 @@ const altFormatPiece = {
   }
 };
 
-display(await jm.play(altFormatPiece, { Tone }));
+display(await jm.play(altFormatPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
@@ -302,7 +367,7 @@ const wavPiece = {
 };
 
 // Renders the composition offline and returns a download link
-display(await jm.converters.downloadWav(wavPiece, Tone, "melody.wav"));
+display(await jm.converters.downloadWav(wavPiece, Tone, "melody.wav", undefined, { sound }));
   </script>
 
   <script type="text/markdown">
@@ -313,16 +378,23 @@ Parameters:
 - `Tone` — the Tone.js library
 - `filename` — output filename (default: "composition.wav")
 - `duration` — optional duration in seconds (auto-calculated if omitted)
+- `options` — `{ sound }` for sampled instruments, the same provider `jm.play` takes
 
-The WAV export renders the full audio chain including synth types, GM instruments, and audioGraph effects.
+The WAV export renders the full audio chain — synth types, sampled instruments, audioGraph effects — through the same synth factory the player uses, so the file matches what you heard. Pass `sound` here too, or GM tracks render as synths.
   </script>
 
   <script type="text/markdown">
 ## 7. Exporting to MIDI
 
-MIDI export converts your composition to a standard MIDI file. Unlike WAV, MIDI only contains note data (pitch, duration, velocity, tempo) — no synth or effect information.
+MIDI export converts your composition to a standard MIDI file. Unlike WAV, it carries note data rather than sound, which is what makes it portable: any DAW can open it and apply its own instruments.
 
-This is actually a strength: any DAW (Ableton, Logic, FL Studio, etc.) can open the MIDI file and apply its own instruments and effects, giving you limitless sound design possibilities.
+What survives the round trip:
+
+- **Exactly** — pitches, times, durations, tracks, `tempo` and `tempoMap` (one event per change), `timeSignature` / `timeSignatureMap`, `keySignature` / `keySignatureMap`, and glissando, portamento and bend, written as a pitch-bend sweep and read back as an articulation.
+- **Approximately** — velocity, to within MIDI's 7 bits. And an accelerando: a tempo *ramp* has no MIDI message, so it is sampled as a staircase of tempo changes. Every DAW that shows you an accelerando is showing you steps.
+- **Not at all** — synths, the `audioGraph`, effects, microtuning. Those are Tone-side, and a MIDI file has nowhere to put them.
+
+`jm.converters.midiToJmon()` reads a file back, and needs no audio library — a MIDI file is just bytes.
   </script>
 
   <script type="module" pinned>
@@ -386,7 +458,7 @@ const fullPiece = {
 };
 
 display(await jm.score(fullPiece, { verovio, VerovioToolkit }));
-display(await jm.play(fullPiece, { Tone }));
+display(await jm.play(fullPiece, { Tone, sound }));
 
 // Export options
 display(jm.converters.midi(fullPiece, { filename: "full-piece.mid" }));
