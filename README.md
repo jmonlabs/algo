@@ -110,16 +110,6 @@ reachable from `jm`, so importing this package never pulls that in.
   (grids in quarter notes; `1/3` for triplets)
 - Builders: `createTrack`, `createPiece`
 
-## Userguide
-
-`userguide/` holds interactive notebooks built with
-[Observable Notebook Kit](https://observablehq.com/framework/notebook-kit).
-`OUTLINE.md` is the plan they are being rewritten against.
-
-```bash
-npx notebooks preview --root userguide
-```
-
 ## Tests
 
 ```bash
