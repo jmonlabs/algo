@@ -557,7 +557,7 @@ export class Progression extends MusicTheoryConstants {
      *
      * Operations can be primitives ('P','L','R','N','S','H') or compound
      * strings ('PL','LRP'). A compound applies its primitives in order and
-     * yields **one** result chord (the composition); an array of primitives
+     * yields **one** result chord (the piece); an array of primitives
      * yields one chord per element.
      *
      * @param {Array<string>} ops - e.g. `['P','L','R']` or `['PL','R','H']`

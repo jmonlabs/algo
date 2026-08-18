@@ -63,13 +63,13 @@ export function createTrack(notes, label = 'Untitled Track', options = {}) {
 export const createPart = createTrack;
 
 /**
- * Create a complete JMON composition.
+ * Create a complete JMON piece.
  *
  * @param {Array} tracks - Array of tracks, or of bare note arrays
  * @param {Object} metadata - Top-level properties (tempo, keySignature…)
- * @returns {Object} Complete JMON composition
+ * @returns {Object} Complete JMON piece
  */
-export function createComposition(tracks, metadata = {}) {
+export function createPiece(tracks, metadata = {}) {
   const normalizedTracks = tracks.map((track, index) => {
     if (Array.isArray(track)) {
       return createTrack(track, `Track ${index + 1}`);
@@ -101,9 +101,6 @@ export function createComposition(tracks, metadata = {}) {
     ...restMetadata
   };
 }
-
-/** @deprecated Use {@link createComposition}. */
-export const createPiece = createComposition;
 
 /**
  * Normalize notes from various formats to JMON format
@@ -446,7 +443,7 @@ export function truncate(notes, maxTime) {
 }
 
 /**
- * Concatenate composition sections into a flat per-label note map.
+ * Concatenate piece sections into a flat per-label note map.
  *
  * Each section is `{ tracks: [{ label, notes }], duration?: number }`.
  * Tracks with the same label across sections are merged into one stream

@@ -834,20 +834,20 @@ export function quantizeTrack(track, options = {}) {
 }
 
 /**
- * Quantize every track of a JMON composition, returning a new composition.
- * @param {Object} composition - `{ tempo, tracks, ... }`
+ * Quantize every track of a JMON piece, returning a new piece.
+ * @param {Object} piece - `{ tempo, tracks, ... }`
  * @param {Object} [options] - Same options as {@link quantizeEvents}
- * @returns {Object} New composition
+ * @returns {Object} New piece
  *
  * @example
  * // Tighten a MIDI import onto a sixteenth grid
- * const tight = quantizeComposition(jm.converters.midiToJmon(bytes), { grid: 0.25 });
+ * const tight = quantizePiece(jm.converters.midiToJmon(bytes), { grid: 0.25 });
  */
-export function quantizeComposition(composition, options = {}) {
+export function quantizePiece(piece, options = {}) {
     const { grid = 0.25, mode = 'nearest' } = options;
-    if (!composition || !Array.isArray(composition.tracks)) return composition;
+    if (!piece || !Array.isArray(piece.tracks)) return piece;
     return {
-        ...composition,
-        tracks: composition.tracks.map(track => quantizeTrack(track, { grid, mode }))
+        ...piece,
+        tracks: piece.tracks.map(track => quantizeTrack(track, { grid, mode }))
     };
 }

@@ -1,5 +1,5 @@
 /**
- * Corruptor — controlled degradation of a finished composition.
+ * Corruptor — controlled degradation of a finished piece.
  *
  * Everything it does is stochastic, so the assertions are about the contract:
  * seeded reproducibility, structure preserved, and degradation that scales
@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 
 import { Corruptor, corruptJmon } from "../src/algorithms/processors/Corruptor.js";
 
-const composition = () => ({
+const piece = () => ({
   format: "jmon",
   version: "1.0",
   tempo: 120,
@@ -28,7 +28,7 @@ const composition = () => ({
   }],
 });
 
-const run = (options) => new Corruptor(options).process(composition());
+const run = (options) => new Corruptor(options).process(piece());
 const allNotes = (piece) => piece.tracks.flatMap((t) => t.notes);
 
 /* --- the constructor contract -------------------------------------------- */
@@ -60,8 +60,8 @@ test("different seeds produce different corruptions", () => {
 
 /* --- structure preservation ---------------------------------------------- */
 
-test("corruption degrades a composition without dismantling it", () => {
-  const original = composition();
+test("corruption degrades a piece without dismantling it", () => {
+  const original = piece();
   const corrupted = run({ seed: 3 });
 
   assert.equal(corrupted.format, "jmon");
@@ -79,10 +79,10 @@ test("corruption degrades a composition without dismantling it", () => {
 });
 
 test("corruption does not mutate its input", () => {
-  const original = composition();
+  const original = piece();
   const snapshot = JSON.stringify(original);
   new Corruptor({ seed: 5 }).process(original);
-  assert.equal(JSON.stringify(original), snapshot, "the input composition was mutated");
+  assert.equal(JSON.stringify(original), snapshot, "the input piece was mutated");
 });
 
 test("pitches stay inside the MIDI range", () => {
@@ -97,7 +97,7 @@ test("pitches stay inside the MIDI range", () => {
 /* --- entropy scales the damage ------------------------------------------- */
 
 test("higher entropy moves the music further from the original", () => {
-  const original = allNotes(composition());
+  const original = allNotes(piece());
 
   const drift = (entropy) => {
     const corrupted = allNotes(run({ seed: 11, entropy }));
@@ -138,7 +138,7 @@ test("microtonal drift can be switched off", () => {
 /* --- the functional form ------------------------------------------------- */
 
 test("corruptJmon corrupts in one call", () => {
-  const corrupted = corruptJmon(composition());
+  const corrupted = corruptJmon(piece());
   assert.equal(corrupted.format, "jmon");
   assert.ok(corrupted.tracks[0].notes.length > 0);
 });

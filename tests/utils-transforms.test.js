@@ -24,7 +24,7 @@ import {
   quantize,
   quantizeEvents,
   quantizeTrack,
-  quantizeComposition,
+  quantizePiece,
 } from "../src/algorithms/utils.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
@@ -218,7 +218,7 @@ test("quantize passes non-finite values through and rejects a bad grid", () => {
   assert.throws(() => quantize(1, 0), /positive number/);
 });
 
-/* --- quantizeEvents / Track / Composition -------------------------------- */
+/* --- quantizeEvents / Track / Piece -------------------------------- */
 
 test("quantizeEvents snaps time and duration", () => {
   const out = quantizeEvents([n(60, 0.3, 0.9)], { grid: 0.25 });
@@ -242,25 +242,25 @@ test("quantizeEvents leaves non-timing fields alone", () => {
   assert.equal(out[0].velocity, 0.33);
 });
 
-test("quantizeTrack and quantizeComposition return new objects", () => {
+test("quantizeTrack and quantizePiece return new objects", () => {
   const track = { label: "lead", synth: 40, notes: [n(60, 0.3, 0.9)] };
-  const composition = { tempo: 120, tracks: [track] };
+  const piece = { tempo: 120, tracks: [track] };
 
   const qTrack = quantizeTrack(track, { grid: 0.25 });
   assert.equal(qTrack.label, "lead");
   assert.equal(qTrack.synth, 40, "track metadata should survive");
   assert.equal(track.notes[0].time, 0.3, "input track was mutated");
 
-  const qComp = quantizeComposition(composition, { grid: 0.25 });
+  const qComp = quantizePiece(piece, { grid: 0.25 });
   assert.equal(qComp.tempo, 120);
   assert.equal(qComp.tracks[0].notes[0].time, 0.25);
-  assert.equal(composition.tracks[0].notes[0].time, 0.3, "input composition was mutated");
+  assert.equal(piece.tracks[0].notes[0].time, 0.3, "input piece was mutated");
 });
 
 test("quantize helpers pass through malformed input unchanged", () => {
   assert.equal(quantizeEvents(null), null);
   assert.deepEqual(quantizeTrack({ label: "x" }), { label: "x" });
-  assert.deepEqual(quantizeComposition({ tempo: 90 }), { tempo: 90 });
+  assert.deepEqual(quantizePiece({ tempo: 90 }), { tempo: 90 });
 });
 
 /* --- public surface ------------------------------------------------------ */
@@ -271,7 +271,7 @@ test("everything migrated is reachable through jm.utils", async () => {
     "invert", "retrograde", "augment", "applySwing", "extractRhythm",
     "normalizeVelocities", "getPitchRange", "getTotalDuration",
     "splitLongNotes", "removeDuplicates",
-    "quantize", "quantizeEvents", "quantizeTrack", "quantizeComposition",
+    "quantize", "quantizeEvents", "quantizeTrack", "quantizePiece",
   ];
   for (const name of names) {
     assert.equal(typeof jm.utils[name], "function", `jm.utils.${name} is missing`);
@@ -291,37 +291,37 @@ test("createTrack labels a track the way the rest of the library reads it", asyn
   assert.equal(createPart, createTrack, "the old name still resolves");
 });
 
-test("createComposition emits one tempo, not a tempo and a bpm", async () => {
-  const { createComposition } = await import("../src/utils/jmon-utils.js");
+test("createPiece emits one tempo, not a tempo and a bpm", async () => {
+  const { createPiece } = await import("../src/utils/jmon-utils.js");
   const notes = [{ pitch: 60, duration: 1, time: 0 }];
 
-  const fromTempo = createComposition([notes], { tempo: 90 });
+  const fromTempo = createPiece([notes], { tempo: 90 });
   assert.equal(fromTempo.tempo, 90);
   assert.equal(fromTempo.bpm, undefined, "a leftover bpm is a second source of truth");
 
   // bpm is still accepted on the way in, so older callers keep working.
-  assert.equal(createComposition([notes], { bpm: 90 }).tempo, 90);
-  assert.equal(createComposition([notes]).tempo, 120, "and there is a default");
+  assert.equal(createPiece([notes], { bpm: 90 }).tempo, 90);
+  assert.equal(createPiece([notes]).tempo, 120, "and there is a default");
 });
 
-test("createComposition accepts tracks as note arrays or as track objects", async () => {
-  const { createComposition } = await import("../src/utils/jmon-utils.js");
+test("createPiece accepts tracks as note arrays or as track objects", async () => {
+  const { createPiece } = await import("../src/utils/jmon-utils.js");
   const notes = [{ pitch: 60, duration: 1, time: 0 }];
 
-  const bare = createComposition([notes]);
+  const bare = createPiece([notes]);
   assert.equal(bare.tracks[0].label, "Track 1", "a bare array gets a positional label");
 
-  const named = createComposition([{ label: "Lead", notes }, { name: "Pad", notes }]);
+  const named = createPiece([{ label: "Lead", notes }, { name: "Pad", notes }]);
   assert.deepEqual(named.tracks.map((t) => t.label), ["Lead", "Pad"],
     "a track passed in as `name` comes out as `label`");
   assert.equal(named.tracks[1].name, undefined);
 });
 
-test("a composition built by the helpers is playable as-is", async () => {
-  // The point of the fix: what comes out of createComposition should be
+test("a piece built by the helpers is playable as-is", async () => {
+  // The point of the fix: what comes out of createPiece should be
   // what the player expects, with no renaming in between.
-  const { createComposition } = await import("../src/utils/jmon-utils.js");
-  const comp = createComposition(
+  const { createPiece } = await import("../src/utils/jmon-utils.js");
+  const comp = createPiece(
     [{ label: "Lead", notes: [{ pitch: 60, duration: 1, time: 0 }] }],
     { tempo: 90 },
   );

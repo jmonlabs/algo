@@ -1,7 +1,7 @@
 import { ComplexPlaneFractal } from './ComplexPlaneFractal.js';
 
 /**
- * Burning Ship fractal generator for musical composition.
+ * Burning Ship fractal generator for musical piece.
  * z₀ = 0, c = point in plane, iterate z = (|Re(z)| + i|Im(z)|)² + c
  *
  * @example

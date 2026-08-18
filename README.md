@@ -4,7 +4,7 @@ Algorithmic and generative music composition in JavaScript.
 
 Scales, chords and voice leading; minimalist processes, random walks, fractals,
 cellular automata, genetic algorithms; rhythm and a drummer; analysis. It makes
-JMON compositions and does nothing else with them.
+JMON pieces and does nothing else with them.
 
 ESM source served from GitHub via jsDelivr, no build step, no npm package,
 **no dependencies and no imports of any kind**. It runs the same in Node, Deno
@@ -16,7 +16,7 @@ import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
 const scale = new jm.theory.harmony.Scale({ tonic: "C", mode: "major" })
   .generate({ start: 60, length: 8 });
 
-const composition = {
+const piece = {
   tempo: 120,
   tracks: [{
     label: "Scale",
@@ -27,14 +27,14 @@ const composition = {
 
 ## The other three
 
-Reading, playing and drawing a composition are separate packages, each passed
+Reading, playing and drawing a piece are separate packages, each passed
 in where it is needed rather than imported. Node refuses `https://` imports, so
 that is the only way a package here can depend on another, and it makes the
 coupling visible at every call site.
 
 | | |
 |---|---|
-| [`jmon/io`](https://github.com/jmonlabs/io) | the format: what it means, and how it serialises. MIDI both ways, MusicXML, SuperCollider. |
+| [`jmon/io`](https://github.com/jmonlabs/io) | the format: what it means, and how it serialises. MIDI both ways, MusicXML. |
 | [`jmon/show`](https://github.com/jmonlabs/show) | playback, live coding, WAV rendering, score engraving. |
 | [`jmon/sound`](https://github.com/jmonlabs/sound) | sampled instruments for Tone.js: General MIDI, drum kits, your own samples. |
 
@@ -45,8 +45,8 @@ import show  from "https://cdn.jsdelivr.net/gh/jmonlabs/show@main/src/index.js";
 import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
 import * as Tone from "npm:tone";
 
-show.play(composition, { Tone, io, sound });
-io.midi(composition);
+show.play(piece, { Tone, io, sound });
+io.midi(piece);
 ```
 
 Take only what you need. Generating a MIDI file needs `algo` and `io`; no
@@ -58,7 +58,7 @@ audio, no browser.
 // A note. Rests are `pitch: null`, chords are `pitch: [60, 64, 67]`.
 { pitch: 60, duration: 1, time: 0, velocity: 0.8 }
 
-// A composition. Times are in quarter notes.
+// A piece. Times are in quarter notes.
 {
   tempo: 120,
   tracks: [{ label: "Melody", notes: [...] }],
@@ -94,9 +94,9 @@ reachable from `jm`, so importing this package never pulls that in.
 - Transformations: `invert`, `retrograde`, `augment`, `transpose`, `applySwing`,
   `splitLongNotes`, `removeDuplicates`, `normalizeVelocities`
 - Queries: `getPitchRange`, `getTotalDuration`, `extractRhythm`
-- Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizeComposition`
+- Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizePiece`
   (grids in quarter notes; `1/3` for triplets)
-- Builders: `createTrack`, `createComposition`
+- Builders: `createTrack`, `createPiece`
 
 ## Userguide
 

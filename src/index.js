@@ -3,7 +3,7 @@
  *
  * Scales, chords and voice leading; minimalist processes, random walks,
  * fractals, cellular automata, genetic algorithms; rhythm and a drummer;
- * analysis. Everything that makes a JMON composition, and nothing that reads,
+ * analysis. Everything that makes a JMON piece, and nothing that reads,
  * plays or draws one.
  *
  * It imports nothing. Three sibling packages take it from here, each passed in

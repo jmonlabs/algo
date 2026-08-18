@@ -153,7 +153,7 @@ export function drummer(options = {}) {
   return composeBars({ bars, intensity, humanize, drumMap, rand, variation, style, leader, fillEvery, anticipate, anticipateThreshold });
 }
 
-// ─── Multi-meter composition ─────────────────────────────────
+// ─── Multi-meter piece ─────────────────────────────────
 function composeFromSections(sections, ctx) {
   const { intensity, humanize, drumMap, rand, variation, style } = ctx;
   const preset = getPreset(style);
@@ -219,7 +219,7 @@ function composeFromSections(sections, ctx) {
   return out;
 }
 
-// ─── 4/4 bars composition (live drummer with fills, ghosts, anticipations) ───
+// ─── 4/4 bars piece (live drummer with fills, ghosts, anticipations) ───
 function composeBars(ctx) {
   const { bars, intensity, humanize, drumMap, rand, variation, style, leader, fillEvery, anticipate, anticipateThreshold } = ctx;
   const preset = getPreset(style);
