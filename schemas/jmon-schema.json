@@ -173,8 +173,7 @@
         "type": "object",
         "required": [
           "id",
-          "type",
-          "options"
+          "type"
         ],
         "properties": {
           "id": {
@@ -182,12 +181,42 @@
             "description": "Unique identifier for this preset."
           },
           "type": {
-            "type": "string",
-            "description": "Type of preset (e.g., 'Synth', 'Effect', 'Sampler')."
+            "type": [
+              "string",
+              "integer"
+            ],
+            "minimum": 0,
+            "maximum": 127,
+            "description": "Type of preset: a Tone.js class name ('Synth', 'Sampler', ...), or a General MIDI program number 0-127, which loads that instrument's samples. The same two spellings a track's `synth` accepts."
           },
           "options": {
             "type": "object",
             "description": "Preset options."
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "balanced",
+              "quality",
+              "complete"
+            ],
+            "description": "GM presets only: how densely to sample the instrument. Defaults to 'balanced' (~25 files); 'complete' is one per semitone (88)."
+          },
+          "noteRange": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "GM presets only: [minMidi, maxMidi] to sample across."
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "GM presets only: sample source, overriding the resolved CDN."
           }
         },
         "additionalProperties": false
@@ -967,7 +996,9 @@
                       },
                       {
                         "type": "object",
-                        "required": ["type"],
+                        "required": [
+                          "type"
+                        ],
                         "properties": {
                           "type": {
                             "type": "string",
@@ -992,7 +1023,10 @@
                       },
                       {
                         "type": "object",
-                        "required": ["time", "value"],
+                        "required": [
+                          "time",
+                          "value"
+                        ],
                         "properties": {
                           "time": {
                             "type": "number",

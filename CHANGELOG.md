@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 314 tests across twelve
+- A test suite that fails on a broken assertion: 320 tests across twelve
   `node:test` suites plus the four glissando suites under `src/**/__tests__/`,
   all run by CI.
 
@@ -336,6 +336,34 @@ unknown-program fallback no longer drops the strategy argument — asking for
 module-level `let` bindings at object-literal time, so they were captured as
 `undefined` and stayed that way however many times you called `load()`. The
 loader now populates the namespace in place.
+
+### A preset can name a General MIDI instrument
+
+`customPresets` declared its `type` as a string, so a preset could name a Tone
+class but not an instrument — `synth: 40` worked on a track and nowhere else.
+`type` now takes a Tone class name **or** a GM program number, the same two
+spellings a track's `synth` accepts, and a GM preset may carry `strategy`,
+`noteRange` and `baseUrl` so a named instrument can ask for a sample density.
+A track referencing it can still override any of them.
+
+    customPresets: [{ id: "violin", type: 40, strategy: "complete" }]
+    tracks: [{ label: "Strings", synth: "violin", notes }]
+
+### The limit of General MIDI playback, measured
+
+`GM_SAMPLE_SECONDS` and `gmMaxBeats(tempo)` record something that was folklore:
+every FluidR3 file is the same fixed-length render — violin C4, violin C6 and
+piano C4 are all 122 MPEG frames at 44.1 kHz, so 3.19 seconds each.
+
+A soundfont engine loops a sample's sustain region and holds a note as long as
+you like. These stop. A whole note at 60 BPM is four seconds, so it ends in
+silence, and no setting closes that gap — but
+
+    jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo))
+
+re-articulates what would otherwise fall silent. `userguide/OUTLINE.md` (I.4)
+carries the rest: reverb, sample density, release and velocity, in the order
+they matter.
 
 ### Known gaps
 

@@ -69,6 +69,32 @@ export function resolveConnectTarget(track, audioGraph, graphNodes, fallbackTarg
  * @param {Array<{id: string, type: string, options: Object}>} [presets]
  * @returns {*} The spec with any preset reference expanded
  */
+/**
+ * Expand a preset into the spec it stands for.
+ *
+ * A preset's `type` is a Tone class name, or a General MIDI program number —
+ * the same two things a track's `synth` accepts, so there is one rule to
+ * learn rather than one per place. A GM preset may also carry `strategy`,
+ * `noteRange` and `baseUrl`, which is how a named instrument asks for a
+ * sample density other than the default.
+ */
+function expandPreset(preset, extra = {}, inlineOptions = undefined) {
+  const options = { ...preset.options, ...inlineOptions };
+
+  if (typeof preset.type === "number") {
+    return {
+      gm: preset.type,
+      ...(preset.strategy !== undefined && { strategy: preset.strategy }),
+      ...(preset.noteRange !== undefined && { noteRange: preset.noteRange }),
+      ...(preset.baseUrl !== undefined && { baseUrl: preset.baseUrl }),
+      ...extra,
+      options,
+    };
+  }
+
+  return { type: preset.type, ...extra, options };
+}
+
 export function resolveSynthPreset(synthSpec, presets) {
   if (!Array.isArray(presets) || presets.length === 0) return synthSpec;
 
@@ -76,7 +102,7 @@ export function resolveSynthPreset(synthSpec, presets) {
 
   if (typeof synthSpec === "string") {
     const preset = find(synthSpec);
-    return preset ? { type: preset.type, options: { ...preset.options } } : synthSpec;
+    return preset ? expandPreset(preset) : synthSpec;
   }
 
   if (synthSpec && typeof synthSpec === "object" && typeof synthSpec.preset === "string") {
@@ -87,11 +113,7 @@ export function resolveSynthPreset(synthSpec, presets) {
       return rest;
     }
     const { preset: _dropped, options: inline, ...rest } = synthSpec;
-    return {
-      type: preset.type,
-      ...rest,
-      options: { ...preset.options, ...inline },
-    };
+    return expandPreset(preset, rest, inline);
   }
 
   return synthSpec;

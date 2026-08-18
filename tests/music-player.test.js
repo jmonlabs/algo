@@ -457,6 +457,60 @@ test("prepareSoundfonts probes only when a track needs samples", async () => {
     await prepareSoundfonts([{ label: "a", synth: { gm: 40 } }]), null,
     "the object spelling counts too",
   );
-  // A customPreset cannot name a GM program: the schema declares its `type`
-  // as a string. `synth: { gm: 40 }` on the track is the spelling for that.
+  assert.notEqual(
+    await prepareSoundfonts(
+      [{ label: "a", synth: "violin" }],
+      [{ id: "violin", type: 40 }],
+    ),
+    null,
+    "a preset that names a GM program needs samples just the same",
+  );
+});
+
+test("a customPreset can name a GM program", async () => {
+  const { record } = await playAndRecord(composition(
+    [{ label: "strings", synth: "violin", notes: [note(67, 0)] }],
+    { customPresets: [{ id: "violin", type: 40 }] },
+  ));
+
+  const sampler = record.nodes.find((n) => n.type === "Sampler");
+  assert.ok(sampler, `no Sampler; got ${record.nodes.map((n) => n.type).join(", ")}`);
+  assert.match(Object.values(sampler.options.urls)[0], /\/violin-mp3\//);
+});
+
+test("a GM preset carries its sampling strategy", async () => {
+  const { record } = await playAndRecord(composition(
+    [{ label: "strings", synth: "violin", notes: [note(67, 0)] }],
+    { customPresets: [{ id: "violin", type: 40, strategy: "complete" }] },
+  ));
+
+  const sampler = record.nodes.find((n) => n.type === "Sampler");
+  assert.equal(Object.keys(sampler.options.urls).length, 88);
+});
+
+test("a track can override a GM preset's strategy", async () => {
+  const { record } = await playAndRecord(composition(
+    [{
+      label: "strings",
+      synth: { preset: "violin", strategy: "minimal" },
+      notes: [note(67, 0)],
+    }],
+    { customPresets: [{ id: "violin", type: 40, strategy: "complete" }] },
+  ));
+
+  const sampler = record.nodes.find((n) => n.type === "Sampler");
+  assert.ok(
+    Object.keys(sampler.options.urls).length < 20,
+    `the track's minimal should win, got ${Object.keys(sampler.options.urls).length}`,
+  );
+});
+
+test("a preset naming a Tone class still resolves to that class", async () => {
+  // The GM branch must not swallow the string case.
+  const { record } = await playAndRecord(composition(
+    [{ label: "lead", synth: "warm", notes: [note(60, 0)] }],
+    { customPresets: [{ id: "warm", type: "MonoSynth", options: { detune: 7 } }] },
+  ));
+
+  assert.equal(record.nodes.find((n) => n.type === "MonoSynth")?.options?.detune, 7);
 });

@@ -64,6 +64,9 @@ const __GM_EXPORTS = [
   "getSoundfontBase",
   "setSoundfontBase",
   "resolveSoundfontBase",
+  // The 3.19 s ceiling on every FluidR3 sample, and the beat count it buys.
+  "GM_SAMPLE_SECONDS",
+  "gmMaxBeats",
 ];
 
 /** Lazy-load GM instrument helpers. Cached after the first call. */

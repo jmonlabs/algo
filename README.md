@@ -201,6 +201,13 @@ as in [chapter 6](userguide/06-walks.html).
 - Your own samples, no GM involved:
   `synth: { type: "Sampler", options: { baseUrl, urls } }`.
 - Drum kits: `jm.instruments.registerDrumKit(name, { baseUrl, samples })`.
+- A `customPreset`'s `type` may be a Tone class name or a GM program number,
+  so a named instrument works like any other preset.
+
+Every FluidR3 sample is a fixed 3.19-second render — unlike a soundfont engine,
+which loops the sustain region, a longer note runs out of sound.
+`jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo))`
+re-articulates what would otherwise fall silent.
 
 Note these are per-note sample sets (the *midi-js* layout), not `.sf2` files —
 there is no SoundFont parser. Convert an `.sf2` to a folder of per-note MP3s to
@@ -219,7 +226,7 @@ use it.
 node --test tests/*.test.js src/**/__tests__/*.test.js
 ```
 
-314 assertion-backed tests, no dependencies to install: twelve `node:test`
+320 assertion-backed tests, no dependencies to install: twelve `node:test`
 suites in `tests/`, plus four glissando suites next to the code they cover.
 The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`, Verovio or
 Bun and are observations rather than tests — see the README there.

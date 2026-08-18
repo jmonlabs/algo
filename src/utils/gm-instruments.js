@@ -492,3 +492,33 @@ export function getPopularInstruments() {
     { program: 21, name: "Accordion", category: "Organ" },
   ];
 }
+
+/**
+ * How long a FluidR3 sample lasts, in seconds.
+ *
+ * Every file in the set is the same fixed-length render — measured, not
+ * assumed: violin C4, violin C6 and piano C4 are all 122 MPEG frames at
+ * 44.1 kHz, so 3.19 s each. This is the one place GM playback differs
+ * fundamentally from a soundfont engine, which loops a sample's sustain
+ * region and can hold a note forever. Here the note simply stops.
+ *
+ * A whole note at 60 BPM is 4 seconds, so it ends in silence.
+ */
+export const GM_SAMPLE_SECONDS = 3.19;
+
+/**
+ * The longest note, in quarter notes, that a GM sample can sustain at a
+ * given tempo. Past this the sound runs out before the note does.
+ *
+ * Pair it with `jm.utils.splitLongNotes` to re-articulate what would
+ * otherwise fall silent:
+ *
+ *     const safe = jm.utils.splitLongNotes(notes, gmMaxBeats(tempo));
+ *
+ * @param {number} [tempo=120] - Beats per minute
+ * @returns {number} Quarter notes
+ */
+export function gmMaxBeats(tempo = 120) {
+  const bpm = Number(tempo) > 0 ? Number(tempo) : 120;
+  return GM_SAMPLE_SECONDS * bpm / 60;
+}

@@ -208,3 +208,37 @@ test("the folders that break the naming pattern are kept as data", async () => {
   assert.equal(GM_INSTRUMENTS[87].folder, "lead_8_bass__lead-mp3");
   assert.equal(GM_INSTRUMENTS[103].folder, "fx_8_scifi-mp3");
 });
+
+/* --- the sustain ceiling -------------------------------------------------- */
+
+test("gmMaxBeats converts the sample length into quarter notes", async () => {
+  const { GM_SAMPLE_SECONDS, gmMaxBeats } = await import("../src/utils/gm-instruments.js");
+
+  // Every FluidR3 file is the same fixed-length render — 122 MPEG frames at
+  // 44.1 kHz. A soundfont engine loops the sustain region and holds forever;
+  // these just stop.
+  assert.ok(GM_SAMPLE_SECONDS > 3 && GM_SAMPLE_SECONDS < 3.3);
+
+  assert.equal(gmMaxBeats(60), GM_SAMPLE_SECONDS, "at 60 BPM a beat is a second");
+  assert.equal(gmMaxBeats(120), GM_SAMPLE_SECONDS * 2);
+  assert.equal(gmMaxBeats(), gmMaxBeats(120), "120 is the default tempo");
+  assert.equal(gmMaxBeats(0), gmMaxBeats(120), "a nonsense tempo falls back");
+});
+
+test("splitLongNotes at gmMaxBeats keeps every piece inside the sample", async () => {
+  const { gmMaxBeats } = await import("../src/utils/gm-instruments.js");
+  const { splitLongNotes } = await import("../src/algorithms/utils.js");
+
+  const tempo = 60;
+  const limit = gmMaxBeats(tempo);          // 3.19 beats at 60 BPM
+  const held = [{ pitch: 60, duration: 16, time: 0, velocity: 0.8 }];
+
+  const pieces = splitLongNotes(held, limit);
+
+  assert.ok(pieces.length > 1, "a 16-beat note has to be re-articulated");
+  for (const piece of pieces) {
+    assert.ok(piece.duration <= limit, `${piece.duration} beats outlasts the sample`);
+  }
+  const total = pieces.reduce((sum, p) => sum + p.duration, 0);
+  assert.ok(Math.abs(total - 16) < 1e-9, "and the total length is unchanged");
+});

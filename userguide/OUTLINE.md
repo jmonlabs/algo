@@ -61,8 +61,37 @@ of other topics rather than a foundation.
 
 `customPresets` belongs here too: define a synth once at composition level and
 name it from a track (`synth: "warmPad"`, or `{ preset: "warmPad", options }`
-to layer overrides). Both players and the WAV renderer share one synth factory,
-so a preset sounds the same live, offline and exported.
+to layer overrides). A preset's `type` may be a Tone class name **or a GM
+program number**, so a named instrument works the same way. Both players and
+the WAV renderer share one synth factory, so a preset sounds the same live,
+offline and exported.
+
+**Getting GM to sound like a soundfont** deserves its own section here — it is
+the question a reader arrives with, and the honest answer has one hard limit
+and four soft ones.
+
+The hard limit: **every FluidR3 sample is 3.19 seconds** — one fixed-length
+render per note, measured, not a rule of thumb. A soundfont engine loops a
+sample's sustain region and holds a note indefinitely; these simply stop. A
+whole note at 60 BPM is four seconds, so it ends in silence. That is the one
+difference no setting closes.
+
+    const safe = jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo));
+
+re-articulates what would otherwise fall silent. On strings and organ the
+re-attack is audible, so it is a trade rather than a fix — worth saying so.
+
+The four that *are* closable, in order of how much they matter:
+
+| | |
+|---|---|
+| **Reverb** | fluidsynth applies reverb by default; these samples are dry, which reads as "flat" before it reads as "wrong". An `audioGraph` reverb, or one of the `jm.audioGraph.master.*` chains, is the single biggest improvement. |
+| **Sample density** | the default `balanced` resamples up to ±2 semitones, which shifts formants — audible on voice, strings and brass, inaudible on percussion. `{ gm: 40, strategy: "complete" }` gives a native sample per semitone at the cost of 88 requests. |
+| **Release** | `{ gm: 40, options: { release: 0.6 } }` — without a release tail, notes cut off squarely where a real instrument decays. |
+| **Velocity** | midi-js samples are single-velocity, so dynamics are gain alone: a fortissimo is a louder mezzo, not a brighter one. Layering a filtered duplicate track, or driving a filter cutoff from velocity, is the workaround. |
+
+Order matters in the writing: a reader who adds reverb first will stop asking
+the question.
 
 One consequence of the synth choice is easy to miss and belongs in III.1:
 a glissando on the default `PolySynth` loses the track's timbre, while any
