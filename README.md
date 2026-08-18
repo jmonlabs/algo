@@ -203,7 +203,7 @@ jm.play(composition, { Tone, sound });
 
 ```js
 { label: "Violin", synth: 40, notes }               // a General MIDI program
-{ label: "Drums",  synth: "kit:808", notes }        // a drum kit
+{ label: "Drums",  synth: "drumkit:acoustic", notes }  // a drum kit
 ```
 
 `jmon/algo` composes and schedules; that package plays the result with real
