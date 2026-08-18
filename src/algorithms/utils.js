@@ -841,7 +841,7 @@ export function quantizeTrack(track, options = {}) {
  *
  * @example
  * // Tighten a MIDI import onto a sixteenth grid
- * const tight = quantizePiece(jm.converters.midiToJmon(bytes), { grid: 0.25 });
+ * const tight = quantizePiece(jm.midiToJmon(bytes), { grid: 0.25 });
  */
 export function quantizePiece(piece, options = {}) {
     const { grid = 0.25, mode = 'nearest' } = options;

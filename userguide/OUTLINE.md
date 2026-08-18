@@ -24,13 +24,23 @@ Read once, in order. This is the only linear part.
 
 | | |
 |---|---|
-| Covers | The JMON format: `{ pitch, duration, time, velocity }`, tracks, compositions. `jm.play()`, `jm.score()`, `jm.validate()`. Rests as `pitch: null`, chords as `pitch: [60, 64, 67]`. |
+| Covers | The JMON format: `{ pitch, duration, time, velocity }`, tracks, pieces. `jm.play()`, `jm.score()`, `jm.validate()`. Rests as `pitch: null`, chords as `pitch: [60, 64, 67]`. |
 | Assumes | Nothing. |
 | Source | **existing** — `01-getting-started.html` |
 
-Note: fix "8 chapters" in the intro, and the CDN-vs-`../src/` import split
-(chapters 01–02 load from jsDelivr, 03–10 from the local source — worth stating
-once, here, that the guide runs from a clone).
+Note: fix "8 chapters" in the intro. The import split is gone: the library is
+four packages now, and every chapter opens with the same two lines from
+`shared/header.js`, so the guide runs from anywhere rather than from a clone.
+
+    import studio from "https://cdn.jsdelivr.net/gh/jmonlabs/studio@main/src/index.js";
+    const jm = await studio();
+
+Say once, here, what those two lines assemble, and then never again: `jm.key`
+and `jm.theory` and `jm.generative` are [`jmon/algo`](https://github.com/jmonlabs/algo),
+`jm.play` and `jm.score` and `jm.wav` are `jmon/show`, `jm.midi` and
+`jm.musicxml` are `jmon/io`, `jm.instruments` is `jmon/sound`. A reader who
+wants one of them alone can import it alone; nothing else in the guide depends
+on knowing that.
 
 ### I.2 Harmony
 
@@ -55,11 +65,11 @@ of other topics rather than a foundation.
 
 | | |
 |---|---|
-| Covers | Per-track `synth` (Tone.js class name, GM program number, or `{type, options}`), `pan`, the `audioGraph`, effects, `jm.audioGraph.master.*` mastering chains (`dark`, `light`, `warm`, `cinematic`, `intimate`, `broadcast`, `vinyl`, `lush`). Sampled instruments and your own sample sets via `jmon/sound`. |
+| Covers | Per-track `synth` (Tone.js class name, GM program number, or `{type, options}`), `pan`, the `audioGraph`, effects, `jm.master.*` mastering chains (`dark`, `light`, `warm`, `cinematic`, `intimate`, `broadcast`, `vinyl`, `lush`). Sampled instruments and your own sample sets via `jmon/sound`. |
 | Assumes | I.1 |
 | Source | **existing** — `05-sounds.html`. The mastering presets are undocumented; add them. |
 
-`customPresets` belongs here too: define a synth once at composition level and
+`customPresets` belongs here too: define a synth once at piece level and
 name it from a track (`synth: "warmPad"`, or `{ preset: "warmPad", options }`
 to layer overrides). A preset's `type` may be a Tone class name **or a GM
 program number**, so a named instrument works the same way. Both players and
@@ -74,8 +84,8 @@ Start with the fact that explains the rest: **every FluidR3 sample is a fixed
 3.13-second render**. A soundfont engine loops the sustaining part of a
 recording to hold a note indefinitely, and the library now does the same — so
 a held note no longer runs out of sound. Whether a sample *may* loop is
-measured from the recording's tail (strings 64% of peak, organ 86%, flute 95%,
-piano 4%), so decaying instruments are left to die away as they should.
+measured from the recording's tail (strings 103% of peak, violin 93%, organ 91%,
+flute 95%, piano 4%), so decaying instruments are left to die away as they should.
 `synth: { gm: 48, loopSustain: false }` opts out; a note that fits inside the
 sample is untouched either way.
 
@@ -92,14 +102,14 @@ Two details a reader will hear and wonder about, so say them plainly:
 Re-articulating instead of looping is still available, and is what you want
 when the repeated attack is the point:
 
-    jm.utils.splitLongNotes(notes, sound.gmMaxBeats(tempo));
+    jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo));
 
 The four remaining differences from a soundfont engine, in order of how much
 they matter:
 
 | | |
 |---|---|
-| **Reverb** | fluidsynth applies reverb by default; these samples are dry, which reads as "flat" before it reads as "wrong". An `audioGraph` reverb, or one of the `jm.audioGraph.master.*` chains, is the single biggest improvement. |
+| **Reverb** | fluidsynth applies reverb by default; these samples are dry, which reads as "flat" before it reads as "wrong". An `audioGraph` reverb, or one of the `jm.master.*` chains, is the single biggest improvement. |
 | **Sample density** | the default `balanced` resamples up to ±2 semitones, which shifts formants — audible on voice, strings and brass, inaudible on percussion. `{ gm: 40, strategy: "complete" }` gives a native sample per semitone at the cost of 88 requests. |
 | **Release** | `{ gm: 40, options: { release: 0.6 } }` — without a release tail, notes cut off squarely where a real instrument decays. |
 | **Velocity** | midi-js samples are single-velocity, so dynamics are gain alone: a fortissimo is a louder mezzo, not a brighter one. Layering a filtered duplicate track, or driving a filter cutoff from velocity, is the workaround. |
@@ -285,7 +295,7 @@ function. Cross-link them rather than merging.
 
 | | |
 |---|---|
-| Covers | `jm.converters.*` — `midi` / `midiBytes` / `midiBase64` / `midiPlayer`, `midiToJmon` (import direction), `wav` / `downloadWav`, `musicxml` / `downloadMusicXML`, `supercollider`, `tonejs`. `jm.score()` and `jm.scoreSVG()` via Verovio. What survives each format and what does not. |
+| Covers | Out: `jm.midi` / `midiBytes` / `midiBase64` / `midiDisplay` / `midiPlayer`, `jm.musicxml` / `downloadMusicXML`, `jm.wav`, `jm.score()` and `jm.scoreSVG()` via Verovio. In: `jm.midiToJmon` / `jm.parseMidiFile`. And `jm.validate`, which is the one that tells you why a piece did not do what you meant. What survives each format and what does not. |
 | Assumes | I.1 |
 | Source | **new** — currently scattered through 01 and 05. |
 
@@ -345,15 +355,13 @@ builds a mental model out of the nouns:
 |---|---|---|
 | **track** | part, sequence, voice, line | it is what the schema calls it, and what `tracks:` is keyed on |
 | **note** | event, item | `event` is what the *player* schedules, which is a different thing |
-| **composition** | piece, song | `jm.play(composition)` — the parameter is already named |
+| **piece** | composition, song | `jm.play(piece)` — the parameter is named for it. *Composition* stays as the act, never as the thing |
 | **Jmon** | JMON, JMon | in identifiers. `JMON` stays in prose for the format itself |
 
 `funny-gauss` went further and renamed the public helpers
-(`createPart` → `createTrack`, `createComposition` → `createPiece`). Half of
-that is now in: `createTrack` exists and `createPart` is kept as an alias.
-`createPiece` is an alias too, but **composition** is the word this outline
-uses — if you prefer *piece*, that is a decision to make once, here, and then
-apply everywhere including `jm.play`'s docs.
+(`createPart` → `createTrack`, `createComposition` → `createPiece`). Both are
+in, and both old names stay as deprecated aliases. *Piece* is now the word
+throughout the library as well as this outline.
 
 Its other finding is fixed rather than documented: `createPart` used to emit
 `{ name }` and `createComposition` a stray `bpm`, neither of which anything
@@ -370,24 +378,25 @@ Two more from that branch worth a line in the guide:
 
 ---
 
-## How src/ is laid out
+## How the library is laid out
 
 Not guide material, but the rule that keeps the guide's examples honest about
-what needs what:
+what needs what. The four directories became four repositories:
 
 | | |
 |---|---|
-| `algorithms/` | composes. Imports nothing outside itself. |
-| `converters/` | data to data: MIDI both ways, MusicXML, SuperCollider. No audio. |
-| `browser/` | makes sound: the player, live, and WAV rendering. The only place that needs Tone.js. |
-| `utils/`, `constants/` | shared by the above. |
+| [`jmon/algo`](https://github.com/jmonlabs/algo) | composes. Theory, generators, analysis, transformations. |
+| [`jmon/io`](https://github.com/jmonlabs/io) | data to data: what the format means, MIDI both ways, MusicXML. No audio. |
+| [`jmon/show`](https://github.com/jmonlabs/show) | makes sound and pictures: the player, live, WAV, score. The only one that needs Tone.js or a DOM. |
+| [`jmon/sound`](https://github.com/jmonlabs/sound) | sampled instruments for Tone.js. |
+| [`jmon/studio`](https://github.com/jmonlabs/studio) | assembles the other four. What the guide imports. |
 
-`wav.js` sits in `browser/` despite producing a file, because it drives the
-synth factory and the audio graph rather than transforming data. It is still
-exported as `jm.converters.downloadWav`, where people look for it.
-
-The rule to keep: **`converters/` must never import from `browser/`.** It did,
-through `wav.js`, and that made a cycle.
+The rule that holds it together: **none of the four imports another.** Node
+refuses `https://` imports, so a package can only *receive* another, never
+import it, and `studio` is what does the receiving on the reader's behalf. It
+is also why `wav` lives with the players rather than the exporters: it drives
+the synth factory and the audio graph, and putting it with the converters is
+exactly the cycle the split removed.
 
 ---
 
@@ -431,7 +440,7 @@ userguide/
     djalgo-guide/         the original .py notebooks, kept as reference
 
   shared/
-    header.js             the import block every chapter opens with
+    header.js             the two `studio()` lines every chapter opens with
     style.css
 
   package.json            unchanged — `npx notebooks preview --root .`
@@ -447,7 +456,8 @@ Why this rather than the current flat `01-`…`10-`:
   parts is a `git mv`, not a renumber of everything after it.
 - **`shared/`** is what stops the import block drifting. Right now every
   chapter repeats the jsDelivr URL, so a version bump is ten edits and one
-  of them gets missed.
+  of them gets missed. With `studio` there is one URL rather than four, and
+  one `ref` inside it pins all four at once.
 - **`appendix/`** keeps `djalgo-guide/` where it belongs — reference material,
   not a chapter — instead of sitting at the top level looking like one.
 

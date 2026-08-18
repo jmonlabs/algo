@@ -102,6 +102,9 @@ export function createPiece(tracks, metadata = {}) {
   };
 }
 
+/** @deprecated Use {@link createPiece}. JMON calls them pieces. */
+export const createComposition = createPiece;
+
 /**
  * Normalize notes from various formats to JMON format
  * @param {Array} notes - Notes in various formats
