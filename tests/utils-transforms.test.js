@@ -331,3 +331,52 @@ test("a composition built by the helpers is playable as-is", async () => {
   assert.equal(comp.tracks[0].label, "Lead");
   assert.ok(Array.isArray(comp.tracks[0].notes) && comp.tracks[0].notes.length === 1);
 });
+
+test("the declared version is the same in both places", async () => {
+  // package.json and jm.VERSION drifted apart once (1.1.0 against 1.0.0)
+  // because nothing compared them.
+  const { default: jm } = await import("../src/index.js");
+  const pkg = JSON.parse(
+    await (await import("node:fs/promises")).readFile(
+      new URL("../package.json", import.meta.url), "utf8",
+    ),
+  );
+  assert.equal(jm.VERSION, pkg.version, "jm.VERSION and package.json disagree");
+});
+
+test("jm imports nothing outside itself", async () => {
+  // The whole point of the split: `import jm` reaches no other package and no
+  // npm module, so it runs the same in Node, Deno and a browser.
+  //
+  // This walks the real import graph from src/index.js rather than the
+  // directory, because src/ also holds modules nothing imports — the Gaussian
+  // process wrapper is deliberately unreachable so that `@tangent.to/ds` is
+  // only paid for by someone who imports it directly.
+  const { readFile } = await import("node:fs/promises");
+  const { dirname, resolve } = await import("node:path");
+
+  const entry = new URL("../src/index.js", import.meta.url).pathname;
+  const seen = new Set();
+  const external = [];
+
+  const visit = async (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const text = await readFile(file, "utf8");
+    // Anchored at the start of a line, so URLs quoted in a doc comment (which
+    // begin with ` *`) are not mistaken for imports.
+    const IMPORT = /^\s*(?:import|export)[^;\n]*?from\s+["']([^"']+)["']/gm;
+    for (const [, spec] of text.matchAll(IMPORT)) {
+      if (!spec.startsWith(".")) {
+        external.push(`${file} imports "${spec}"`);
+        continue;
+      }
+      await visit(resolve(dirname(file), spec));
+    }
+  };
+
+  await visit(entry);
+
+  assert.deepEqual(external, [], "algo must reach nothing outside itself");
+  assert.ok(seen.size > 30, `only walked ${seen.size} files; the graph looks wrong`);
+});

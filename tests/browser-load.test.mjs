@@ -74,8 +74,13 @@ const FIXTURE_HTML = `<!doctype html>
         typeof jm.theory?.harmony?.Key === "function",
       "jm.generative.walks.Chain is function":
         typeof jm.generative?.walks?.Chain === "function",
-      "jm.play is function": typeof jm.play === "function",
-      "jm.score is function": typeof jm.score === "function",
+      // play and score moved to jmon/show, converters to jmon/io. Assert
+      // they are gone, so a stale copy of either cannot pass unnoticed.
+      "jm.play is gone": jm.play === undefined,
+      "jm.score is gone": jm.score === undefined,
+      "jm.converters is gone": jm.converters === undefined,
+      "jm.analysis is object": typeof jm.analysis === "object",
+      "jm.utils.retrograde is function": typeof jm.utils?.retrograde === "function",
     };
     const k = jm.key("C", "major");
     checks["jm.key('C','major').tonic === 'C'"] = k.tonic === "C";

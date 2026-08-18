@@ -1,240 +1,125 @@
 # jmon/algo
 
-JavaScript music composition toolkit for algorithmic and generative music.
+Algorithmic and generative music composition in JavaScript.
 
-## Distribution
+Scales, chords and voice leading; minimalist processes, random walks, fractals,
+cellular automata, genetic algorithms; rhythm and a drummer; analysis. It makes
+JMON compositions and does nothing else with them.
 
-`jmon/algo` is **ESM-only** and shipped straight from this GitHub repo via
-[jsDelivr](https://www.jsdelivr.com/). There is no npm package, no JSR
-package, no build step, no `dist/` folder. You import the source
-directly:
-
-```js
-import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
-```
-
-Pin to a tag (`@v1.2.0`) or a commit SHA when you need a stable version
-for production work. Use `@main` while iterating. Releases are listed in
-[CHANGELOG.md](CHANGELOG.md).
-
-## Getting Started
-
-### Observable Notebook Kit (browser, via vite)
-
-1. Make sure Node.js is installed (`node --version`). If not, grab it
-   from [nodejs.org](https://nodejs.org/).
-
-2. Create a folder for your music project and `cd` into it.
-
-3. Install the notebook server:
-
-   ```bash
-   npm init -y
-   npm install @observablehq/notebook-kit
-   ```
-
-4. Create `index.html`:
-
-   ```html
-   <!doctype html>
-   <notebook>
-     <title>My Composition</title>
-
-     <script type="text/markdown">
-       A *markdown* **cell** to annotate your `code`.
-
-       The next cell loads the libraries.
-     </script>
-
-     <script type="module" pinned>
-       import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
-       import * as Tone from "npm:tone";
-       import verovio from "npm:verovio@4.3.1/wasm";
-       import { VerovioToolkit } from "npm:verovio@4.3.1/esm";
-     </script>
-
-     <script type="module">
-       const scale = new jm.theory.harmony.Scale({ tonic: "C", mode: "major" })
-         .generate({ start: 60, length: 8 });
-
-       const melody = scale.map((pitch, i) => ({
-         pitch, duration: 1, time: i, velocity: 0.8,
-       }));
-
-       const comp = { tempo: 120, tracks: [{ label: "Scale", notes: melody }] };
-       display(await jm.score(comp, { verovio, VerovioToolkit }));
-       display(await jm.play(comp, { Tone }));
-     </script>
-   </notebook>
-   ```
-
-5. Start the dev server:
-
-   ```bash
-   npx notebooks preview --root .
-   ```
-
-   Open the URL it prints (usually http://localhost:5173/).
-
-### Deno
-
-Deno can resolve the jsDelivr URL directly:
+ESM source served from GitHub via jsDelivr, no build step, no npm package,
+**no dependencies and no imports of any kind**. It runs the same in Node, Deno
+and a browser.
 
 ```js
 import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+
+const scale = new jm.theory.harmony.Scale({ tonic: "C", mode: "major" })
+  .generate({ start: 60, length: 8 });
+
+const composition = {
+  tempo: 120,
+  tracks: [{
+    label: "Scale",
+    notes: scale.map((pitch, i) => ({ pitch, duration: 1, time: i, velocity: 0.8 })),
+  }],
+};
 ```
 
-If you prefer a bare specifier, alias it in `deno.json`:
+## The other three
 
-```json
+Reading, playing and drawing a composition are separate packages, each passed
+in where it is needed rather than imported. Node refuses `https://` imports, so
+that is the only way a package here can depend on another, and it makes the
+coupling visible at every call site.
+
+| | |
+|---|---|
+| [`jmon/io`](https://github.com/jmonlabs/io) | the format: what it means, and how it serialises. MIDI both ways, MusicXML, SuperCollider. |
+| [`jmon/show`](https://github.com/jmonlabs/show) | playback, live coding, WAV rendering, score engraving. |
+| [`jmon/sound`](https://github.com/jmonlabs/sound) | sampled instruments for Tone.js: General MIDI, drum kits, your own samples. |
+
+```js
+import jm    from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+import io    from "https://cdn.jsdelivr.net/gh/jmonlabs/io@main/src/index.js";
+import show  from "https://cdn.jsdelivr.net/gh/jmonlabs/show@main/src/index.js";
+import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
+import * as Tone from "npm:tone";
+
+show.play(composition, { Tone, io, sound });
+io.midi(composition);
+```
+
+Take only what you need. Generating a MIDI file needs `algo` and `io`; no
+audio, no browser.
+
+## The JMON format
+
+```js
+// A note. Rests are `pitch: null`, chords are `pitch: [60, 64, 67]`.
+{ pitch: 60, duration: 1, time: 0, velocity: 0.8 }
+
+// A composition. Times are in quarter notes.
 {
-  "imports": {
-    "@jmon/algo": "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js"
-  }
+  tempo: 120,
+  tracks: [{ label: "Melody", notes: [...] }],
 }
 ```
 
-Then `import jm from "@jmon/algo"` in your code.
+## What is here
 
-### Userguide
+### Theory — `jm.theory.*`
+Scales, intervals, chords, voice leading, progressions, ornaments and
+articulations, rhythm generation.
 
-The `userguide/` folder contains interactive HTML notebooks built with
-[Observable Notebook Kit](https://observablehq.com/framework/notebook-kit).
+`jm.key(tonic, mode)` sets the key once and builds Scale, Voice, Ornament,
+Progression and chords without repeating `{ tonic, mode }`.
 
-**Available guides:**
+### Generative — `jm.generative.*`
+- **Minimalism** — additive and subtractive processes, tintinnabuli, phase shifting
+- **Walks** — Markov chains, Brownian motion, phasors. `Chain.line()` for a single flat walk
+- **Fractals** — Mandelbrot, Julia, Burning Ship, logistic maps
+- **Automata** — Game of Life, rule 30, rule 110
+- **Genetic** — evolutionary composition with `Darwin`
+- **Loops** — Euclidean rhythms and polyrhythm
+- **Drummer** — 19 styles, multi-metre sections, variation and fills
 
-- `01-getting-started.html` — JMON format basics
-- `02-harmony.html` — Scales, chords, voice leading
-- `03-loops.html` — Polyrhythms and loops
-- `04-minimalism.html` — Process music (additive, subtractive, tintinnabuli)
-- `05-sounds.html` — Synths, audio graph, effects
-- `06-walks.html` — Random walks and Gaussian processes
-- `07-fractals.html` — Cellular automata and fractals
-- `08-genetic.html` — Evolutionary composition
-- `09-corruptor.html` — Mutating compositions
-- `10-live.html` — Live coding with the in-repo REPL (`/live/repl.html`)
+Gaussian processes live in [`@tangent.to/ds`](https://tangent-to.github.io/ds/)
+and are used directly. A thin wrapper ships here but is deliberately not
+reachable from `jm`, so importing this package never pulls that in.
 
-## A minimal example
+### Analysis — `jm.analysis.*`
+16 metrics: Gini coefficient, syncopation, contour entropy, and the rest.
 
-```js
-import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
-import * as Tone from "tone";
-import verovio from "verovio/wasm";
-import { VerovioToolkit } from "verovio";
-
-const melody = [
-  { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
-  { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
-  { pitch: 64, duration: 1, time: 2, velocity: 0.8 },
-];
-
-const composition = {
-  tempo: 120,
-  tracks: [{ label: "Melody", notes: melody }],
-};
-
-const svg = await jm.score(composition, { verovio, VerovioToolkit });
-const player = await jm.play(composition, { Tone });
-```
-
-## JMON Format
-
-The JMON format describes music as JSON objects:
-
-```js
-// A note
-{ pitch: 60, duration: 1, time: 0, velocity: 0.8 }
-
-// A track (array of notes)
-const track = [
-  { pitch: 60, duration: 1, time: 0, velocity: 0.8 },
-  { pitch: 62, duration: 1, time: 1, velocity: 0.8 },
-];
-
-// A composition
-const composition = {
-  tempo: 120,
-  tracks: [{ label: "Melody", notes: track }],
-};
-```
-
-## Features
-
-### Theory (`jm.theory.*`)
-- Scales, intervals, chords
-- Voice leading and progressions
-- Ornaments and articulations
-- Rhythm generation
-- `jm.key(tonic, mode)` context — set the key once, build Scale/Voice/Ornament/Progression/chord(s) without repeating `{tonic, mode}`
-
-### Generative (`jm.generative.*`)
-- **Minimalism**: process-based composition (additive, subtractive, tintinnabuli)
-- **Random Walks**: Markov chains, Brownian motion. `Chain.line()` returns a single flat walk when you don't need branches.
-- **Fractals**: Mandelbrot sets, logistic maps
-- **Cellular Automata**: Conway's Game of Life, rule 30/110
-- **Genetic Algorithms**: evolutionary composition (`Darwin`)
-
-Gaussian processes are not part of the `jm` namespace — they live in
-[`@tangent.to/ds`](https://tangent-to.github.io/ds/) and are used directly,
-as in [chapter 6](userguide/06-walks.html).
-
-### Analysis (`jm.analysis.*`)
-- 16 musical metrics
-- Gini coefficient, syncopation, contour entropy
-- Statistical pattern analysis
-
-### Converters (`jm.converters.*`)
-- MIDI files (both directions — `midi` out, `midiToJmon` in)
-- Tone.js (web audio)
-- Verovio (notation rendering, and MusicXML export)
-- WAV audio
-- SuperCollider
-
-### Sampled instruments — a separate package
-
-General MIDI, drum kits and sample loading live in
-[`jmon/sound`](https://github.com/jmonlabs/sound), injected the way Tone.js and
-Verovio are:
-
-```js
-import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
-jm.play(composition, { Tone, sound });
-```
-
-```js
-{ label: "Violin", synth: 40, notes }               // a General MIDI program
-{ label: "Drums",  synth: "drumkit:acoustic", notes }  // a drum kit
-```
-
-`jmon/algo` composes and schedules; that package plays the result with real
-instrument samples, and handles what a soundfont engine does with a sounding
-note — bending it by resampling rather than substituting, holding it past the
-end of the recording. Without it `jm.play()` still works: a track asking for a
-General MIDI program falls back to a synth, audible and in time but not the
-instrument that was written.
-
-Anything with the same shape can be passed instead — the contract is four
-optional methods, documented in that repo.
-
-### Utils (`jm.utils.*`)
-- Sequence transformations: `invert`, `retrograde`, `augment`, `transpose`,
-  `applySwing`, `splitLongNotes`, `removeDuplicates`, `normalizeVelocities`
+### Utils — `jm.utils.*`
+- Transformations: `invert`, `retrograde`, `augment`, `transpose`, `applySwing`,
+  `splitLongNotes`, `removeDuplicates`, `normalizeVelocities`
 - Queries: `getPitchRange`, `getTotalDuration`, `extractRhythm`
-- Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`,
-  `quantizeComposition` (grids in quarter notes; `1/3` for triplets)
+- Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizeComposition`
+  (grids in quarter notes; `1/3` for triplets)
+- Builders: `createTrack`, `createComposition`
+
+## Userguide
+
+`userguide/` holds interactive notebooks built with
+[Observable Notebook Kit](https://observablehq.com/framework/notebook-kit).
+`OUTLINE.md` is the plan they are being rewritten against.
+
+```bash
+npx notebooks preview --root userguide
+```
 
 ## Tests
 
 ```bash
-node --test tests/*.test.js src/**/__tests__/*.test.js
+node --test tests/*.test.js
 ```
 
-303 assertion-backed tests, no dependencies to install: eleven `node:test`
-suites in `tests/`, plus four glissando suites next to the code they cover.
-The sampled-instrument tests moved with the code, to
-[`jmon/sound`](https://github.com/jmonlabs/sound).
-The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`, Verovio or
-Bun and are observations rather than tests — see the README there.
+172 assertion-backed tests, nothing to install. One of them walks the import
+graph from `src/index.js` and fails if anything outside the package is reached,
+which is the property the whole layout rests on.
+
+The scripts in `tests/integration/` need a real Tone.js or `@tangent.to/ds` and
+are observations rather than tests — see the README there.
 
 ## License
 
