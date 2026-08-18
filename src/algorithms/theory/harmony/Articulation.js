@@ -7,8 +7,72 @@ import { ARTICULATION_TYPES } from "../../constants/ArticulationTypes.js";
 
 export class Articulation {
   /**
+   * Build a reusable articulation, the same way `Ornament` is built: the type
+   * and its parameters are fixed once, then `apply()` takes the notes.
+   *
+   * @param {Object} options
+   * @param {string} options.type - Articulation type. Unknown types throw,
+   *   listing what is available — matching `Ornament`'s constructor.
+   * @param {Object} [options.parameters] - Parameters for complex
+   *   articulations (`rate`, `depth`, `delay`, ...), merged over the type's
+   *   defaults.
+   *
+   * @example
+   * const staccato = new Articulation({ type: 'staccato' });
+   * const notes = staccato.apply(melody, 0);
+   *
+   * @example Same shape as Ornament
+   * new Ornament({ type: 'trill', tonic: 'C', mode: 'major' }).apply(notes, 0);
+   * new Articulation({ type: 'staccato' }).apply(notes, 0);
+   */
+  constructor(options = {}) {
+    const definition = ARTICULATION_TYPES[options.type];
+    if (!definition) {
+      throw new Error(
+        `Unknown articulation type: ${options.type}. Select one among '${
+          Object.keys(ARTICULATION_TYPES).join(", ")
+        }'.`,
+      );
+    }
+
+    this.type = options.type;
+    this.params = {
+      ...definition.defaultParams,
+      ...options.parameters,
+    };
+  }
+
+  /**
+   * Apply this articulation to a track.
+   *
+   * Mirrors `Ornament#apply`: pass an index, or omit it to articulate a note
+   * at random. An array of indices articulates several notes in one call —
+   * they are applied back to front so that rest insertions do not shift the
+   * indices still to come.
+   *
+   * @param {Array<Object>} notes - JMON notes
+   * @param {number|Array<number>|null} [noteIndex=null] - Index, indices, or
+   *   `null` to pick one at random
+   * @returns {Array<Object>} New notes array
+   */
+  apply(notes, noteIndex = null) {
+    if (!Array.isArray(notes) || notes.length === 0) {
+      return notes;
+    }
+
+    const target = noteIndex === null
+      ? Math.floor(Math.random() * notes.length)
+      : noteIndex;
+
+    return Articulation.apply(notes, target, this.type, this.params);
+  }
+
+  /**
    * Apply articulation to notes array (returns new array, immutable)
-   * This API matches the Ornament pattern for consistency
+   *
+   * The low-level form. Prefer the constructor when the same articulation is
+   * applied more than once, so the type is validated up front rather than
+   * warned about per call.
    *
    * Overloaded signatures:
    * - apply(notes[], noteIndex, articulationType, params) - array API (immutable)

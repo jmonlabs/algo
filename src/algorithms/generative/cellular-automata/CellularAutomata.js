@@ -16,18 +16,18 @@
 /**
  * Elementary cellular automaton implementation for musical pattern generation
  *
- * @example Observable
+ * @example
  * ```js
- * jm = await import("https://esm.sh/jsr/@jmon/algo")
+ * import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
  *
  * // Create a Rule 110 automaton
- * ca = new jm.generative.automata.Cellular({
+ * const ca = new jm.generative.automata.Cellular({
  *   ruleNumber: 110,
  *   width: 64
  * })
  *
  * // Generate 40 steps
- * history = ca.generate(40)
+ * const history = ca.generate(40)
  *
  * // Visualize with Observable Plot
  * Plot.plot({
@@ -38,17 +38,6 @@
  *     })
  *   ]
  * })
- * ```
- *
- * @example Node.js
- * ```js
- * import { jm } from '@jmon/algo'
- *
- * const ca = new jm.generative.automata.Cellular({
- *   ruleNumber: 30,
- *   width: 51
- * })
- * const patterns = ca.generate(100)
  * ```
  */
 export class CellularAutomata {
@@ -331,36 +320,4 @@ export class CellularAutomata {
     });
   }
 
-  /**
-   * Create Observable Plot visualization of CA evolution
-   * @param {Object} [options] - Plot options
-   * @returns {Object} Observable Plot spec
-   */
-  async plotEvolution(options) {
-    // Dynamic import for visualization
-    const CAVisualizerModule = await import('../../visualization/cellular-automata/CAVisualizer.js');
-    return CAVisualizerModule.CAVisualizer.plotEvolution(this.getHistory(), options);
-  }
-
-  /**
-   * Create Observable Plot visualization of current generation
-   * @param {Object} [options] - Plot options
-   * @returns {Object} Observable Plot spec
-   */
-  async plotGeneration(options) {
-    // Dynamic import for visualization
-    const CAVisualizerModule = await import('../../visualization/cellular-automata/CAVisualizer.js');
-    return CAVisualizerModule.CAVisualizer.plotGeneration(this.getCurrentState(), options);
-  }
-
-  /**
-   * Create Observable Plot density visualization
-   * @param {Object} [options] - Plot options
-   * @returns {Object} Observable Plot spec
-   */
-  async plotDensity(options) {
-    // Dynamic import for visualization
-    const CAVisualizerModule = await import('../../visualization/cellular-automata/CAVisualizer.js');
-    return CAVisualizerModule.CAVisualizer.plotDensity(this.getHistory(), options);
-  }
 }

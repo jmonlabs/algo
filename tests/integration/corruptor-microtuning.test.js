@@ -10,7 +10,7 @@ console.log('=== Testing Corruptor Microtuning Support ===\n');
 // Test 1: Basic microtuning pass-through
 console.log('1. Testing microtuning pass-through in tonejs converter');
 try {
-  const simpleComposition = {
+  const simplePiece = {
     tempo: 120,
     tracks: [{
       label: 'Test Track',
@@ -22,7 +22,7 @@ try {
     }]
   };
 
-  const converted = tonejs(simpleComposition);
+  const converted = tonejs(simplePiece);
   const firstTrack = converted.tracks[0];
 
   console.log('  ✓ Converted track:', firstTrack.trackInfo.label);
@@ -46,7 +46,7 @@ try {
 // Test 2: Corruptor integration
 console.log('2. Testing Corruptor microtuning generation');
 try {
-  const composition = {
+  const piece = {
     tempo: 120,
     tracks: [{
       label: 'Melody',
@@ -71,9 +71,9 @@ try {
     velocitySag: false
   });
 
-  const corrupted = corruptor.corrupt(composition);
+  const corrupted = corruptor.corrupt(piece);
 
-  console.log('  ✓ Original notes:', composition.tracks[0].notes.length);
+  console.log('  ✓ Original notes:', piece.tracks[0].notes.length);
   console.log('  ✓ Corrupted notes:', corrupted.tracks[0].notes.length);
 
   let microtuningCount = 0;
@@ -97,7 +97,7 @@ try {
 // Test 3: End-to-end Corruptor → tonejs conversion
 console.log('3. Testing end-to-end Corruptor → tonejs pipeline');
 try {
-  const composition = {
+  const piece = {
     tempo: 140,
     tracks: [{
       label: 'Corrupted Melody',
@@ -116,7 +116,7 @@ try {
     driftAmount: 2.0 // Higher drift amount
   });
 
-  const corrupted = corruptor.corrupt(composition);
+  const corrupted = corruptor.corrupt(piece);
   const converted = tonejs(corrupted);
 
   const track = converted.tracks[0];
@@ -152,7 +152,7 @@ try {
     driftAmount: 1.0
   });
 
-  const composition = {
+  const piece = {
     tempo: 120,
     tracks: [{
       label: 'Range Test',
@@ -165,7 +165,7 @@ try {
     }]
   };
 
-  const corrupted = corruptor.corrupt(composition);
+  const corrupted = corruptor.corrupt(piece);
 
   const microtunings = corrupted.tracks[0].notes
     .map(n => n.microtuning)

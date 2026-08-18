@@ -22,7 +22,8 @@ export class Progression extends MusicTheoryConstants {
      * @param {string} [options.tonic='C4'] - The tonic pitch or key (e.g., 'C4', 'C', 'D')
      * @param {string} [options.mode='major'] - The scale/mode ('major', 'minor', 'dorian', etc.)
      * @param {string} [options.circleOf='P5'] - Interval to form the circle (e.g., 'P5', 'P4')
-     * @param {string} [options.type='chords'] - Output type: 'chords' or 'pitches'
+     * @param {string} [options.type='chords'] - Validated against `'chords'`/`'pitches'`
+     *   but not otherwise read; `generate()` always returns chord arrays
      * @param {Array} [options.radius=[3, 3, 1]] - Range for major, minor, and diminished chords
      * @param {Array} [options.weights] - Weights for selecting chord types (defaults to radius)
      */
@@ -38,15 +39,16 @@ export class Progression extends MusicTheoryConstants {
             weights
         } = options;
 
-        // Parse tonic - handle both 'C' and 'C4' formats
-        if (tonic.length <= 2) {
-            // Just note name, add octave
-            this.tonicMidi = cdeToMidi(tonic + '4');
-            this.tonicNote = tonic;
-        } else {
-            this.tonicMidi = cdeToMidi(tonic);
-            this.tonicNote = tonic.replace(/[0-9]/g, '');
-        }
+        // Parse tonic — accepts a bare note name ('C', 'F#') or an
+        // octave-qualified one ('C4', 'Bb3'). cdeToMidi mishandles bare
+        // accidentals, so the bare form gets a default octave appended.
+        //
+        // The test is for a trailing octave number, not string length: the
+        // default tonic 'C4' is two characters long, so a length test sent it
+        // down the bare branch and asked cdeToMidi for 'C44' — a semitone flat.
+        const hasOctave = /-?\d+$/.test(tonic);
+        this.tonicMidi = cdeToMidi(hasOctave ? tonic : `${tonic}4`);
+        this.tonicNote = tonic.replace(/-?\d+$/, '');
 
         this.scale = mode;
         this.mode = mode;
@@ -556,7 +558,7 @@ export class Progression extends MusicTheoryConstants {
      *
      * Operations can be primitives ('P','L','R','N','S','H') or compound
      * strings ('PL','LRP'). A compound applies its primitives in order and
-     * yields **one** result chord (the composition); an array of primitives
+     * yields **one** result chord (the piece); an array of primitives
      * yields one chord per element.
      *
      * @param {Array<string>} ops - e.g. `['P','L','R']` or `['PL','R','H']`

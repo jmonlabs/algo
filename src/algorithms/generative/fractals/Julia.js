@@ -1,7 +1,7 @@
 import { ComplexPlaneFractal } from './ComplexPlaneFractal.js';
 
 /**
- * Julia set fractal generator for musical composition.
+ * Julia set fractal generator for musical piece.
  * z₀ = point in plane, c = fixed parameter, iterate z = z² + c
  *
  * @example

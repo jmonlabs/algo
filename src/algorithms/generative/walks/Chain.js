@@ -153,7 +153,7 @@ export class Chain {
    *   walkProbability: [-1, 0, 1],
    *   roundTo: 0
    * });
-   * const walk = chain.line(16, 42);  // [3, 4, 4, 3, 2, 3, 4, ...]
+   * const walk = chain.line(16, 42);  // [3, 4, 5, 5, 5, 6, 7, 7, ...]
    * ```
    */
   line(length, seed) {

@@ -1,11 +1,12 @@
-# Build the userguide notebooks and assemble a static site for GitHub Pages.
+# Assemble a static site for GitHub Pages. Nothing here needs a build step.
 #
 # Layout deployed:
 #   /                    landing page (root index.html)
-#   /userguide/          notebook-kit output for chapters 01..10
-#   /live/               live coding REPL + iframe player (static, no build)
-#   /src/                library source (so userguide's ../src/index.js resolves)
+#   /live/               live coding REPL + iframe player
+#   /src/                library source
 #   /schemas/            JMON schema
+#
+# The user guide moved to jmon/studio and is not part of this site.
 #
 # One-time setup in repo Settings → Pages: set Source to "GitHub Actions".
 
@@ -33,30 +34,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: userguide/package-lock.json
-
-      - name: Install userguide deps
-        working-directory: userguide
-        run: npm ci
-
-      - name: Build userguide notebooks
-        working-directory: userguide
-        run: npm run build
-        # Outputs to userguide/dist with the chapter HTMLs plus an
-        # assets/ folder of bundled JS/CSS (Tone, Verovio, etc.).
-
       - name: Assemble _site
         run: |
           mkdir -p _site
-          cp index.html        _site/
-          cp -r src            _site/src
-          cp -r live           _site/live
-          cp -r schemas        _site/schemas
-          cp -r userguide/dist _site/userguide
+          cp index.html _site/
+          cp -r src     _site/src
+          cp -r live    _site/live
+          cp -r schemas _site/schemas
 
       - uses: actions/upload-pages-artifact@v3
         with:

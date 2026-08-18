@@ -382,8 +382,10 @@ const K = scope.key;
 scope.seed = (scope.seed ?? 0) + 1;
 
 // --- Scales (two registers) ----------------------------------------------
-const lowScale  = K.scale().generate({ start: 43, length: 15 }); // ~G2..D4
-const highScale = K.scale().generate({ start: 67, length: 14 }); // ~G4..B5
+const lowScale  = K.scale().generate({ start: 43, length: 15 }); // C2..C4
+// `start` selects the octave, then snaps back to the tonic — 43 lands on C2,
+// not G2. Generate wide and slice if you need an exact register.
+const highScale = K.scale().generate({ start: 67, length: 14 }); // C4..B5
 
 // --- Walks: two chains, two periodicities --------------------------------
 const violinIdx = new jm.generative.walks.Chain({
@@ -428,7 +430,7 @@ pattern = {
     { label: "drone", notes: [{ pitch: ["C2", "G2", "C3"], time: 0, duration: "1n", velocity: 0.25 }]},
     // synth.type names a Tone.js class (PolySynth handles the triad chords);
     // synth.options are forwarded to the constructor.
-    { label: "pad",vpan: -0.3, synth: { type: "PolySynth", options: { envelope: { attack: 0.4, decay: 0.4, sustain: 0.7, release: 1.2 } } }, notes: padChords },
+    { label: "pad", pan: -0.3, synth: { type: "PolySynth", options: { envelope: { attack: 0.4, decay: 0.4, sustain: 0.7, release: 1.2 } } }, notes: padChords },
     { label: "bass",   notes: bassNotes },
     // synth: 40 selects the GM violin SoundFont; first notes may be silent
     // while samples load from CDN. Drop the synth field for a default Tone.

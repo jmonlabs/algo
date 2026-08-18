@@ -120,11 +120,15 @@ export class Voice extends MusicTheoryConstants {
         const transposedRoots = rootPitches.map(p => p + transpose);
 
         // Generate chords using chordifyMany (using original roots, not transposed)
-        // We'll apply transpose to the final output
+        // We'll apply transpose to the final output.
+        //
+        // No `scale` is passed on purpose: chordifyMany generates one that
+        // spans the actual root range, with headroom for the chord degrees.
+        // Handing it `this.scale` — a single octave — used to clip chords
+        // rooted on the upper degrees.
         const chords = chordifyMany(rootPitches, {
             tonic: this.tonic,
             mode: this.mode,
-            scale: this.scale,
             degrees: this.degrees
         });
 

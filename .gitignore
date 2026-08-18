@@ -82,8 +82,7 @@ out
 .nuxt
 #dist
 
-# notebook-kit build output (userguide chapters) and Pages assembly dir
-userguide/dist
+# Pages assembly dir
 _site
 
 # Gatsby files

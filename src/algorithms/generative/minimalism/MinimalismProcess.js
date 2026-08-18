@@ -323,7 +323,7 @@ export class MinimalismProcess {
 }
 
 /**
- * Tintinnabuli style implementation for modal composition
+ * Tintinnabuli style implementation for modal piece
  * JMON-compliant: accepts mixed inputs, returns JMON notes
  * 
  * @example

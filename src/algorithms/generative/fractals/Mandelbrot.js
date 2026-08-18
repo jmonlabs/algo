@@ -1,7 +1,7 @@
 import { ComplexPlaneFractal } from './ComplexPlaneFractal.js';
 
 /**
- * Mandelbrot set fractal generator for musical composition.
+ * Mandelbrot set fractal generator for musical piece.
  * z₀ = 0, c = point in plane, iterate z = z² + c
  *
  * @example

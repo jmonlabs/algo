@@ -1,15 +1,33 @@
 import { beatsToTime } from '../../../utils/jmon-utils.js';
 
 /**
+ * Mulberry32 — small deterministic PRNG. Same seed always produces the
+ * same sequence. `Math.seedrandom` is not a real global (this package
+ * imports nothing), so a seeded `Math.random()` call was silently
+ * non-deterministic; this replaces it everywhere below.
+ * @private
+ */
+function _mulberry32(seed) {
+    let s = seed >>> 0;
+    return function () {
+        s = (s + 0x6D2B79F5) >>> 0;
+        let t = s;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/**
  * A class used to represent a Rhythm generator with various algorithmic methods
  */
 export class Rhythm {
     /**
-     * Constructs all the necessary attributes for the Rhythm object. Accepts the
-     * legacy `(measureLength, durations)` signature or an options object.
+     * Constructs a Rhythm. Takes either the positional
+     * `(measureLength, durations)` form or a single options object.
      *
-     * @param {number|Object} measureLength - Measure length or configuration object
-     * @param {Array<number>} [durations] - Durations list when using legacy signature
+     * @param {number|Object} measureLength - Measure length, or `{ measureLength, durations }`
+     * @param {Array<number>} [durations] - Durations, when using the positional form
      */
     constructor(measureLength, durations) {
         if (typeof measureLength === 'object' && measureLength !== null) {
@@ -30,20 +48,20 @@ export class Rhythm {
     }
 
     /**
-     * Generate a random rhythm.
-     * @param {number|Object|null} seedOrOptions - Legacy seed value or options object
-     * @param {number} [restProbability=0] - Legacy positional parameter
-     * @param {number} [maxIter=100] - Legacy positional parameter
-     * @param {Object} [options={}] - Additional options when using legacy signature
-     * @param {boolean} [options.legacy=false] - Return legacy tuples instead of objects
-     * @param {boolean} [options.useStringTime=false] - Output bars:beats:ticks time strings
-     * @returns {Array} Array of rhythm events `{ duration, time }` (or legacy tuples)
+     * Generate a random rhythm that fills one measure.
+     *
+     * @param {number|Object|null} seedOrOptions - Seed, or an options object
+     *   `{ seed, restProbability, maxIter, useStringTime }`
+     * @param {number} [restProbability=0] - Chance of skipping a slot, positional form
+     * @param {number} [maxIter=100] - Iteration cap, positional form
+     * @param {Object} [options={}] - Extra options when using the positional form
+     * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time strings
+     * @returns {Array<Object>} Rhythm events `{ duration, time }`
      */
     random(seedOrOptions = null, restProbability = 0, maxIter = 100, options = {}) {
         let seed = seedOrOptions;
         let restProb = restProbability;
         let maxIterations = maxIter;
-        let legacy = false;
         let useStringTime = false;
 
         if (typeof seedOrOptions === 'object' && seedOrOptions !== null && !Array.isArray(seedOrOptions)) {
@@ -51,30 +69,26 @@ export class Rhythm {
             seed = config.seed ?? null;
             restProb = config.restProbability ?? 0;
             maxIterations = config.maxIter ?? config.maxIterations ?? 100;
-            legacy = !!config.legacy;
             useStringTime = !!config.useStringTime;
         } else if (options && typeof options === 'object') {
-            legacy = !!options.legacy;
             useStringTime = !!options.useStringTime;
         }
 
-        if (seed !== null && typeof Math.seedrandom === 'function') {
-            Math.seedrandom(seed);
-        }
-        
+        const rng = seed !== null ? _mulberry32(seed) : Math.random;
+
         const rhythm = [];
         let totalLength = 0;
         let nIter = 0;
-        
+
         while (totalLength < this.measureLength && nIter < maxIterations) {
-            const duration = this.durations[Math.floor(Math.random() * this.durations.length)];
-            
+            const duration = this.durations[Math.floor(rng() * this.durations.length)];
+
             if (totalLength + duration > this.measureLength) {
                 nIter++;
                 continue;
             }
-            
-            if (Math.random() < restProb) {
+
+            if (rng() < restProb) {
                 nIter++;
                 continue;
             }
@@ -88,10 +102,6 @@ export class Rhythm {
             console.warn('Max iterations reached. The sum of the durations may not equal the measure length.');
         }
         
-        if (legacy) {
-            return rhythm;
-        }
-
         return rhythm.map(([duration, offset]) => ({
             duration,
             time: useStringTime ? beatsToTime(offset) : offset
@@ -99,23 +109,25 @@ export class Rhythm {
     }
 
     /**
-     * Executes the Darwinian evolution algorithm to generate the best rhythm.
-     * Accepts legacy positional args or a configuration object similar to
-     * {@link Rhythm#random}.
+     * Evolve a rhythm with a small genetic algorithm.
      *
-     * @param {number|Object|null} seedOrOptions - Legacy seed or options object
+     * Takes either positional arguments or a single options object, the same
+     * way {@link Rhythm#random} does.
+     *
+     * @param {number|Object|null} seedOrOptions - Seed, or an options object
+     *   `{ seed, populationSize, maxGenerations, mutationRate, useStringTime }`
      * @param {number} [populationSize=10]
      * @param {number} [maxGenerations=50]
      * @param {number} [mutationRate=0.1]
-     * @param {Object} [options={}] - Additional options (legacy flag, string times)
-     * @returns {Array} Rhythm events as `{ duration, time }` objects or legacy tuples
+     * @param {Object} [options={}] - Extra options when using the positional form
+     * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time strings
+     * @returns {Array<Object>} Rhythm events `{ duration, time }`
      */
     darwin(seedOrOptions = null, populationSize = 10, maxGenerations = 50, mutationRate = 0.1, options = {}) {
         let seed = seedOrOptions;
         let popSize = populationSize;
         let generations = maxGenerations;
         let mutRate = mutationRate;
-        let legacy = false;
         let useStringTime = false;
 
         if (typeof seedOrOptions === 'object' && seedOrOptions !== null && !Array.isArray(seedOrOptions)) {
@@ -124,10 +136,8 @@ export class Rhythm {
             popSize = config.populationSize ?? config.population ?? 10;
             generations = config.maxGenerations ?? config.generations ?? 50;
             mutRate = config.mutationRate ?? 0.1;
-            legacy = !!config.legacy;
             useStringTime = !!config.useStringTime;
         } else if (options && typeof options === 'object') {
-            legacy = !!options.legacy;
             useStringTime = !!options.useStringTime;
         }
 
@@ -139,13 +149,7 @@ export class Rhythm {
             mutRate,
             this.durations
         );
-        const tuples = ga.generate();
-
-        if (legacy) {
-            return tuples;
-        }
-
-        return tuples.map(([duration, offset]) => ({
+        return ga.generate().map(([duration, offset]) => ({
             duration,
             time: useStringTime ? beatsToTime(offset) : offset
         }));
@@ -157,10 +161,8 @@ export class Rhythm {
  */
 class GeneticRhythm {
     constructor(seed, populationSize, measureLength, maxGenerations, mutationRate, durations) {
-        if (seed !== null && typeof Math.seedrandom === 'function') {
-            Math.seedrandom(seed);
-        }
-        
+        this._rng = seed !== null ? _mulberry32(seed) : Math.random;
+
         this.populationSize = populationSize;
         this.measureLength = measureLength;
         this.maxGenerations = maxGenerations;
@@ -190,7 +192,7 @@ class GeneticRhythm {
         
         while (totalLength < this.measureLength) {
             const remaining = this.measureLength - totalLength;
-            const noteLength = this.durations[Math.floor(Math.random() * this.durations.length)];
+            const noteLength = this.durations[Math.floor(this._rng() * this.durations.length)];
             
             if (noteLength <= remaining) {
                 rhythm.push([noteLength, totalLength]);
@@ -218,8 +220,8 @@ class GeneticRhythm {
      * @returns {Array} Selected parent rhythm
      */
     selectParent() {
-        const parent1 = this.population[Math.floor(Math.random() * this.population.length)];
-        const parent2 = this.population[Math.floor(Math.random() * this.population.length)];
+        const parent1 = this.population[Math.floor(this._rng() * this.population.length)];
+        const parent2 = this.population[Math.floor(this._rng() * this.population.length)];
         
         return this.evaluateFitness(parent1) < this.evaluateFitness(parent2) ? parent1 : parent2;
     }
@@ -235,25 +237,51 @@ class GeneticRhythm {
             return parent1.length > 0 ? [...parent1] : [...parent2];
         }
         
-        const crossoverPoint = Math.floor(Math.random() * (parent1.length - 1)) + 1;
+        const crossoverPoint = Math.floor(this._rng() * (parent1.length - 1)) + 1;
         const child = [...parent1.slice(0, crossoverPoint), ...parent2.slice(crossoverPoint)];
         
         return this.ensureMeasureLength(child);
     }
 
     /**
-     * Ensure rhythm respects measure length
+     * Rewrite every offset from the durations that precede it.
+     *
+     * The genome stores `[duration, offset]`, but only the durations are
+     * heritable — an offset is a consequence of them. Crossover splices in a
+     * tail carrying the *other* parent's offsets, and mutation changes a
+     * duration without shifting what follows, so both leave the offsets
+     * describing a rhythm that overlaps itself. Rebuilding them here is what
+     * keeps the invariant "offsets are the running sum of durations" true at
+     * every stage.
+     *
+     * @param {Array} rhythm - Array of [duration, offset] tuples
+     * @returns {Array} New array with coherent, ascending offsets
+     */
+    relayout(rhythm) {
+        let offset = 0;
+        return rhythm.map(([duration]) => {
+            const note = [duration, offset];
+            offset += duration;
+            return note;
+        });
+    }
+
+    /**
+     * Trim a rhythm back inside the measure, then relayout it.
      * @param {Array} rhythm - The rhythm to adjust
-     * @returns {Array} Adjusted rhythm
+     * @returns {Array} Adjusted rhythm with coherent offsets
      */
     ensureMeasureLength(rhythm) {
-        const totalLength = rhythm.reduce((sum, note) => sum + note[0], 0);
-        
-        if (totalLength > this.measureLength && rhythm.length > 0) {
-            rhythm.pop(); // Remove last note if exceeds measure length
+        const trimmed = [...rhythm];
+        let totalLength = trimmed.reduce((sum, note) => sum + note[0], 0);
+
+        // Drop from the end until it fits. A single pop is not enough: a
+        // crossover can splice together two long tails at once.
+        while (totalLength > this.measureLength && trimmed.length > 0) {
+            totalLength -= trimmed.pop()[0];
         }
-        
-        return rhythm;
+
+        return this.relayout(trimmed);
     }
 
     /**
@@ -262,50 +290,48 @@ class GeneticRhythm {
      * @returns {Array} Mutated rhythm
      */
     mutate(rhythm) {
-        if (Math.random() < this.mutationRate && rhythm.length > 1) {
-            const index = Math.floor(Math.random() * (rhythm.length - 1));
-                const [duration, offset] = rhythm[index];
-            const nextOffset = index === rhythm.length - 1 ? 
-                this.measureLength : rhythm[index + 1][1];
-            const maxNewDuration = nextOffset - offset;
-            const validDurations = this.durations.filter(d => d <= maxNewDuration);
-            
-            if (validDurations.length > 0) {
-                const newDuration = validDurations[Math.floor(Math.random() * validDurations.length)];
-                rhythm[index] = [newDuration, offset];
-            }
+        if (this._rng() >= this.mutationRate || rhythm.length === 0) {
+            return rhythm;
         }
-        
-        return rhythm;
+
+        // Every slot is mutable, including the last — the old bound excluded
+        // it, so the final note of a rhythm could never change.
+        const index = Math.floor(this._rng() * rhythm.length);
+        const mutated = [...rhythm];
+        mutated[index] = [
+            this.durations[Math.floor(this._rng() * this.durations.length)],
+            rhythm[index][1]
+        ];
+
+        // A new duration shifts everything after it, so trim and relayout
+        // rather than constraining the choice to the neighbouring gap.
+        return this.ensureMeasureLength(mutated);
     }
 
     /**
-     * Execute the genetic algorithm
-     * @returns {Array} Best rhythm found, sorted by offset
+     * Execute the genetic algorithm.
+     * @returns {Array} Best rhythm found, as gap-free ascending [duration, offset]
      */
     generate() {
         for (let generation = 0; generation < this.maxGenerations; generation++) {
             const newPopulation = [];
-            
+
             for (let i = 0; i < this.populationSize; i++) {
                 const parent1 = this.selectParent();
                 const parent2 = this.selectParent();
-                let child = this.crossover(parent1, parent2);
-                child = this.mutate(child);
-                
-                // Sort child by offset
-                child.sort((a, b) => a[1] - b[1]);
+                const child = this.mutate(this.crossover(parent1, parent2));
+                // No sort needed: crossover and mutate both relayout, so
+                // offsets are already ascending by construction.
                 newPopulation.push(child);
             }
-            
+
             this.population = newPopulation;
         }
 
-        // Return best rhythm sorted by offset
-        const bestRhythm = this.population.reduce((best, current) => 
+        const bestRhythm = this.population.reduce((best, current) =>
             this.evaluateFitness(current) < this.evaluateFitness(best) ? current : best
         );
-        
-        return bestRhythm.sort((a, b) => a[1] - b[1]);
+
+        return this.relayout(bestRhythm);
     }
 }

@@ -19,18 +19,21 @@ jobs:
         with:
           node-version: "22"
 
-      # Existing test suites — these stay green if the library code is sane.
-      - name: Unit tests (music theory)
-        run: node tests/music-theory.test.js
-
-      - name: Unit tests (key context)
-        run: node tests/key-context.test.js
-
-      - name: Unit tests (generative algorithms)
-        run: node tests/generative-algorithms.test.js
-
-      - name: Unit tests (analysis)
-        run: node tests/analysis.test.js
+      # node:test + assert throughout, and algo imports nothing, so there is
+      # nothing to install. Listed explicitly rather than globbing, so adding
+      # a file to tests/ is a deliberate act. The console.log scripts that
+      # need a real Tone.js or @tangent.to/ds live in tests/integration/ and
+      # are observations rather than tests — see the README there.
+      - name: Unit tests
+        run: |
+          node --test \
+            tests/music-theory.test.js \
+            tests/key-context.test.js \
+            tests/generative-algorithms.test.js \
+            tests/analysis.test.js \
+            tests/corruptor.test.js \
+            tests/plot-data.test.js \
+            tests/utils-transforms.test.js
 
       # Browser-load test — protects the jsDelivr distribution path.
       # Loads src/index.js the same way `import("https://cdn.jsdelivr.net

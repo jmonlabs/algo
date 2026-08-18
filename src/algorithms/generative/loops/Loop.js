@@ -1,32 +1,21 @@
 /**
  * Represents a collection of loops for rhythm and melody pattern generation
  *
- * @example Observable
+ * @example
  * ```js
- * jm = await import("https://esm.sh/jsr/@jmon/algo")
+ * import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
  *
- * // Create a simple melody loop
- * melody = [
- *   {pitch: 60, duration: 0.5, time: 0},
- *   {pitch: 62, duration: 0.5, time: 0.5},
- *   {pitch: 64, duration: 1, time: 1}
- * ]
+ * const melody = [
+ *   { pitch: 60, duration: 0.5, time: 0 },
+ *   { pitch: 62, duration: 0.5, time: 0.5 },
+ *   { pitch: 64, duration: 1, time: 1 },
+ * ];
  *
- * loop = new jm.generative.loops.Loop({ loops: melody })
- * sequences = loop.toJMonSequences()
+ * const loop = new jm.generative.loops.Loop({ loops: { melody } });
+ * const sequences = loop.toJMonSequences();
  *
- * // Or use the static Euclidean rhythm helper
- * euclidean = jm.generative.loops.Loop.euclidean({ beats: 16, pulses: 5 })
- * ```
- *
- * @example Node.js
- * ```js
- * import { jm } from '@jmon/algo'
- *
- * const loop = jm.generative.loops.Loop.fromTrack({
- *   notes: [{pitch: 60, duration: 1, time: 0}]
- * })
- * const result = loop.toJMonSequences()
+ * // The static Euclidean rhythm helper takes positional args, not options.
+ * const euclidean = jm.generative.loops.Loop.euclidean(16, 5);
  * ```
  */
 export class Loop {
@@ -366,16 +355,39 @@ export class Loop {
   }
 
   /**
-   * Simple plotting method matching Python implementation
+   * Convert the loops to flat plot data, one row per sounding note.
+   * Returns data rather than a rendered figure — draw it with whichever
+   * plotting library you like (Observable Plot, d3, Vega, ...).
+   *
+   * @returns {Array<{loop: string, time: number, duration: number, pitch: number, velocity: number}>}
+   *
+   * @example
+   * const loop = Loop.euclidean(8, 3, [60]);
+   * const plotData = loop.toPlotData();
+   * // Use with Observable Plot:
+   * Plot.plot({ marks: [
+   *   Plot.barX(plotData, { x1: "time", x2: (d) => d.time + d.duration, y: "loop" })
+   * ]})
    */
-  async plot(pulse = 1/4, colors = null, options = {}) {
-    const { LoopVisualizer } = await import('../../visualization/loops/LoopVisualizer.js');
-    return LoopVisualizer.plotLoops(
-      this.loops, 
-      this.measureLength,
-      pulse,
-      colors,
-      options
-    );
+  toPlotData() {
+    const data = [];
+    for (const [key, loop] of Object.entries(this.loops)) {
+      // Loops are stored as JMON tracks ({ label, notes }); tolerate a bare
+      // note array too, since the constructor accepts either shape.
+      const notes = Array.isArray(loop) ? loop : (loop?.notes || []);
+      const label = (Array.isArray(loop) ? null : loop?.label) ?? key;
+      for (const note of notes) {
+        // Rests carry a null pitch — they shape the timing but draw nothing.
+        if (note.pitch === null || note.pitch === undefined) continue;
+        data.push({
+          loop: label,
+          time: note.time,
+          duration: note.duration,
+          pitch: note.pitch,
+          velocity: note.velocity ?? 0.8
+        });
+      }
+    }
+    return data;
   }
 }

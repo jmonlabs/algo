@@ -98,6 +98,41 @@ export class ComplexPlaneFractal {
   }
 
   /**
+   * Convert the 2D iteration grid to flat plot data, one row per cell.
+   * Returns data rather than a rendered figure — draw it with whichever
+   * plotting library you like (Observable Plot, d3, Vega, ...).
+   *
+   * @param {number[][]} [grid] - Optional grid to convert (defaults to `generate()`)
+   * @returns {Array<{x: number, y: number, value: number}>} Flat plot data
+   *
+   * @example
+   * const mb = new Mandelbrot({ width: 600, height: 600, maxIterations: 100 });
+   * const plotData = mb.toPlotData();
+   * // Use with Observable Plot:
+   * Plot.plot({
+   *   color: { scheme: "viridis" },
+   *   marks: [Plot.raster(plotData, { x: "x", y: "y", fill: "value" })]
+   * })
+   *
+   * @example Reuse a grid you already generated
+   * const grid = mb.generate();
+   * const notes = mb.gridToNotes({ grid, pitches });
+   * const plotData = mb.toPlotData(grid);   // no second pass over the plane
+   */
+  toPlotData(grid = null) {
+    const data = grid || this.generate();
+    const plotData = [];
+
+    data.forEach((row, y) => {
+      row.forEach((value, x) => {
+        plotData.push({ x, y, value });
+      });
+    });
+
+    return plotData;
+  }
+
+  /**
    * Extract sequence from fractal data using various methods
    * @param {'diagonal'|'border'|'spiral'|'column'|'row'} [method='diagonal']
    * @param {number} [index=0] - Index for column/row extraction
@@ -239,7 +274,8 @@ export class ComplexPlaneFractal {
    *
    * @param {Object} options
    * @param {number[][]} options.grid - 2D iteration-count array (from generate())
-   * @param {number[]} options.pitches - MIDI pitch values, one per grid row (length must equal grid height)
+   * @param {number[]} options.pitches - MIDI pitch values, one per grid row. A shorter array
+   *   is not an error: rows past the end reuse the last pitch.
    * @param {number} [options.thresholdMin=0.1] - Lower boundary fraction of maxIterations
    * @param {number} [options.thresholdMax=0.95] - Upper boundary fraction of maxIterations
    * @param {number} [options.duration=1] - Duration of each time step in quarter notes

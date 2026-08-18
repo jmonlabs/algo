@@ -1,8 +1,8 @@
 {
   "name": "@jmon/algo",
   "private": true,
-  "version": "1.1.0",
-  "description": "Algorithmic music composition library. Distributed as ESM source via jsDelivr from GitHub — no build, no npm/JSR publish.",
+  "version": "2.0.0",
+  "description": "Algorithmic music composition: scales, processes, walks, fractals, rhythm, analysis. Imports nothing; playback, format and instruments are sibling packages.",
   "type": "module",
   "license": "GPL-3.0-or-later",
   "author": "JMON Labs",
@@ -30,17 +30,5 @@
     "tone.js",
     "vexflow",
     "observable"
-  ],
-  "peerDependencies": {
-    "tone": "^14.8.49"
-  },
-  "peerDependenciesMeta": {
-    "tone": {
-      "optional": true
-    }
-  },
-  "dependencies": {
-    "@observablehq/notebook-kit": "^1.9.1",
-    "verovio": "^5.6.0"
-  }
+  ]
 }

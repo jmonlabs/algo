@@ -4,7 +4,6 @@ import { MusicTheoryConstants, ARTICULATION_TYPES, ORNAMENT_TYPES, ConstantsAPI 
 // Theory imports
 import harmony from './theory/harmony/index.js';
 import rhythm from './theory/rhythm/index.js';
-import { MotifBank } from './theory/motifs/index.js';
 
 // Generative algorithm imports
 import { CellularAutomata } from './generative/cellular-automata/index.js';
@@ -24,23 +23,13 @@ import { Corruptor, corruptJmon } from './processors/Corruptor.js';
 // Analysis imports
 import * as analysisModule from './analysis/index.js';
 
-// Visualization imports
-import { CAVisualizer } from './visualization/cellular-automata/CAVisualizer.js';
-import { FractalVisualizer } from './visualization/fractals/FractalVisualizer.js';
-import { LoopVisualizer } from './visualization/loops/LoopVisualizer.js';
-import { PlotRenderer } from './visualization/plots/PlotRenderer.js';
-
 // Utils imports
 import * as Utils from './utils.js';
-import audioNS from './audio/index.js';
 
 // Export namespaces
 export const theory = {
     harmony,
-    rhythm,
-    motifs: {
-        MotifBank
-    }
+    rhythm
 };
 
 export const constants = {
@@ -100,17 +89,9 @@ export const analysis = {
     ...analysisModule
 };
 
-export const visualization = {
-    CAVisualizer,
-    FractalVisualizer,
-    LoopVisualizer,
-    PlotRenderer
-};
-
 export const utils = {
     ...Utils
 };
-export const audio = audioNS;
 
 // Export everything as default
 export default {
@@ -119,7 +100,5 @@ export default {
     generative,
     processors,
     analysis,
-    visualization,
-    audio,
     utils
 };

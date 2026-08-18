@@ -24,7 +24,7 @@ export class Strum {
    * @param {Object} options - Configuration options
    * @param {string|Array<number>} [options.direction='down'] - Strum direction: 'down', 'up', 'alternate', 'random', or pattern array where each value determines direction for successive chords (0=down, 1=up). Example: [0,0,1,0] = down, down, up, down
    * @param {number} [options.speed=0.1] - Time delay between each note in the strum (in quarter notes)
-   * @param {string} [options.output='track'] - Output format: 'track' (JMON notes) or 'raw'
+   * @param {string} [options.output='track'] - Accepted for forward compatibility; generate() always returns JMON notes
    * @param {number} [options.velocity] - Base velocity for strummed notes (default: undefined - preserves original)
    * @param {number} [options.velocityVariation=0] - Random variation in velocity (+/- range)
    */

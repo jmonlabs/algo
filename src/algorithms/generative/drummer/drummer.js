@@ -65,7 +65,7 @@ function findAnticipationBars(leader, bars, barDuration, threshold) {
  * @property {number} bars - Number of bars in this section
  *
  * @typedef {Object} DrummerOptions
- * @property {string} [style='rock'] - Preset style ('rock', 'hiphop', 'jazz', 'ambient', 'funk', etc.)
+ * @property {string} [style='rock'] - Preset style ('rock', 'hip-hop', 'jazz', 'ambient', 'funk', etc.)
  * @property {number} [intensity=0.7] - Overall energy 0-1 (scales velocities)
  * @property {number} [bars=16] - Total bars in 4/4 mode (ignored if sections)
  * @property {DrumSection[]} [sections] - Per-section meters. Drum changes meter per section, keeping its style character.
@@ -73,7 +73,10 @@ function findAnticipationBars(leader, bars, barDuration, threshold) {
  * @property {Array} [leader] - JMON notes — required for follow/diverge, drives anticipation
  * @property {number} [humanize=0.12]
  * @property {number} [seed=42] - PRNG seed (overridden if variation='live')
- * @property {number} [fillEvery=4] - Fill bar every N bars (4/4 mode only)
+ * @property {number} [fillEvery=4] - Fill bar every N bars (4/4 mode only). Only applies
+ *   when `leader` produces zero anticipated fills — a single anticipated bar anywhere in
+ *   the piece switches every bar to anticipation-only for the whole piece, not just from
+ *   that bar on.
  * @property {boolean} [anticipate=true] - Place fills BEFORE leader transitions (4/4 mode only)
  * @property {number} [anticipateThreshold=1.5]
  * @property {Object} [drumMap] - Override MIDI map (default: General MIDI drum kit)
@@ -153,7 +156,7 @@ export function drummer(options = {}) {
   return composeBars({ bars, intensity, humanize, drumMap, rand, variation, style, leader, fillEvery, anticipate, anticipateThreshold });
 }
 
-// ─── Multi-meter composition ─────────────────────────────────
+// ─── Multi-meter piece ─────────────────────────────────
 function composeFromSections(sections, ctx) {
   const { intensity, humanize, drumMap, rand, variation, style } = ctx;
   const preset = getPreset(style);
@@ -219,7 +222,7 @@ function composeFromSections(sections, ctx) {
   return out;
 }
 
-// ─── 4/4 bars composition (live drummer with fills, ghosts, anticipations) ───
+// ─── 4/4 bars piece (live drummer with fills, ghosts, anticipations) ───
 function composeBars(ctx) {
   const { bars, intensity, humanize, drumMap, rand, variation, style, leader, fillEvery, anticipate, anticipateThreshold } = ctx;
   const preset = getPreset(style);
@@ -332,5 +335,5 @@ function composeBars(ctx) {
   return notes;
 }
 
-// Attach presets for discovery: drummer.presets.rock, drummer.presets.hiphop, etc.
+// Attach presets for discovery: drummer.presets.rock, drummer.presets['hip-hop'], etc.
 drummer.presets = presets;
