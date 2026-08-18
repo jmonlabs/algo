@@ -30,8 +30,8 @@ export class Key {
     /**
      * @param {string|Object} tonic - Tonic note ('C', 'D#', 'Bb') or an
      *   options object `{ tonic, mode }` (also accepts `{ key, mode }`).
-     * @param {string} [mode='major'] - Scale mode (ignored if `tonic` is
-     *   an options object).
+     * @param {string} [mode='major'] - Scale mode. Used as the fallback when
+     *   `tonic` is an options object that omits `mode`.
      */
     constructor(tonic, mode) {
         if (tonic && typeof tonic === 'object' && !Array.isArray(tonic)) {

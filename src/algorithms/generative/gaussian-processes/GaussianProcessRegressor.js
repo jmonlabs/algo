@@ -4,8 +4,11 @@ const _GPR = ds.ml.GaussianProcessRegressor;
 
 /**
  * Gaussian Process Regressor — thin wrapper around @tangent.to/ds
- * that adds the `predictWithUncertainty` convenience method and
- * `isFitted` property used elsewhere in jmon/algo.
+ * that adds the `predictWithUncertainty` convenience method and an
+ * `isFitted` property.
+ *
+ * Not reachable from `jm`: importing this package never pulls in
+ * `@tangent.to/ds`. Use `@tangent.to/ds` directly instead.
  */
 export class GaussianProcessRegressor extends _GPR {
   constructor(options) {

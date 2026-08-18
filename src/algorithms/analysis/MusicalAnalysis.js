@@ -1,8 +1,6 @@
 /**
  * @typedef {Object} AnalysisOptions
  * @property {number[]} [scale] - Scale to use for dissonance calculation
- * @property {number[]} [weights] - Weights for analysis
- * @property {number} [sampleRate] - Sample rate for analysis
  */
 
 /**
@@ -454,12 +452,12 @@ export class MusicalAnalysis {
 
     // Extract pitch and timing data
     const pitches = notes.map((note) => {
-      if (typeof note.note === "number") return note.note;
-      if (typeof note.note === "string") {
+      if (typeof note.pitch === "number") return note.pitch;
+      if (typeof note.pitch === "string") {
         // Simple MIDI note conversion - would need proper note parsing
         return 60; // Default to middle C
       }
-      return Array.isArray(note.note) ? note.note[0] : 60;
+      return Array.isArray(note.pitch) ? note.pitch[0] : 60;
     });
 
     const onsets = notes.map((note) => {

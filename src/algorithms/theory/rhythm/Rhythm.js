@@ -1,6 +1,24 @@
 import { beatsToTime } from '../../../utils/jmon-utils.js';
 
 /**
+ * Mulberry32 — small deterministic PRNG. Same seed always produces the
+ * same sequence. `Math.seedrandom` is not a real global (this package
+ * imports nothing), so a seeded `Math.random()` call was silently
+ * non-deterministic; this replaces it everywhere below.
+ * @private
+ */
+function _mulberry32(seed) {
+    let s = seed >>> 0;
+    return function () {
+        s = (s + 0x6D2B79F5) >>> 0;
+        let t = s;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/**
  * A class used to represent a Rhythm generator with various algorithmic methods
  */
 export class Rhythm {
@@ -56,23 +74,21 @@ export class Rhythm {
             useStringTime = !!options.useStringTime;
         }
 
-        if (seed !== null && typeof Math.seedrandom === 'function') {
-            Math.seedrandom(seed);
-        }
-        
+        const rng = seed !== null ? _mulberry32(seed) : Math.random;
+
         const rhythm = [];
         let totalLength = 0;
         let nIter = 0;
-        
+
         while (totalLength < this.measureLength && nIter < maxIterations) {
-            const duration = this.durations[Math.floor(Math.random() * this.durations.length)];
-            
+            const duration = this.durations[Math.floor(rng() * this.durations.length)];
+
             if (totalLength + duration > this.measureLength) {
                 nIter++;
                 continue;
             }
-            
-            if (Math.random() < restProb) {
+
+            if (rng() < restProb) {
                 nIter++;
                 continue;
             }
@@ -145,10 +161,8 @@ export class Rhythm {
  */
 class GeneticRhythm {
     constructor(seed, populationSize, measureLength, maxGenerations, mutationRate, durations) {
-        if (seed !== null && typeof Math.seedrandom === 'function') {
-            Math.seedrandom(seed);
-        }
-        
+        this._rng = seed !== null ? _mulberry32(seed) : Math.random;
+
         this.populationSize = populationSize;
         this.measureLength = measureLength;
         this.maxGenerations = maxGenerations;
@@ -178,7 +192,7 @@ class GeneticRhythm {
         
         while (totalLength < this.measureLength) {
             const remaining = this.measureLength - totalLength;
-            const noteLength = this.durations[Math.floor(Math.random() * this.durations.length)];
+            const noteLength = this.durations[Math.floor(this._rng() * this.durations.length)];
             
             if (noteLength <= remaining) {
                 rhythm.push([noteLength, totalLength]);
@@ -206,8 +220,8 @@ class GeneticRhythm {
      * @returns {Array} Selected parent rhythm
      */
     selectParent() {
-        const parent1 = this.population[Math.floor(Math.random() * this.population.length)];
-        const parent2 = this.population[Math.floor(Math.random() * this.population.length)];
+        const parent1 = this.population[Math.floor(this._rng() * this.population.length)];
+        const parent2 = this.population[Math.floor(this._rng() * this.population.length)];
         
         return this.evaluateFitness(parent1) < this.evaluateFitness(parent2) ? parent1 : parent2;
     }
@@ -223,7 +237,7 @@ class GeneticRhythm {
             return parent1.length > 0 ? [...parent1] : [...parent2];
         }
         
-        const crossoverPoint = Math.floor(Math.random() * (parent1.length - 1)) + 1;
+        const crossoverPoint = Math.floor(this._rng() * (parent1.length - 1)) + 1;
         const child = [...parent1.slice(0, crossoverPoint), ...parent2.slice(crossoverPoint)];
         
         return this.ensureMeasureLength(child);
@@ -276,16 +290,16 @@ class GeneticRhythm {
      * @returns {Array} Mutated rhythm
      */
     mutate(rhythm) {
-        if (Math.random() >= this.mutationRate || rhythm.length === 0) {
+        if (this._rng() >= this.mutationRate || rhythm.length === 0) {
             return rhythm;
         }
 
         // Every slot is mutable, including the last — the old bound excluded
         // it, so the final note of a rhythm could never change.
-        const index = Math.floor(Math.random() * rhythm.length);
+        const index = Math.floor(this._rng() * rhythm.length);
         const mutated = [...rhythm];
         mutated[index] = [
-            this.durations[Math.floor(Math.random() * this.durations.length)],
+            this.durations[Math.floor(this._rng() * this.durations.length)],
             rhythm[index][1]
         ];
 

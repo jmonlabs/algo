@@ -396,8 +396,7 @@ export class Darwin {
 
   /**
    * Evolve the population for one generation
-   * @param {number} k - Number of parents to select
-   * @param {number} restRate - Rate for introducing rests (unused, kept for compatibility)
+   * @param {number} [k=25] - Number of parents to select
    * @returns {Object} Evolution statistics
    */
   evolve(k = 25) {

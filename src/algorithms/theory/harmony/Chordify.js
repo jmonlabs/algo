@@ -103,7 +103,6 @@ export function chordify(pitch, options = {}) {
  * @returns {Array<Array<number>>} Array of chord arrays
  *
  * @example
- * const scale = new Scale('C', 'major').generate({ start: 60, end: 72 });
  * const chords = chordifyMany([60, 62, 64], { tonic: 'C', mode: 'major' });
  * // => [[60, 64, 67], [62, 65, 69], [64, 67, 71]]
  */

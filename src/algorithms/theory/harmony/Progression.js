@@ -22,7 +22,8 @@ export class Progression extends MusicTheoryConstants {
      * @param {string} [options.tonic='C4'] - The tonic pitch or key (e.g., 'C4', 'C', 'D')
      * @param {string} [options.mode='major'] - The scale/mode ('major', 'minor', 'dorian', etc.)
      * @param {string} [options.circleOf='P5'] - Interval to form the circle (e.g., 'P5', 'P4')
-     * @param {string} [options.type='chords'] - Output type: 'chords' or 'pitches'
+     * @param {string} [options.type='chords'] - Validated against `'chords'`/`'pitches'`
+     *   but not otherwise read; `generate()` always returns chord arrays
      * @param {Array} [options.radius=[3, 3, 1]] - Range for major, minor, and diminished chords
      * @param {Array} [options.weights] - Weights for selecting chord types (defaults to radius)
      */

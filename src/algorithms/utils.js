@@ -284,9 +284,11 @@ export function midiToCde(midi) {
 }
 
 /**
- * Remove note overlaps by adjusting offsets
- * @param {Array} notes - Array of notes
- * @param {string} adjust - Adjustment method ('offsets' or 'durations')
+ * Remove note overlaps by re-offsetting each note sequentially after the one
+ * before it.
+ * @param {Array} notes - Array of `[pitch, duration, offset]` tuples
+ * @param {string} adjust - Accepted for forward compatibility; not currently read,
+ *   offsets are always re-sequenced (durations are left untouched)
  * @returns {Array} Notes without overlaps
  */
 export function noOverlap(notes, adjust = 'offsets') {
@@ -759,7 +761,7 @@ export function removeDuplicates(notes, tolerance = 0.01) {
  * djalgo `[pitch, duration, offset]` tuples and clamps notes to their measure.
  *
  * Grids are in quarter notes: 1 = quarter, 0.5 = eighth, 0.25 = sixteenth,
- * 1/3 = quarter triplet.
+ * 1/3 = eighth-note triplet (three notes in the space of one quarter note).
  * ------------------------------------------------------------------------- */
 
 /**
@@ -840,7 +842,8 @@ export function quantizeTrack(track, options = {}) {
  * @returns {Object} New piece
  *
  * @example
- * // Tighten a MIDI import onto a sixteenth grid
+ * // Tighten a MIDI import onto a sixteenth grid. `midiToJmon` is
+ * // `jmon/io`'s, injected through `jmon/studio` as `jm.midiToJmon`.
  * const tight = quantizePiece(jm.midiToJmon(bytes), { grid: 0.25 });
  */
 export function quantizePiece(piece, options = {}) {

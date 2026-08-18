@@ -1,32 +1,21 @@
 /**
  * Represents a collection of loops for rhythm and melody pattern generation
  *
- * @example Observable
+ * @example
  * ```js
- * jm = await import("https://esm.sh/jsr/@jmon/algo")
+ * import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
  *
- * // Create a simple melody loop
- * melody = [
- *   {pitch: 60, duration: 0.5, time: 0},
- *   {pitch: 62, duration: 0.5, time: 0.5},
- *   {pitch: 64, duration: 1, time: 1}
- * ]
+ * const melody = [
+ *   { pitch: 60, duration: 0.5, time: 0 },
+ *   { pitch: 62, duration: 0.5, time: 0.5 },
+ *   { pitch: 64, duration: 1, time: 1 },
+ * ];
  *
- * loop = new jm.generative.loops.Loop({ loops: melody })
- * sequences = loop.toJMonSequences()
+ * const loop = new jm.generative.loops.Loop({ loops: { melody } });
+ * const sequences = loop.toJMonSequences();
  *
- * // Or use the static Euclidean rhythm helper
- * euclidean = jm.generative.loops.Loop.euclidean({ beats: 16, pulses: 5 })
- * ```
- *
- * @example Node.js
- * ```js
- * import { jm } from '@jmon/algo'
- *
- * const loop = jm.generative.loops.Loop.fromTrack({
- *   notes: [{pitch: 60, duration: 1, time: 0}]
- * })
- * const result = loop.toJMonSequences()
+ * // The static Euclidean rhythm helper takes positional args, not options.
+ * const euclidean = jm.generative.loops.Loop.euclidean(16, 5);
  * ```
  */
 export class Loop {

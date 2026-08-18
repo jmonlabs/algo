@@ -274,7 +274,8 @@ export class ComplexPlaneFractal {
    *
    * @param {Object} options
    * @param {number[][]} options.grid - 2D iteration-count array (from generate())
-   * @param {number[]} options.pitches - MIDI pitch values, one per grid row (length must equal grid height)
+   * @param {number[]} options.pitches - MIDI pitch values, one per grid row. A shorter array
+   *   is not an error: rows past the end reuse the last pitch.
    * @param {number} [options.thresholdMin=0.1] - Lower boundary fraction of maxIterations
    * @param {number} [options.thresholdMax=0.95] - Upper boundary fraction of maxIterations
    * @param {number} [options.duration=1] - Duration of each time step in quarter notes

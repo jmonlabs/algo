@@ -3,7 +3,8 @@
  */
 export class MusicTheoryConstants {
     static chromatic_scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    
+    static chromatic_scale_flats = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
     static flat_to_sharp = {
         'Bb': 'A#', 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#',
         'B♭': 'A#', 'D♭': 'C#', 'E♭': 'D#', 'G♭': 'F#', 'A♭': 'G#',
@@ -69,7 +70,7 @@ export class MusicTheoryConstants {
     static midiToNoteName(midiNumber, preferFlat = false) {
         const octave = Math.floor(midiNumber / 12) - 1;
         const noteIndex = midiNumber % 12;
-        const noteName = this.chromatic_scale[noteIndex];
+        const noteName = (preferFlat ? this.chromatic_scale_flats : this.chromatic_scale)[noteIndex];
         return `${noteName}${octave}`;
     }
 

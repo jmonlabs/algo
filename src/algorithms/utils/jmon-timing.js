@@ -204,7 +204,8 @@ export function isValidBarsBeatsTicks(timeString) {
 /**
  * Adjust time values in a sequence based on durations (JMON-compatible version)
  * @param {Array} sequence - Note sequence
- * @param {Object} config - Timing configuration (unused in numeric-first approach)
+ * @param {Object} config - Timing configuration, used to interpret a `duration`
+ *   given as a `bars:beats:ticks` string
  * @returns {Array} Sequence with adjusted numeric time values
  */
 export function setOffsetsAccordingToDurationsJMON(sequence, config = DEFAULT_TIMING_CONFIG) {
