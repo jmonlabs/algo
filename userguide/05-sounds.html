@@ -179,7 +179,73 @@ display(await jm.play(quartet, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
-## 4. Custom synth configuration
+## 4. Your own samples
+
+The kit registry maps a MIDI note to a file. Drums are the obvious use, but nothing about it is percussive: one file per key is also how you play spoken word, field recordings, or any other set of one-shots. A stanza per note, say.
+
+**1. Find audio your browser is allowed to fetch.** This is the step that will waste your afternoon. A file has to be served with `Access-Control-Allow-Origin`, and most sites do not. Test a candidate before building anything around it, from the browser console on the page that will use it:
+
+```js
+await fetch("https://example.test/line1.mp3", { method: "HEAD" });
+// throws a CORS error   -> unusable, whatever the file is
+// resolves              -> good
+```
+
+GitHub Pages and `raw.githubusercontent.com` are the known-good hosts here: the General MIDI banks and the shipped drum kits are both served from them. Committing your own MP3s to a repo and serving them from `gh-pages` is the path of least resistance. For public-domain readings, LibriVox recordings live on archive.org; check one with the snippet above before relying on it.
+
+**2. Register the set.** Any MIDI note, any filename.
+  </script>
+
+  <script type="module" pinned>
+sound.registerDrumKit("poem", {
+  baseUrl: "https://example.test/poem/",   // trailing slash matters
+  samples: {
+    60: "line1.mp3",   // C4
+    62: "line2.mp3",   // D4
+    64: "line3.mp3",   // E4
+    65: "line4.mp3",   // F4
+  },
+});
+  </script>
+
+  <script type="text/markdown">
+**3. Write a track that plays only the notes you mapped.** This is not a style preference. `Sampler` transposes any note it was not given, to the nearest one it was: that is what makes a violin playable from 25 files, and what turns a sentence into a chipmunk. Mapped C4, D4, E4, F4 means those four pitches and no others.
+
+**4. Turn off the two behaviours meant for instruments.**
+
+- A note longer than its file is normally held by looping the sample's sustaining region. Right for a cello, wrong for a sentence — and the detection is acoustic, so a line ending on an open vowel gets looped. `loopSustain: false`.
+- A note ends on a release fade. `release: 0` cuts where the note ends instead.
+
+The note's `duration` is what stops the sample. Give it more than the recording lasts and you hear the whole thing; give it less and you cut the line short, which is usable on purpose.
+  </script>
+
+  <script type="module" pinned>
+const poem = {
+  title: "Four lines",
+  tempo: 60,             // one beat is one second, so durations read as seconds
+  tracks: [{
+    label: "Voice",
+    synth: { kit: "poem", loopSustain: false, options: { release: 0 } },
+    notes: [
+      { pitch: 60, duration: 5, time: 0 },
+      { pitch: 62, duration: 5, time: 5 },
+      { pitch: 64, duration: 5, time: 10 },
+      { pitch: 65, duration: 7, time: 15 },
+    ],
+  }],
+};
+
+display(await jm.play(poem, { Tone, sound }));
+  </script>
+
+  <script type="text/markdown">
+From there it is a normal JMON track, so everything else in this chapter applies: pan it, send it through a reverb in the `audioGraph`, layer it under a generated part, render the lot to WAV.
+
+And since the pitches are only keys into a set of files, a generator can choose them. A random walk over `[60, 62, 64, 65]` reorders the stanzas; a cellular automaton decides which line speaks on which beat. The mapping is arbitrary, which is the point.
+  </script>
+
+  <script type="text/markdown">
+## 5. Custom synth configuration
 
 For more control, set `track.synth` to an object with `type` and `options`:
   </script>
@@ -238,7 +304,7 @@ display(await jm.play(polyMonoPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
-## 5. Audio effects with audioGraph
+## 6. Audio effects with audioGraph
 
 The `audioGraph` property on a composition defines a signal chain of audio effects. Each node has an `id`, `type`, `options`, and `target` (the next node in the chain).
 
@@ -352,7 +418,7 @@ display(await jm.play(altFormatPiece, { Tone, sound }));
   </script>
 
   <script type="text/markdown">
-## 6. Exporting to WAV
+## 7. Exporting to WAV
 
 Use `jm.converters.downloadWav()` to render your composition to a WAV file. This uses Tone.js offline rendering, so what you hear in the player is what you get in the file.
   </script>
@@ -384,7 +450,7 @@ The WAV export renders the full audio chain — synth types, sampled instruments
   </script>
 
   <script type="text/markdown">
-## 7. Exporting to MIDI
+## 8. Exporting to MIDI
 
 MIDI export converts your composition to a standard MIDI file. Unlike WAV, it carries note data rather than sound, which is what makes it portable: any DAW can open it and apply its own instruments.
 
@@ -415,7 +481,7 @@ The MIDI converter uses a built-in binary encoder with no external dependencies.
   </script>
 
   <script type="text/markdown">
-## 8. Complete example
+## 9. Complete example
 
 Let's combine everything: GM instruments, custom synths, effects, score rendering, and both export formats.
   </script>

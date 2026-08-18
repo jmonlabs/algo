@@ -44,7 +44,7 @@ once, here, that the guide runs from a clone).
 
 | | |
 |---|---|
-| Covers | `Rhythm` (`.random()`, `.darwin()`), `isorhythm`, `beatcycle`. Then **`jm.generative.drummer`**: 19 styles, `bars` vs `sections` for multi-meter, `variation` (`fixed` / `live` / `follow` / `diverge`), `leader`, `fillEvery`, `humanize`, `seed`, `drumMap`. Drum kits via `jm.instruments.registerDrumKit`. |
+| Covers | `Rhythm` (`.random()`, `.darwin()`), `isorhythm`, `beatcycle`. Then **`jm.generative.drummer`**: 19 styles, `bars` vs `sections` for multi-meter, `variation` (`fixed` / `live` / `follow` / `diverge`), `leader`, `fillEvery`, `humanize`, `seed`, `drumMap`. Drum kits via `sound.registerDrumKit` (see I.4). |
 | Assumes | I.1 |
 | Source | **partial → new** — `isorhythm`/`beatcycle` are scattered across 03, 04 and 06; the drummer has **no chapter at all** and is the largest undocumented module in the library. |
 
@@ -55,7 +55,7 @@ of other topics rather than a foundation.
 
 | | |
 |---|---|
-| Covers | Per-track `synth` (Tone.js class name, GM program number, or `{type, options}`), `pan`, the `audioGraph`, effects, `jm.instruments` and the GM bank, `jm.audioGraph.master.*` mastering chains (`dark`, `light`, `warm`, `cinematic`, `intimate`, `broadcast`, `vinyl`, `lush`). |
+| Covers | Per-track `synth` (Tone.js class name, GM program number, or `{type, options}`), `pan`, the `audioGraph`, effects, `jm.audioGraph.master.*` mastering chains (`dark`, `light`, `warm`, `cinematic`, `intimate`, `broadcast`, `vinyl`, `lush`). Sampled instruments and your own sample sets via `jmon/sound`. |
 | Assumes | I.1 |
 | Source | **existing** — `05-sounds.html`. The mastering presets are undocumented; add them. |
 
@@ -71,7 +71,7 @@ the question a reader arrives with, and the honest answer has one hard limit
 and four soft ones.
 
 Start with the fact that explains the rest: **every FluidR3 sample is a fixed
-3.19-second render**. A soundfont engine loops the sustaining part of a
+3.13-second render**. A soundfont engine loops the sustaining part of a
 recording to hold a note indefinitely, and the library now does the same — so
 a held note no longer runs out of sound. Whether a sample *may* loop is
 measured from the recording's tail (strings 64% of peak, organ 86%, flute 95%,
@@ -92,7 +92,7 @@ Two details a reader will hear and wonder about, so say them plainly:
 Re-articulating instead of looping is still available, and is what you want
 when the repeated attack is the point:
 
-    jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo));
+    jm.utils.splitLongNotes(notes, sound.gmMaxBeats(tempo));
 
 The four remaining differences from a soundfont engine, in order of how much
 they matter:
@@ -106,6 +106,33 @@ they matter:
 
 Order matters in the writing: a reader who adds reverb first will stop asking
 the question.
+
+**Playing your own samples** closes the chapter, and is the section a reader
+will come back to. The kit registry maps a MIDI note to a file, which is a
+drum kit by history and a set of one-shots by nature: spoken word, field
+recordings, a stanza per note.
+
+Write it as a procedure, because it is one, and because three of the four
+steps are things that go wrong silently:
+
+1. **CORS first.** Most audio on the web cannot be fetched by a browser from
+   another origin. Give the reader the one-line check
+   (`await fetch(url, { method: "HEAD" })`) rather than a list of hosts, which
+   dates. Known-good: GitHub Pages and `raw.githubusercontent.com`, which is
+   where both the GM banks and the shipped kits already live.
+2. `registerDrumKit(name, { baseUrl, samples })` — any MIDI note, any file.
+3. **Play only the notes you mapped.** `Sampler` transposes anything else to
+   the nearest sample it has. That is the feature that makes a violin playable
+   from 25 files; on speech it is a chipmunk.
+4. `loopSustain: false` and `release: 0`, to switch off the two behaviours
+   written for instruments: the long note held by looping the sustain, and the
+   release fade. The note's `duration` is what stops the sample, so a short
+   duration cuts the line, which is usable deliberately.
+
+Then the turn that makes it a composition chapter rather than a recipe: the
+pitches are only keys into a set of files, so a generator can choose them. A
+walk over `[60, 62, 64, 65]` reorders the stanzas; an automaton decides which
+line speaks on which beat. Cross-link to II.2 and II.3.
 
 One consequence of the synth choice is easy to miss and belongs in III.1:
 a glissando on the default `PolySynth` loses the track's timbre, while any
