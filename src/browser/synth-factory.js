@@ -347,3 +347,123 @@ export async function prepareSoundfonts(tracks, presets = null) {
     return null;
   }
 }
+
+/* --- sustaining a note past the end of its sample ------------------------- */
+
+/** Analysis is per buffer and never changes, so compute it once. */
+const sustainAnalyses = new WeakMap();
+
+/**
+ * Decide whether a sample can be looped to hold a note, and where.
+ *
+ * A soundfont stores loop points; a folder of MP3s does not, so they are
+ * measured. The test is simply whether the recording still has energy at the
+ * end: a string, organ, flute or pad holds 60-95% of its peak level there and
+ * loops cleanly, while a piano has decayed to a few percent and would loop as
+ * an obviously stuck note.
+ *
+ * The loop points are snapped to rising zero crossings, which is what keeps
+ * the seam from clicking once per cycle.
+ *
+ * @param {Object} buffer — a Tone.ToneAudioBuffer
+ * @param {Object} [options]
+ * @param {number} [options.threshold=0.25] — tail level, relative to peak,
+ *   above which the sample counts as sustaining
+ * @returns {{loops: boolean, loopStart: number, loopEnd: number}|null}
+ */
+export function analyseSustain(buffer, options = {}) {
+  if (!buffer || typeof buffer.getChannelData !== "function") return null;
+  if (sustainAnalyses.has(buffer)) return sustainAnalyses.get(buffer);
+
+  const { threshold = 0.25 } = options;
+  let data;
+  try {
+    data = buffer.getChannelData(0);
+  } catch {
+    return null;
+  }
+  const duration = buffer.duration || 0;
+  if (!data || data.length === 0 || duration <= 0) return null;
+
+  const rate = data.length / duration;
+  const window = Math.max(1, Math.floor(rate * 0.05));
+  const levels = [];
+  for (let i = 0; i + window <= data.length; i += window) {
+    let sum = 0;
+    for (let j = i; j < i + window; j++) sum += data[j] * data[j];
+    levels.push(Math.sqrt(sum / window));
+  }
+  if (levels.length < 4) return null;
+
+  const peak = Math.max(...levels);
+  const tail = levels[levels.length - 1];
+  const loops = peak > 0 && tail / peak >= threshold;
+
+  // Loop the steady part: past the attack, short of the very end, where an
+  // encoder's fade-out lives.
+  const from = zeroCrossingNear(data, Math.floor(data.length * 0.45));
+  const to = zeroCrossingNear(data, Math.floor(data.length * 0.92));
+
+  const analysis = {
+    loops: loops && to > from,
+    loopStart: from / rate,
+    loopEnd: to / rate,
+  };
+  sustainAnalyses.set(buffer, analysis);
+  return analysis;
+}
+
+/** Nearest sample index at or after `index` where the signal crosses zero upwards. */
+function zeroCrossingNear(data, index) {
+  const limit = Math.min(data.length - 1, index + Math.floor(data.length * 0.05));
+  for (let i = Math.max(1, index); i < limit; i++) {
+    if (data[i - 1] <= 0 && data[i] > 0) return i;
+  }
+  return index;
+}
+
+/**
+ * Hold a sampled note for as long as it is written, by looping the sample's
+ * sustaining region.
+ *
+ * Every FluidR3 sample is a fixed 3.19-second render, so a longer note used to
+ * run out of sound — a whole note at 60 BPM ended in silence. Tone's
+ * `Sampler` schedules each voice to stop at the end of its buffer, but setting
+ * `loop` on a started `ToneBufferSource` cancels exactly that stop, which is
+ * the hook this uses. The note's real end is then scheduled here instead.
+ *
+ * Samples that decay — piano, guitar, plucked and percussive instruments — are
+ * left alone: they are supposed to die away.
+ *
+ * @param {Object} synth — a Tone.Sampler
+ * @param {number} midi — the note's MIDI number, which keys `_activeSources`
+ * @param {number} startTime — absolute time in seconds of the note start
+ * @param {number} seconds — the note's duration in seconds
+ * @param {Object} [options] — passed to {@link analyseSustain}
+ * @returns {boolean} whether any voice was made to loop
+ */
+export function sustainSampledNote(synth, midi, startTime, seconds, options = {}) {
+  const sources = synth?._activeSources?.get?.(Math.round(midi));
+  if (!Array.isArray(sources) || sources.length === 0) return false;
+
+  let looped = false;
+  for (const source of sources) {
+    const buffer = source?.buffer;
+    if (!buffer || typeof source.stop !== "function") continue;
+
+    // What the voice can already play, allowing for glissando resampling.
+    const rate = source.playbackRate?.value ?? 1;
+    const natural = (buffer.duration || 0) / (rate || 1);
+    if (!(seconds > natural)) continue;
+
+    const analysis = analyseSustain(buffer, options);
+    if (!analysis || !analysis.loops) continue;
+
+    source.loopStart = analysis.loopStart;
+    source.loopEnd = analysis.loopEnd;
+    source.loop = true;          // this cancels Sampler's stop-at-buffer-end
+    source.stop(startTime + seconds);   // so the note has to be ended here
+    looped = true;
+  }
+  return looped;
+}

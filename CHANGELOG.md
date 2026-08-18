@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 320 tests across twelve
+- A test suite that fails on a broken assertion: 326 tests across twelve
   `node:test` suites plus the four glissando suites under `src/**/__tests__/`,
   all run by CI.
 
@@ -349,21 +349,36 @@ A track referencing it can still override any of them.
     customPresets: [{ id: "violin", type: 40, strategy: "complete" }]
     tracks: [{ label: "Strings", synth: "violin", notes }]
 
-### The limit of General MIDI playback, measured
+### A sampled note holds for as long as it is written
 
-`GM_SAMPLE_SECONDS` and `gmMaxBeats(tempo)` record something that was folklore:
-every FluidR3 file is the same fixed-length render — violin C4, violin C6 and
-piano C4 are all 122 MPEG frames at 44.1 kHz, so 3.19 seconds each.
+Every FluidR3 file is the same fixed-length render — violin C4, violin C6 and
+piano C4 are all 122 MPEG frames at 44.1 kHz, so 3.19 seconds. A note longer
+than that ran out of recording: a whole note at 60 BPM ended in a second of
+silence.
 
-A soundfont engine loops a sample's sustain region and holds a note as long as
-you like. These stop. A whole note at 60 BPM is four seconds, so it ends in
-silence, and no setting closes that gap — but
+Both players now do what a soundfont engine does — loop the sample's
+sustaining region — using a hook Tone already provides. `Sampler` schedules
+each voice to stop at the end of its buffer, and setting `loop` on a started
+`ToneBufferSource` cancels exactly that stop; the note's real end is then
+scheduled explicitly. No new dependency, no resynthesis.
 
-    jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo))
+Which samples may loop is measured rather than assumed from instrument
+families. `analyseSustain` compares a recording's tail level to its peak:
 
-re-articulates what would otherwise fall silent. `userguide/OUTLINE.md` (I.4)
-carries the rest: reverb, sample density, release and velocity, in the order
-they matter.
+    strings 64%   organ 86%   pad 78%   flute 95%   piano 4%
+
+Above a quarter, the sample sustains and loops cleanly; below, it is decaying
+and looping it would be an audibly stuck note. Loop points are snapped to
+rising zero crossings so the seam does not click. Because the test is on the
+buffer, it works for your own sample sets too, not only the GM bank.
+
+    synth: { gm: 48, loopSustain: false }   // opt out
+
+`GM_SAMPLE_SECONDS` and `gmMaxBeats(tempo)` remain for the cases where you
+would rather re-articulate than loop —
+`jm.utils.splitLongNotes(notes, gmMaxBeats(tempo))`. `userguide/OUTLINE.md`
+(I.4) carries what is left: reverb, sample density, release and velocity, in
+the order they matter to a listener.
 
 ### Known gaps
 

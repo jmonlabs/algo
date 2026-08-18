@@ -9,6 +9,7 @@ import {
 	hasDetuneParam,
 	prepareSoundfonts,
 	resolveConnectTarget,
+	sustainSampledNote,
 } from "../browser/synth-factory.js";
 import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
 import { normalizeAudioGraph } from "../utils/normalize.js";
@@ -174,7 +175,11 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 				}
 			}
 
-			trackSynths.push({ synth, glideVoice, vibratoEffect, tremoloEffect });
+			const loopSustain = !(
+				track.synth && typeof track.synth === "object" && track.synth.loopSustain === false
+			);
+
+			trackSynths.push({ synth, glideVoice, vibratoEffect, tremoloEffect, loopSustain });
 		});
 
 		// Phase 2: Wait for all samplers to finish loading
@@ -187,7 +192,7 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 		tracks.forEach((track, trackIndex) => {
 			const notes = track.events || track.notes || [];
 			const trackModulations = compiledModulations[trackIndex] || [];
-			const { synth, glideVoice, vibratoEffect, tremoloEffect } = trackSynths[trackIndex];
+			const { synth, glideVoice, vibratoEffect, tremoloEffect, loopSustain } = trackSynths[trackIndex];
 
 			// Schedule effect enable/disable
 			trackModulations.forEach((mod) => {
@@ -271,6 +276,7 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 							const slid = applyPitchAnchorsToSampler(
 								synth, midi, time, anchorsSec, microtuningCents,
 							);
+							if (loopSustain) sustainSampledNote(synth, midi, time, noteDuration);
 							synth.triggerRelease(noteName, time + noteDuration);
 							if (!slid && glideVoice) {
 								applyPitchAnchors(glideVoice.detune, time, anchorsSec, microtuningCents);
@@ -286,6 +292,11 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 							? Tone.Frequency(note.pitch + mt, "midi").toFrequency()
 							: noteName;
 						synth.triggerAttackRelease(playNote, noteDuration, time, note.velocity || 0.8);
+						// Loop a sampled instrument's sustain so a long note does
+						// not run out of recording, as in the live player.
+						if (loopSustain && typeof note.pitch === "number") {
+							sustainSampledNote(synth, note.pitch, time, noteDuration);
+						}
 					}
 				}
 			});

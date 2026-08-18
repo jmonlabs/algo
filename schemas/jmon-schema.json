@@ -217,6 +217,10 @@
           "baseUrl": {
             "type": "string",
             "description": "GM presets only: sample source, overriding the resolved CDN."
+          },
+          "loopSustain": {
+            "type": "boolean",
+            "description": "Sampled instruments only: loop the sample's sustaining region so a note longer than the recording holds instead of falling silent. Defaults to true; samples that decay are detected and never looped."
           }
         },
         "additionalProperties": false

@@ -514,3 +514,95 @@ test("a preset naming a Tone class still resolves to that class", async () => {
 
   assert.equal(record.nodes.find((n) => n.type === "MonoSynth")?.options?.detune, 7);
 });
+
+/* --- sustaining past the end of the sample -------------------------------- */
+
+/** Play one note of `beats` on a GM sampler whose samples have `shape`. */
+async function sustainWith(beats, shape = "sustaining", trackExtra = {}) {
+  const restore = installFakeBrowser();
+  try {
+    const { Tone, record } = createFakeTone();
+    // The fake Sampler reads its buffer shape out of its constructor options.
+    const Base = Tone.Sampler;
+    Tone.Sampler = class extends Base {
+      constructor(options) { super({ ...options, sampleShape: shape }); }
+    };
+    globalThis.Tone = Tone;
+
+    const { createPlayer } = await import(`../src/browser/music-player.js?s=${shape}${beats}${JSON.stringify(trackExtra)}`);
+    const ui = createPlayer(composition(
+      [{ label: "held", synth: { gm: 48, ...trackExtra }, notes: [note(60, 0, beats)] }],
+      { tempo: 60 },   // one beat is one second, so beats are seconds
+    ), { Tone });
+
+    const { collectHandlers } = await import("./helpers/fake-browser.mjs");
+    await collectHandlers(ui).find((h) => typeof h.click === "function").click();
+    for (const event of record.scheduled) event.callback(0);
+    return record;
+  } finally {
+    restore();
+  }
+}
+
+test("a note longer than the sample loops the sample's sustain", async () => {
+  // Every FluidR3 sample is a fixed 3.19s render, so an 8-second note used to
+  // end in 4.8 seconds of silence. Tone's Sampler schedules each voice to stop
+  // at the end of its buffer; setting `loop` on a started ToneBufferSource
+  // cancels exactly that stop, which is the hook this uses.
+  const record = await sustainWith(8);
+  const source = record.sources[0];
+
+  assert.ok(source, "the sampler should have sounded a voice");
+  assert.equal(source.loop, true, "the voice should loop");
+  assert.ok(source.loopEnd > source.loopStart, "with a real loop window");
+  assert.ok(source.loopStart > 0, "the loop should start past the attack");
+});
+
+test("the note is then stopped where it actually ends", async () => {
+  // Enabling the loop cancels Sampler's own stop, so without this the note
+  // would ring for the rest of the piece.
+  const record = await sustainWith(8);
+
+  assert.equal(record.stops.length, 1, "exactly one explicit stop");
+  assert.equal(record.stops[0].time, 8, "at the written end of the note");
+});
+
+test("a note that fits inside the sample is left alone", async () => {
+  const record = await sustainWith(2);
+
+  assert.equal(record.sources[0].loop, false, "no loop is needed");
+  assert.equal(record.stops.length, 0, "and Sampler's own stop is right");
+});
+
+test("a decaying sample is not looped", async () => {
+  // A piano is supposed to die away. Looping its tail would be an obviously
+  // stuck note, so analyseSustain measures the recording rather than trusting
+  // a list of instrument families.
+  const record = await sustainWith(8, "decaying");
+
+  assert.equal(record.sources[0].loop, false, "a decayed tail must not loop");
+  assert.equal(record.stops.length, 0);
+});
+
+test("loopSustain: false opts out", async () => {
+  const record = await sustainWith(8, "sustaining", { loopSustain: false });
+
+  assert.equal(record.sources[0].loop, false);
+  assert.equal(record.stops.length, 0);
+});
+
+test("analyseSustain tells a sustaining sample from a decaying one", async () => {
+  const { analyseSustain } = await import("../src/browser/synth-factory.js");
+
+  const make = (envelope) => {
+    const data = new Float32Array(8000);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = Math.sin(i * 0.05) * envelope(i / data.length);
+    }
+    return { duration: 2, getChannelData: () => data };
+  };
+
+  assert.equal(analyseSustain(make(() => 1)).loops, true, "a flat organ tone loops");
+  assert.equal(analyseSustain(make((t) => Math.exp(-6 * t))).loops, false, "a piano does not");
+  assert.equal(analyseSustain(null), null, "and a missing buffer is not a crash");
+});

@@ -78,11 +78,45 @@ class RecordingParam {
  *
  * @returns {{Tone: Object, record: Object}}
  */
+
+/** FluidR3's fixed sample length, which is what the real ceiling is. */
+const SAMPLE_SECONDS = 3.19;
+
+/**
+ * A stand-in for Tone's ToneBufferSource, with the parts the library reaches
+ * for: an automatable playbackRate, a buffer it can measure, loop points, and
+ * a stop() it can reschedule.
+ */
+function makeBufferSource(record, shape, seconds) {
+  const rate = 4000;                     // enough resolution for the analysis
+  const length = Math.round(rate * seconds);
+  const data = new Float32Array(length);
+  for (let i = 0; i < length; i++) {
+    const t = i / length;
+    // A decaying sample falls to near nothing; a sustaining one does not.
+    const envelope = shape === "decaying" ? Math.exp(-4 * t) : 0.6 + 0.4 * Math.cos(t * 6);
+    data[i] = Math.sin(i * 0.05) * envelope;
+  }
+
+  const source = {
+    buffer: { duration: seconds, getChannelData: () => data },
+    playbackRate: new RecordingParam(1, record.params, "Sampler.playbackRate"),
+    loop: false,
+    loopStart: 0,
+    loopEnd: 0,
+    stop(time) { record.stops.push({ time }); return this; },
+  };
+  record.sources.push(source);
+  return source;
+}
+
 export function createFakeTone() {
   const record = {
     scheduled: [],     // { time, callback }
     nodes: [],         // { type, options }
     connections: [],   // { from, to }
+    sources: [],       // Sampler voices, so loop points can be asserted
+    stops: [],         // { time } — explicit stops scheduled on a voice
     params: [],        // { param, value, time, kind }
     triggered: [],     // { pitch, duration, time, velocity }
     transport: { starts: 0, stops: 0 },
@@ -132,15 +166,25 @@ export function createFakeTone() {
       super("Sampler", options);
       delete this.detune;
       this._activeSources = new Map();
+      // Which shape the buffers have. `decaying` models a piano, whose tail
+      // has fallen to a few percent of peak; the default models a string or
+      // organ, which is still sounding at the end. analyseSustain tells them
+      // apart, so the tests have to be able to build both.
+      this.sampleShape = options?.sampleShape || "sustaining";
+      this.sampleSeconds = options?.sampleSeconds ?? SAMPLE_SECONDS;
     }
     triggerAttack(notes, time, velocity) {
       for (const note of [].concat(notes)) {
         const midi = Math.round(noteNameToMidi(note));
-        const source = { playbackRate: new RecordingParam(1, record.params, "Sampler.playbackRate") };
+        const source = makeBufferSource(record, this.sampleShape, this.sampleSeconds);
         if (!this._activeSources.has(midi)) this._activeSources.set(midi, []);
         this._activeSources.get(midi).push(source);
         record.triggered.push({ pitch: note, time, velocity });
       }
+      return this;
+    }
+    triggerAttackRelease(notes, duration, time, velocity) {
+      this.triggerAttack(notes, time, velocity);
       return this;
     }
     triggerRelease() { return this; }

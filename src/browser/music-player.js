@@ -20,6 +20,7 @@ import {
   hasDetuneParam,
   prepareSoundfonts,
   resolveConnectTarget,
+  sustainSampledNote,
 } from "./synth-factory.js";
 
 /**
@@ -378,7 +379,19 @@ export function createPlayer(composition, options = {}) {
         }
       }
 
-      return { synth, glideVoice, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN };
+      // Looping a sample's sustain is right for strings, organ and pads and
+      // wrong for anything that decays; analyseSustain decides per buffer.
+      // `loopSustain: false` on the track's synth opts out entirely.
+      const trackSynthSpec = originalTrack.synth;
+      const loopSustain = !(
+        trackSynthSpec && typeof trackSynthSpec === "object"
+        && trackSynthSpec.loopSustain === false
+      );
+
+      return {
+        synth, glideVoice, vibratoEffect, tremoloEffect,
+        modulations, partEvents, secondsPerQN, loopSustain,
+      };
     });
 
     // Wait for all samplers to finish loading
@@ -513,7 +526,7 @@ export function createPlayer(composition, options = {}) {
     scheduleTimeSignatureChanges(toSeconds);
     scheduleAutomation(toSeconds);
 
-    trackConfigs.forEach(({ synth, glideVoice, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN }) => {
+    trackConfigs.forEach(({ synth, glideVoice, vibratoEffect, tremoloEffect, modulations, partEvents, secondsPerQN, loopSustain }) => {
       // Schedule vibrato/tremolo enable/disable
       modulations.forEach((mod) => {
         const startTime = toSeconds(mod.start);
@@ -622,6 +635,7 @@ export function createPlayer(composition, options = {}) {
               const slid = applyPitchAnchorsToSampler(
                 synth, midi, t, anchorsSec, microtuningCents,
               );
+              if (loopSustain) sustainSampledNote(synth, midi, t, duration);
               synth.triggerRelease(noteName, t + duration);
               // If Tone moved `_activeSources` the note still sounds, just
               // without the slide — the glide voice is the safety net.
@@ -644,6 +658,11 @@ export function createPlayer(composition, options = {}) {
 
           scheduledEvents.push(ToneLib.Transport.schedule((t) => {
             synth.triggerAttackRelease(playNote, duration, t, velocity);
+            // A sampled instrument's recording is finite; loop its sustain so
+            // a long note does not end in silence.
+            if (loopSustain && typeof note.pitch === "number") {
+              sustainSampledNote(synth, note.pitch, t, duration);
+            }
           }, time));
         }
       });

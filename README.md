@@ -204,10 +204,11 @@ as in [chapter 6](userguide/06-walks.html).
 - A `customPreset`'s `type` may be a Tone class name or a GM program number,
   so a named instrument works like any other preset.
 
-Every FluidR3 sample is a fixed 3.19-second render — unlike a soundfont engine,
-which loops the sustain region, a longer note runs out of sound.
-`jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo))`
-re-articulates what would otherwise fall silent.
+Every FluidR3 sample is a fixed 3.19-second render, so a longer note used to
+end in silence. Both players now loop the sample's sustaining region, the way
+a soundfont engine does, and stop the voice where the note actually ends.
+Samples that decay — piano, guitar, plucked and percussive — are measured and
+left alone. Opt out with `synth: { gm: 48, loopSustain: false }`.
 
 Note these are per-note sample sets (the *midi-js* layout), not `.sf2` files —
 there is no SoundFont parser. Convert an `.sf2` to a folder of per-note MP3s to
@@ -226,7 +227,7 @@ use it.
 node --test tests/*.test.js src/**/__tests__/*.test.js
 ```
 
-320 assertion-backed tests, no dependencies to install: twelve `node:test`
+326 assertion-backed tests, no dependencies to install: twelve `node:test`
 suites in `tests/`, plus four glissando suites next to the code they cover.
 The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`, Verovio or
 Bun and are observations rather than tests — see the README there.

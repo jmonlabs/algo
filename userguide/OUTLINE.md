@@ -70,18 +70,22 @@ offline and exported.
 the question a reader arrives with, and the honest answer has one hard limit
 and four soft ones.
 
-The hard limit: **every FluidR3 sample is 3.19 seconds** — one fixed-length
-render per note, measured, not a rule of thumb. A soundfont engine loops a
-sample's sustain region and holds a note indefinitely; these simply stop. A
-whole note at 60 BPM is four seconds, so it ends in silence. That is the one
-difference no setting closes.
+Start with the fact that explains the rest: **every FluidR3 sample is a fixed
+3.19-second render**. A soundfont engine loops the sustaining part of a
+recording to hold a note indefinitely, and the library now does the same — so
+a held note no longer runs out of sound. Whether a sample *may* loop is
+measured from the recording's tail (strings 64% of peak, organ 86%, flute 95%,
+piano 4%), so decaying instruments are left to die away as they should.
+`synth: { gm: 48, loopSustain: false }` opts out; a note that fits inside the
+sample is untouched either way.
 
-    const safe = jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo));
+Re-articulating instead of looping is still available, and is what you want
+when the repeated attack is the point:
 
-re-articulates what would otherwise fall silent. On strings and organ the
-re-attack is audible, so it is a trade rather than a fix — worth saying so.
+    jm.utils.splitLongNotes(notes, jm.instruments.gmMaxBeats(tempo));
 
-The four that *are* closable, in order of how much they matter:
+The four remaining differences from a soundfont engine, in order of how much
+they matter:
 
 | | |
 |---|---|
