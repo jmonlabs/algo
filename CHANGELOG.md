@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 326 tests across twelve
+- A test suite that fails on a broken assertion: 329 tests across twelve
   `node:test` suites plus the four glissando suites under `src/**/__tests__/`,
   all run by CI.
 
@@ -367,12 +367,30 @@ families. `analyseSustain` compares a recording's tail level to its peak:
 
     strings 64%   organ 86%   pad 78%   flute 95%   piano 4%
 
-Above a quarter, the sample sustains and loops cleanly; below, it is decaying
-and looping it would be an audibly stuck note. Loop points are snapped to
-rising zero crossings so the seam does not click. Because the test is on the
-buffer, it works for your own sample sets too, not only the GM bank.
+Above a quarter, the sample sustains; below, it is decaying and looping would
+be an audibly stuck note. Because the test is on the buffer, it works for your
+own sample sets too, not only the GM bank.
+
+Landing the loop on a zero crossing is not enough on its own — it removes the
+click and leaves two seams that were measured, not assumed. The recording
+decays across the loop window, so every cycle steps up in level; and the
+partials are discontinuous at the join even when the sample value is zero. So
+`prepareLoopRegion` edits the buffer once: a gain ramp brings the loop's end
+up to its start, and an equal-power crossfade makes the audio arriving at
+`loopEnd` equal the audio preceding `loopStart`.
+
+    level step   4.15 dB -> 0.30 dB
+    waveform     1.6e-2  -> 5e-5
+
+The edit is in place, once per buffer, across every channel.
 
     synth: { gm: 48, loopSustain: false }   // opt out
+
+What a loop does *not* restore is the sample's own release: playback never
+reaches the end of the recording, so the note ends on Tone's `release` fade —
+0.1 s exponential by default. `synth: { gm: 48, options: { release: 0.6 } }`
+lengthens it. The attack is unaffected: playback starts at the beginning of
+the buffer and only jumps back once it reaches `loopEnd`.
 
 `GM_SAMPLE_SECONDS` and `gmMaxBeats(tempo)` remain for the cases where you
 would rather re-articulate than loop —

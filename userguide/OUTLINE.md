@@ -79,6 +79,16 @@ piano 4%), so decaying instruments are left to die away as they should.
 `synth: { gm: 48, loopSustain: false }` opts out; a note that fits inside the
 sample is untouched either way.
 
+Two details a reader will hear and wonder about, so say them plainly:
+
+- **The attack is intact.** Playback starts at the beginning of the recording
+  and only jumps back once it reaches the loop's end, so the attack is heard
+  once, in full, exactly as an unlooped note would.
+- **The release is not the sample's own.** Looping means playback never
+  reaches the end of the recording, so the note finishes on Tone's `release`
+  fade — 0.1 s by default, which is short and can sound abrupt on a long
+  string note. `{ gm: 48, options: { release: 0.6 } }` is the knob.
+
 Re-articulating instead of looping is still available, and is what you want
 when the repeated attack is the point:
 

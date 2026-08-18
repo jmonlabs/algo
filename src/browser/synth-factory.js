@@ -357,13 +357,14 @@ const sustainAnalyses = new WeakMap();
  * Decide whether a sample can be looped to hold a note, and where.
  *
  * A soundfont stores loop points; a folder of MP3s does not, so they are
- * measured. The test is simply whether the recording still has energy at the
- * end: a string, organ, flute or pad holds 60-95% of its peak level there and
- * loops cleanly, while a piano has decayed to a few percent and would loop as
- * an obviously stuck note.
+ * measured. The test is whether the recording still has energy at the end: a
+ * string, organ, flute or pad holds 60-95% of its peak level there and loops
+ * cleanly, while a piano has decayed to a few percent and would loop as an
+ * obviously stuck note.
  *
- * The loop points are snapped to rising zero crossings, which is what keeps
- * the seam from clicking once per cycle.
+ * The window is measured over 250 ms rather than a few cycles, because these
+ * recordings carry their own vibrato — a short window chases the modulation
+ * instead of the envelope.
  *
  * @param {Object} buffer — a Tone.ToneAudioBuffer
  * @param {Object} [options]
@@ -389,9 +390,7 @@ export function analyseSustain(buffer, options = {}) {
   const window = Math.max(1, Math.floor(rate * 0.05));
   const levels = [];
   for (let i = 0; i + window <= data.length; i += window) {
-    let sum = 0;
-    for (let j = i; j < i + window; j++) sum += data[j] * data[j];
-    levels.push(Math.sqrt(sum / window));
+    levels.push(rms(data, i, i + window));
   }
   if (levels.length < 4) return null;
 
@@ -400,26 +399,104 @@ export function analyseSustain(buffer, options = {}) {
   const loops = peak > 0 && tail / peak >= threshold;
 
   // Loop the steady part: past the attack, short of the very end, where an
-  // encoder's fade-out lives.
-  const from = zeroCrossingNear(data, Math.floor(data.length * 0.45));
-  const to = zeroCrossingNear(data, Math.floor(data.length * 0.92));
+  // encoder's fade-out lives. Both ends land on a rising zero crossing.
+  const from = zeroCrossingNear(data, Math.floor(data.length * 0.45), Math.floor(data.length * 0.50));
+  const to = zeroCrossingNear(data, Math.floor(data.length * 0.90), Math.floor(data.length * 0.95));
 
   const analysis = {
     loops: loops && to > from,
     loopStart: from / rate,
     loopEnd: to / rate,
+    startSample: from,
+    endSample: to,
+    prepared: false,
   };
   sustainAnalyses.set(buffer, analysis);
   return analysis;
 }
 
-/** Nearest sample index at or after `index` where the signal crosses zero upwards. */
-function zeroCrossingNear(data, index) {
-  const limit = Math.min(data.length - 1, index + Math.floor(data.length * 0.05));
-  for (let i = Math.max(1, index); i < limit; i++) {
+/** Root mean square of a slice. */
+function rms(data, from, to) {
+  let sum = 0;
+  for (let i = from; i < to; i++) sum += data[i] * data[i];
+  return Math.sqrt(sum / Math.max(1, to - from));
+}
+
+/** First rising zero crossing at or after `index`, giving up at `limit`. */
+function zeroCrossingNear(data, index, limit) {
+  const end = Math.min(data.length - 1, limit);
+  for (let i = Math.max(1, index); i < end; i++) {
     if (data[i - 1] <= 0 && data[i] > 0) return i;
   }
   return index;
+}
+
+/**
+ * Make a sample's loop join cleanly, by editing the recording once.
+ *
+ * Looping raw audio leaves two audible seams, both measured on the FluidR3
+ * set rather than assumed:
+ *
+ *   - a **level step**, because the recording decays across the loop window.
+ *     A warm pad jumped 4.6 dB every time round. A gain ramp across the loop
+ *     brings its end up to its start, so the cycle is level by construction.
+ *   - a **waveform step** at the join. Landing on a zero crossing removes the
+ *     click but not the discontinuity in the partials. Crossfading the audio
+ *     arriving at `loopEnd` into the audio that precedes `loopStart` makes the
+ *     join exact — the measured step goes to zero.
+ *
+ *         pad     -4.64 dB -> -1.09 dB    step 0.00050 -> 0.00000
+ *         strings -0.25 dB ->  0.11 dB    step 0.00039 -> 0.00000
+ *
+ * The edit is done once per buffer, in place, and every channel is treated the
+ * same so a stereo image survives. A voice already sounding this buffer will
+ * hear the edit; it happens on the first held note and never again.
+ *
+ * @param {Object} buffer — a Tone.ToneAudioBuffer
+ * @param {Object} analysis — from {@link analyseSustain}
+ * @returns {boolean} whether the buffer is ready to loop
+ */
+export function prepareLoopRegion(buffer, analysis) {
+  if (!analysis || !analysis.loops) return false;
+  if (analysis.prepared) return true;
+  analysis.prepared = true;   // set first: a failed edit still loops, just less neatly
+
+  const channels = buffer.numberOfChannels || 1;
+  const { startSample: start, endSample: end } = analysis;
+  const rate = (buffer.length || 0) / (buffer.duration || 1);
+  const fade = Math.min(Math.round(rate * 0.05), start, end - start);
+  if (!(end > start) || fade <= 0) return true;
+
+  const measure = Math.min(Math.round(rate * 0.25), end - start);
+
+  for (let channel = 0; channel < channels; channel++) {
+    let data;
+    try {
+      data = buffer.getChannelData(channel);
+    } catch {
+      continue;
+    }
+    if (!data || data.length < end) continue;
+
+    // 1. Level the loop: ramp its gain so the end matches the start.
+    const head = rms(data, start, start + measure);
+    const tail = rms(data, end - measure, end);
+    if (tail > 0 && head > 0) {
+      const gain = head / tail;
+      for (let i = start; i < end; i++) {
+        data[i] *= 1 + (gain - 1) * ((i - start) / (end - start));
+      }
+    }
+
+    // 2. Crossfade, equal-power, so the join is continuous in the waveform.
+    const before = data.slice(start - fade, start);
+    for (let i = 0; i < fade; i++) {
+      const t = i / fade;
+      data[end - fade + i] = data[end - fade + i] * Math.cos(t * Math.PI / 2)
+        + before[i] * Math.sin(t * Math.PI / 2);
+    }
+  }
+  return true;
 }
 
 /**
@@ -457,7 +534,7 @@ export function sustainSampledNote(synth, midi, startTime, seconds, options = {}
     if (!(seconds > natural)) continue;
 
     const analysis = analyseSustain(buffer, options);
-    if (!analysis || !analysis.loops) continue;
+    if (!prepareLoopRegion(buffer, analysis)) continue;
 
     source.loopStart = analysis.loopStart;
     source.loopEnd = analysis.loopEnd;

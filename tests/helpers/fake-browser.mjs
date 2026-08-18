@@ -99,7 +99,12 @@ function makeBufferSource(record, shape, seconds) {
   }
 
   const source = {
-    buffer: { duration: seconds, getChannelData: () => data },
+    buffer: {
+      duration: seconds,
+      length,
+      numberOfChannels: 1,
+      getChannelData: () => data,   // live, so an edit to it is visible here
+    },
     playbackRate: new RecordingParam(1, record.params, "Sampler.playbackRate"),
     loop: false,
     loopStart: 0,
