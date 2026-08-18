@@ -2,14 +2,11 @@
 import { compileEvents } from "../algorithms/audio/index.js";
 import {
 	applyPitchAnchors,
-	applyPitchAnchorsToSampler,
-	canResample,
 	createGlideVoice,
 	createTrackSynth,
 	hasDetuneParam,
-	prepareSoundfonts,
 	resolveConnectTarget,
-	sustainSampledNote,
+	resolveSynthPreset,
 } from "../browser/synth-factory.js";
 import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
 import { normalizeAudioGraph } from "../utils/normalize.js";
@@ -37,12 +34,18 @@ export function wav(composition, options = {}) {
  * import * as Tone from "npm:tone@14.7.77";
  * await jm.converters.downloadWav(composition, Tone, "my-song.wav");
  */
-export async function downloadWav(composition, Tone, filename = "composition.wav", duration) {
+export async function downloadWav(composition, Tone, filename = "composition.wav", duration, options = {}) {
 	normalizeAudioGraph(composition);
+	const sound = options.sound || null;
 
-	// Settle the sample CDN before entering the offline render, not inside it:
-	// Tone.Offline does not wait on network work started within its callback.
-	await prepareSoundfonts(composition.tracks || [], composition.customPresets);
+	// Let the provider settle its sample source before entering the offline
+	// render, not inside it: Tone.Offline does not wait on network work started
+	// within its callback.
+	if (typeof sound?.prepare === "function") {
+		await sound.prepare(
+			(composition.tracks || []).map(t => resolveSynthPreset(t && t.synth, composition.customPresets)),
+		);
+	}
 
 	// Calculate duration from composition if not provided
 	const maxTime = composition.tracks?.reduce((max, track) => {
@@ -103,7 +106,9 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 				null,
 			);
 
-			const { synth, isLoadable, isShared } = createTrackSynth(track, Tone, sharedSynth, composition.customPresets);
+			const { synth, isLoadable, isShared } = createTrackSynth(
+				track, Tone, sharedSynth, composition.customPresets, sound,
+			);
 			if (isLoadable) samplers.push(synth);
 			if (!isShared) {
 				if (connectTarget) synth.connect(connectTarget);
@@ -256,7 +261,7 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 					// rendered slide sounds like the one you heard: the synth's
 					// own detune, resampling a Sampler's voices, or the
 					// dedicated glide voice.
-					if (pitchCurve && (hasDetuneParam(synth) || canResample(synth) || glideVoice)) {
+					if (pitchCurve && (hasDetuneParam(synth) || sound?.bendVoices || glideVoice)) {
 						const microtuningCents = mt * 100;
 						// Anchor times are absolute beats; rebase to the note start.
 						const anchorsSec = pitchCurve.anchors.map((a) => ({
@@ -268,15 +273,13 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 						if (hasDetuneParam(synth)) {
 							applyPitchAnchors(synth.detune, time, anchorsSec, microtuningCents);
 							synth.triggerAttackRelease(noteName, noteDuration, time, velocity);
-						} else if (canResample(synth)) {
+						} else if (sound?.bendVoices) {
 							const midi = typeof note.pitch === "number"
 								? note.pitch
 								: Tone.Frequency(noteName).toMidi();
 							synth.triggerAttack(noteName, time, velocity);
-							const slid = applyPitchAnchorsToSampler(
-								synth, midi, time, anchorsSec, microtuningCents,
-							);
-							if (loopSustain) sustainSampledNote(synth, midi, time, noteDuration);
+							const slid = sound.bendVoices(synth, midi, time, anchorsSec, microtuningCents);
+							if (loopSustain) sound.holdVoices?.(synth, midi, time, noteDuration);
 							synth.triggerRelease(noteName, time + noteDuration);
 							if (!slid && glideVoice) {
 								applyPitchAnchors(glideVoice.detune, time, anchorsSec, microtuningCents);
@@ -295,7 +298,7 @@ export async function downloadWav(composition, Tone, filename = "composition.wav
 						// Loop a sampled instrument's sustain so a long note does
 						// not run out of recording, as in the live player.
 						if (loopSustain && typeof note.pitch === "number") {
-							sustainSampledNote(synth, note.pitch, time, noteDuration);
+							sound?.holdVoices?.(synth, note.pitch, time, noteDuration);
 						}
 					}
 				}

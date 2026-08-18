@@ -33,7 +33,7 @@ to pin — never resolved.
   `new Articulation({ type }).apply(notes, index)`.
 - `staccatissimo` is now a registered articulation type (the 13th). Its
   implementation had always existed but was unreachable.
-- A test suite that fails on a broken assertion: 329 tests across twelve
+- A test suite that fails on a broken assertion: 303 tests across eleven
   `node:test` suites plus the four glissando suites under `src/**/__tests__/`,
   all run by CI.
 
@@ -397,6 +397,37 @@ would rather re-articulate than loop —
 `jm.utils.splitLongNotes(notes, gmMaxBeats(tempo))`. `userguide/OUTLINE.md`
 (I.4) carries what is left: reverb, sample density, release and velocity, in
 the order they matter to a listener.
+
+### Sampled instruments moved to jmon/sound
+
+General MIDI, drum kits, sample loading and the DSP for bending and looping a
+sounding voice left this repository for
+[`jmon/sound`](https://github.com/jmonlabs/sound) — about 880 lines that had
+stopped being composition and become a sampler.
+
+It is injected the way Tone.js and Verovio already were, which is the idiom
+this library uses for everything it does not own:
+
+    import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
+    jm.play(composition, { Tone, sound });
+
+The contract is four optional methods — `create`, `prepare`, `bendVoices`,
+`holdVoices` — and each degrades independently. No provider and a General MIDI
+track falls back to a synth, with one warning rather than one per track; no
+`bendVoices` and a glissando moves to the glide voice; no `holdVoices` and a
+long note stops when its sample does. Anything with that shape can be passed
+instead, including an adapter over a different sample engine.
+
+What stays here is what this library owns: audio graph routing, preset
+resolution (`customPresets` is a JMON concept), scheduling, automation, and
+pitch curves on Tone's own synths.
+
+**Breaking:** `jm.instruments` is gone. `registerDrumKit`, `GM_INSTRUMENTS` and
+the rest are on the `sound` object now.
+
+The tests split the same way, which is the clearest statement of the boundary:
+`jmon/algo` asserts that it *calls* the contract correctly, `jmon/sound`
+asserts what those calls *do*, against real buffers.
 
 ### Known gaps
 

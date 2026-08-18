@@ -125,12 +125,6 @@ test("without a tempoMap the schedule is unchanged", async () => {
 
 /* --- synths -------------------------------------------------------------- */
 
-test("a GM program number builds a Sampler", async () => {
-  const { record } = await playAndRecord(composition([
-    { label: "violin", synth: 40, notes: [note(67, 0)] },
-  ]));
-  assert.ok(record.nodes.some((n) => n.type === "Sampler"), "GM programs are sampled");
-});
 
 test("an explicit synth type is honoured", async () => {
   const { record } = await playAndRecord(composition([
@@ -315,39 +309,7 @@ test("the slide runs on the track's own synth when it has a detune", async () =>
   assert.ok(record.params.some((p) => p.param === "MonoSynth.detune"));
 });
 
-test("a sampled instrument slides by resampling, keeping its timbre", async () => {
-  // Tone's Sampler exposes no detune Signal, but it keeps its sounding buffer
-  // sources and their playbackRate is automatable — the same lever a soundfont
-  // engine pulls to bend a note. Ramping it slides the violin as a violin,
-  // rather than handing the note to a stand-in.
-  const record = await slideWith({ label: "violin", synth: 40 });
-  const types = record.nodes.map((n) => n.type);
 
-  assert.ok(types.includes("Sampler"), "the track's own instrument carries the slide");
-  assert.equal(
-    record.params.filter((p) => p.param === "Sampler.detune").length, 0,
-    "the Sampler has no detune to ramp",
-  );
-
-  const rates = record.params.filter((p) => p.param === "Sampler.playbackRate");
-  assert.ok(rates.length >= 2, "expected a starting rate and a ramp");
-  assert.equal(rates[0].value, 1, "the slide starts at the sample's own pitch");
-  // A perfect fifth resamples by 2^(7/12).
-  assert.ok(
-    Math.abs(rates.at(-1).value - Math.pow(2, 7 / 12)) < 1e-4,
-    `ended at rate ${rates.at(-1).value}`,
-  );
-});
-
-test("a Sampler slide needs no reset, unlike a shared detune signal", async () => {
-  // Each note gets fresh buffer sources that are discarded when it ends, so
-  // there is no lingering state to undo — which is why the rate ramp has no
-  // trailing return to 1 the way applyPitchAnchors has one to 0 cents.
-  const record = await slideWith({ label: "violin", synth: 40 });
-  const rates = record.params.filter((p) => p.param === "Sampler.playbackRate");
-
-  assert.ok(rates.at(-1).value > 1, "the rate ends where the slide arrives");
-});
 
 test("a PolySynth slides on a glide voice too", async () => {
   // PolySynth sets options through set(), not through a Signal, so it takes
@@ -419,91 +381,10 @@ test("a note without a slide sets no detune ramp", async () => {
   );
 });
 
-/* --- GM soundfonts ------------------------------------------------------- */
 
-test("synth: { gm, strategy } asks for the density it names", async () => {
-  // A bare number takes the balanced default. Naming `complete` is how a
-  // sustained instrument gets one sample per semitone back.
-  const balanced = await playAndRecord(composition([
-    { label: "violin", synth: 40, notes: [note(60, 0)] },
-  ]));
-  const complete = await playAndRecord(composition([
-    { label: "violin", synth: { gm: 40, strategy: "complete" }, notes: [note(60, 0)] },
-  ]));
 
-  const urlCount = (r) =>
-    Object.keys(r.record.nodes.find((n) => n.type === "Sampler").options.urls).length;
 
-  assert.equal(urlCount(complete), 88);
-  assert.ok(
-    urlCount(balanced) < urlCount(complete),
-    `balanced ${urlCount(balanced)} should be lighter than complete`,
-  );
-});
 
-test("prepareSoundfonts probes only when a track needs samples", async () => {
-  const { prepareSoundfonts } = await import("../src/browser/synth-factory.js");
-
-  assert.equal(
-    await prepareSoundfonts([{ label: "a", synth: "MonoSynth" }, { label: "b" }]),
-    null,
-    "a piece of pure Tone synths should not pay for a request",
-  );
-  assert.notEqual(
-    await prepareSoundfonts([{ label: "a", synth: 40 }]), null,
-    "a GM number needs a base url",
-  );
-  assert.notEqual(
-    await prepareSoundfonts([{ label: "a", synth: { gm: 40 } }]), null,
-    "the object spelling counts too",
-  );
-  assert.notEqual(
-    await prepareSoundfonts(
-      [{ label: "a", synth: "violin" }],
-      [{ id: "violin", type: 40 }],
-    ),
-    null,
-    "a preset that names a GM program needs samples just the same",
-  );
-});
-
-test("a customPreset can name a GM program", async () => {
-  const { record } = await playAndRecord(composition(
-    [{ label: "strings", synth: "violin", notes: [note(67, 0)] }],
-    { customPresets: [{ id: "violin", type: 40 }] },
-  ));
-
-  const sampler = record.nodes.find((n) => n.type === "Sampler");
-  assert.ok(sampler, `no Sampler; got ${record.nodes.map((n) => n.type).join(", ")}`);
-  assert.match(Object.values(sampler.options.urls)[0], /\/violin-mp3\//);
-});
-
-test("a GM preset carries its sampling strategy", async () => {
-  const { record } = await playAndRecord(composition(
-    [{ label: "strings", synth: "violin", notes: [note(67, 0)] }],
-    { customPresets: [{ id: "violin", type: 40, strategy: "complete" }] },
-  ));
-
-  const sampler = record.nodes.find((n) => n.type === "Sampler");
-  assert.equal(Object.keys(sampler.options.urls).length, 88);
-});
-
-test("a track can override a GM preset's strategy", async () => {
-  const { record } = await playAndRecord(composition(
-    [{
-      label: "strings",
-      synth: { preset: "violin", strategy: "minimal" },
-      notes: [note(67, 0)],
-    }],
-    { customPresets: [{ id: "violin", type: 40, strategy: "complete" }] },
-  ));
-
-  const sampler = record.nodes.find((n) => n.type === "Sampler");
-  assert.ok(
-    Object.keys(sampler.options.urls).length < 20,
-    `the track's minimal should win, got ${Object.keys(sampler.options.urls).length}`,
-  );
-});
 
 test("a preset naming a Tone class still resolves to that class", async () => {
   // The GM branch must not swallow the string case.
@@ -515,25 +396,33 @@ test("a preset naming a Tone class still resolves to that class", async () => {
   assert.equal(record.nodes.find((n) => n.type === "MonoSynth")?.options?.detune, 7);
 });
 
-/* --- sustaining past the end of the sample -------------------------------- */
 
-/** Play one note of `beats` on a GM sampler whose samples have `shape`. */
-async function sustainWith(beats, shape = "sustaining", trackExtra = {}) {
+
+
+
+
+
+
+
+
+
+/* --- the sampled-instrument provider -------------------------------------- */
+
+/**
+ * Sampled instruments live in `jmon/sound`, injected the way Tone.js is. What
+ * the player owes it is a correct call at the right moment; what the call
+ * *does* is tested in that package, against real buffers.
+ */
+async function playWithSound(comp, { withSound = true } = {}) {
   const restore = installFakeBrowser();
   try {
     const { Tone, record } = createFakeTone();
-    // The fake Sampler reads its buffer shape out of its constructor options.
-    const Base = Tone.Sampler;
-    Tone.Sampler = class extends Base {
-      constructor(options) { super({ ...options, sampleShape: shape }); }
-    };
     globalThis.Tone = Tone;
+    const { createRecordingSound } = await import("./helpers/fake-browser.mjs");
+    const sound = withSound ? createRecordingSound(record, Tone) : null;
 
-    const { createPlayer } = await import(`../src/browser/music-player.js?s=${shape}${beats}${JSON.stringify(trackExtra)}`);
-    const ui = createPlayer(composition(
-      [{ label: "held", synth: { gm: 48, ...trackExtra }, notes: [note(60, 0, beats)] }],
-      { tempo: 60 },   // one beat is one second, so beats are seconds
-    ), { Tone });
+    const { createPlayer } = await import(`../src/browser/music-player.js?p=${Math.abs(JSON.stringify(comp).length)}${withSound}`);
+    const ui = createPlayer(comp, { Tone, sound });
 
     const { collectHandlers } = await import("./helpers/fake-browser.mjs");
     await collectHandlers(ui).find((h) => typeof h.click === "function").click();
@@ -544,141 +433,112 @@ async function sustainWith(beats, shape = "sustaining", trackExtra = {}) {
   }
 }
 
-test("a note longer than the sample loops the sample's sustain", async () => {
-  // Every FluidR3 sample is a fixed 3.19s render, so an 8-second note used to
-  // end in 4.8 seconds of silence. Tone's Sampler schedules each voice to stop
-  // at the end of its buffer; setting `loop` on a started ToneBufferSource
-  // cancels exactly that stop, which is the hook this uses.
-  const record = await sustainWith(8);
-  const source = record.sources[0];
+test("a General MIDI program is handed to the provider, not built here", async () => {
+  const record = await playWithSound(composition([
+    { label: "violin", synth: 40, notes: [note(67, 0)] },
+  ]));
 
-  assert.ok(source, "the sampler should have sounded a voice");
-  assert.equal(source.loop, true, "the voice should loop");
-  assert.ok(source.loopEnd > source.loopStart, "with a real loop window");
-  assert.ok(source.loopStart > 0, "the loop should start past the attack");
+  assert.deepEqual(record.sound.created, [40]);
+  assert.ok(record.nodes.some((n) => n.type === "Sampler"), "and its node is used");
 });
 
-test("the note is then stopped where it actually ends", async () => {
-  // Enabling the loop cancels Sampler's own stop, so without this the note
-  // would ring for the rest of the piece.
-  const record = await sustainWith(8);
+test("the sampling options travel with the spec", async () => {
+  // The player must not interpret `strategy` — how densely to sample is the
+  // provider's decision, so the spec goes through whole.
+  const record = await playWithSound(composition([
+    { label: "violin", synth: { gm: 40, strategy: "complete" }, notes: [note(67, 0)] },
+  ]));
 
-  assert.equal(record.stops.length, 1, "exactly one explicit stop");
-  assert.equal(record.stops[0].time, 8, "at the written end of the note");
+  assert.deepEqual(record.sound.created, [{ gm: 40, strategy: "complete" }]);
 });
 
-test("a note that fits inside the sample is left alone", async () => {
-  const record = await sustainWith(2);
+test("a preset is expanded before the provider sees it", async () => {
+  // The provider knows nothing about customPresets — that is JMON's business,
+  // so what arrives is already a plain spec.
+  const record = await playWithSound(composition(
+    [{ label: "strings", synth: "violin", notes: [note(67, 0)] }],
+    { customPresets: [{ id: "violin", type: 40, strategy: "complete" }] },
+  ));
 
-  assert.equal(record.sources[0].loop, false, "no loop is needed");
-  assert.equal(record.stops.length, 0, "and Sampler's own stop is right");
+  assert.equal(record.sound.created.length, 1);
+  assert.equal(record.sound.created[0].gm, 40);
+  assert.equal(record.sound.created[0].strategy, "complete");
 });
 
-test("a decaying sample is not looped", async () => {
-  // A piano is supposed to die away. Looping its tail would be an obviously
-  // stuck note, so analyseSustain measures the recording rather than trusting
-  // a list of instrument families.
-  const record = await sustainWith(8, "decaying");
+test("prepare is called once, with every track's resolved spec", async () => {
+  const record = await playWithSound(composition(
+    [
+      { label: "violin", synth: "fiddle", notes: [note(67, 0)] },
+      { label: "lead", synth: { type: "MonoSynth" }, notes: [note(60, 0)] },
+    ],
+    { customPresets: [{ id: "fiddle", type: 40 }] },
+  ));
 
-  assert.equal(record.sources[0].loop, false, "a decayed tail must not loop");
-  assert.equal(record.stops.length, 0);
+  assert.equal(record.sound.prepared.length, 1, "one call, not one per track");
+  const specs = record.sound.prepared[0];
+  assert.equal(specs.length, 2, "including the tracks it cannot help with");
+  assert.equal(specs[0].gm, 40, "and presets already expanded");
 });
 
-test("loopSustain: false opts out", async () => {
-  const record = await sustainWith(8, "sustaining", { loopSustain: false });
+test("a glissando on a sampled instrument goes through bendVoices", async () => {
+  const record = await playWithSound(composition([{
+    label: "violin", synth: 40,
+    notes: [{ ...note(60, 0, 2), articulations: [{ type: "glissando", target: 67 }] }],
+  }]));
 
-  assert.equal(record.sources[0].loop, false);
-  assert.equal(record.stops.length, 0);
+  assert.equal(record.sound.bent.length, 1);
+  const [call] = record.sound.bent;
+  assert.equal(call.midi, 60, "the written pitch keys the sounding voices");
+  const arrival = Math.max(...call.anchors.map((a) => a.value));
+  assert.ok(Math.abs(arrival - 700) < 1, `anchors should be in cents, got ${arrival}`);
 });
 
-test("analyseSustain tells a sustaining sample from a decaying one", async () => {
-  const { analyseSustain } = await import("../src/browser/synth-factory.js");
+test("a held note goes through holdVoices, in seconds", async () => {
+  const record = await playWithSound(composition(
+    [{ label: "strings", synth: 48, notes: [note(60, 0, 8)] }],
+    { tempo: 60 },
+  ));
 
-  const make = (envelope) => {
-    const data = new Float32Array(8000);
-    for (let i = 0; i < data.length; i++) {
-      data[i] = Math.sin(i * 0.05) * envelope(i / data.length);
-    }
-    return { duration: 2, getChannelData: () => data };
-  };
-
-  assert.equal(analyseSustain(make(() => 1)).loops, true, "a flat organ tone loops");
-  assert.equal(analyseSustain(make((t) => Math.exp(-6 * t))).loops, false, "a piano does not");
-  assert.equal(analyseSustain(null), null, "and a missing buffer is not a crash");
+  assert.equal(record.sound.held.length, 1);
+  assert.equal(record.sound.held[0].midi, 60);
+  assert.equal(record.sound.held[0].seconds, 8, "8 beats at 60 BPM is 8 seconds");
 });
 
-test("the loop join is levelled and crossfaded before it is used", async () => {
-  // Looping raw audio leaves two seams: a level step, because the recording
-  // decays across the window, and a waveform step at the join. Landing on a
-  // zero crossing removes the click but not the discontinuity in the
-  // partials, so the buffer is edited once.
-  const { analyseSustain, prepareLoopRegion } = await import("../src/browser/synth-factory.js");
+test("loopSustain: false keeps the player from asking at all", async () => {
+  const record = await playWithSound(composition(
+    [{ label: "strings", synth: { gm: 48, loopSustain: false }, notes: [note(60, 0, 8)] }],
+    { tempo: 60 },
+  ));
 
-  const length = 20000;
-  const data = new Float32Array(length);
-  for (let i = 0; i < length; i++) {
-    // Sustaining, but decaying across its length — which is what causes the step.
-    data[i] = Math.sin(i * 0.05) * (1 - 0.7 * (i / length));
-  }
-  const buffer = { duration: 2, length, numberOfChannels: 1, getChannelData: () => data };
-
-  const analysis = analyseSustain(buffer);
-  assert.equal(analysis.loops, true);
-
-  const rms = (from, to) => {
-    let s = 0;
-    for (let i = from; i < to; i++) s += data[i] * data[i];
-    return Math.sqrt(s / (to - from));
-  };
-  const { startSample: s, endSample: e } = analysis;
-  const measure = Math.round(length * 0.1);
-  const stepBefore = Math.abs(data[e - 1] - data[s - 1]);
-  const levelBefore = rms(s, s + measure) / rms(e - measure, e);
-
-  assert.equal(prepareLoopRegion(buffer, analysis), true);
-
-  // The crossfade closes the waveform step exactly: the signal arriving at
-  // loopEnd is made equal to what precedes loopStart.
-  // Measured on this signal: 1.6e-2 unfixed, 1.0e-2 with the gain ramp alone,
-  // 5e-5 once the crossfade runs. The bound isolates the crossfade.
-  assert.ok(stepBefore > 1e-3, `nothing to fix; step was already ${stepBefore}`);
-  const stepAfter = Math.abs(data[e - 1] - data[s - 1]);
-  assert.ok(stepAfter < 1e-3, `the join should be near-exact, got ${stepAfter.toExponential(2)}`);
-
-  // And 4.15 dB unfixed, 2.35 dB with the crossfade alone, 0.30 dB once the
-  // gain ramp levels the loop. Likewise isolates the ramp.
-  const levelAfter = Math.abs(20 * Math.log10(rms(s, s + measure) / rms(e - measure, e)));
-  assert.ok(Math.abs(20 * Math.log10(levelBefore)) > 2, "nothing to fix");
-  assert.ok(levelAfter < 1, `loop should be level, got ${levelAfter.toFixed(2)} dB`);
+  assert.equal(record.sound.held.length, 0);
 });
 
-test("the buffer is edited once, not on every note", async () => {
-  const { analyseSustain, prepareLoopRegion } = await import("../src/browser/synth-factory.js");
+test("without a provider, a GM track still plays — on a synth", async () => {
+  // The composition must not fail to load. It loses the instrument, not the
+  // notes, and says so once rather than per track.
+  const record = await playWithSound(
+    composition([
+      { label: "violin", synth: 40, notes: [note(67, 0)] },
+      { label: "cello", synth: 42, notes: [note(48, 0)] },
+    ]),
+    { withSound: false },
+  );
 
-  const length = 20000;
-  const data = new Float32Array(length);
-  for (let i = 0; i < length; i++) data[i] = Math.sin(i * 0.05) * (1 - 0.7 * (i / length));
-  const buffer = { duration: 2, length, numberOfChannels: 1, getChannelData: () => data };
-
-  const analysis = analyseSustain(buffer);
-  prepareLoopRegion(buffer, analysis);
-  const once = Float32Array.from(data);
-
-  prepareLoopRegion(buffer, analysis);
-  prepareLoopRegion(buffer, analysis);
-
-  assert.deepEqual(Array.from(data), Array.from(once), "repeat calls must not re-blend");
+  assert.equal(record.scheduled.length, 2, "both notes are still scheduled");
+  assert.ok(!record.nodes.some((n) => n.type === "Sampler"), "no sampler without a provider");
+  assert.ok(record.nodes.some((n) => n.type === "PolySynth"), "a synth stands in");
 });
 
-test("a decaying sample is never edited", async () => {
-  const { analyseSustain, prepareLoopRegion } = await import("../src/browser/synth-factory.js");
+test("the provider decides what it recognises, not the player", async () => {
+  // `prepare` is asked unconditionally and `create` is offered every spec,
+  // because only the provider knows which of them are its business. Skipping
+  // the network probe for a synth-only piece is its call, not the player's —
+  // which is why nothing here second-guesses the spec.
+  const record = await playWithSound(composition([
+    { label: "lead", synth: { type: "MonoSynth" }, notes: [note(60, 0)] },
+  ]));
 
-  const length = 20000;
-  const data = new Float32Array(length);
-  for (let i = 0; i < length; i++) data[i] = Math.sin(i * 0.05) * Math.exp(-6 * (i / length));
-  const original = Float32Array.from(data);
-  const buffer = { duration: 2, length, numberOfChannels: 1, getChannelData: () => data };
-
-  assert.equal(prepareLoopRegion(buffer, analyseSustain(buffer)), false);
-  assert.deepEqual(Array.from(data), Array.from(original), "a piano's recording is left alone");
+  assert.deepEqual(record.sound.created, [], "it declined, so the player built the synth");
+  assert.equal(record.sound.prepared.length, 1, "but it was still asked");
+  assert.ok(record.nodes.some((n) => n.type === "MonoSynth"));
 });

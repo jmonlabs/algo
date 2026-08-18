@@ -190,32 +190,31 @@ as in [chapter 6](userguide/06-walks.html).
 - WAV audio
 - SuperCollider
 
-### Instruments (`jm.instruments.*`)
-- General MIDI: `synth: 40` on a track loads FluidR3 soundfont samples into a
-  Tone.js `Sampler`. All 128 programs are mapped — `jm.instruments.load()`
-  first if you want the table itself.
-- `synth: { gm: 40, strategy: "complete" }` when you want a sample per
-  semitone; the default is `balanced` (~25 files), which resamples the gaps.
-- `jm.instruments.setSoundfontBase(url)` points at your own mirror. Otherwise
-  the CDN is probed once per session, with a fallback.
-- Your own samples, no GM involved:
-  `synth: { type: "Sampler", options: { baseUrl, urls } }`.
-- Drum kits: `jm.instruments.registerDrumKit(name, { baseUrl, samples })`.
-- A `customPreset`'s `type` may be a Tone class name or a GM program number,
-  so a named instrument works like any other preset.
+### Sampled instruments — a separate package
 
-Every FluidR3 sample is a fixed 3.19-second render, so a longer note used to
-end in silence. Both players now loop the sample's sustaining region, the way
-a soundfont engine does, and stop the voice where the note actually ends.
-Samples that decay — piano, guitar, plucked and percussive — are measured and
-left alone. The loop join is levelled and crossfaded so it does not pulse or
-click. The attack is heard in full; the release is Tone's fade rather than the
-sample's own tail, so lengthen it with `options: { release: 0.6 }` if a note
-ends too squarely. Opt out entirely with `synth: { gm: 48, loopSustain: false }`.
+General MIDI, drum kits and sample loading live in
+[`jmon/sound`](https://github.com/jmonlabs/sound), injected the way Tone.js and
+Verovio are:
 
-Note these are per-note sample sets (the *midi-js* layout), not `.sf2` files —
-there is no SoundFont parser. Convert an `.sf2` to a folder of per-note MP3s to
-use it.
+```js
+import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
+jm.play(composition, { Tone, sound });
+```
+
+```js
+{ label: "Violin", synth: 40, notes }               // a General MIDI program
+{ label: "Drums",  synth: "kit:808", notes }        // a drum kit
+```
+
+`jmon/algo` composes and schedules; that package plays the result with real
+instrument samples, and handles what a soundfont engine does with a sounding
+note — bending it by resampling rather than substituting, holding it past the
+end of the recording. Without it `jm.play()` still works: a track asking for a
+General MIDI program falls back to a synth, audible and in time but not the
+instrument that was written.
+
+Anything with the same shape can be passed instead — the contract is four
+optional methods, documented in that repo.
 
 ### Utils (`jm.utils.*`)
 - Sequence transformations: `invert`, `retrograde`, `augment`, `transpose`,
@@ -230,8 +229,10 @@ use it.
 node --test tests/*.test.js src/**/__tests__/*.test.js
 ```
 
-329 assertion-backed tests, no dependencies to install: twelve `node:test`
+303 assertion-backed tests, no dependencies to install: eleven `node:test`
 suites in `tests/`, plus four glissando suites next to the code they cover.
+The sampled-instrument tests moved with the code, to
+[`jmon/sound`](https://github.com/jmonlabs/sound).
 The scripts in `tests/integration/` need Tone.js, `@tangent.to/ds`, Verovio or
 Bun and are observations rather than tests — see the README there.
 

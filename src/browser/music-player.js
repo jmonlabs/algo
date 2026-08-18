@@ -13,14 +13,11 @@ import {
 } from "../utils/timeline.js";
 import {
   applyPitchAnchors,
-  applyPitchAnchorsToSampler,
-  canResample,
   createGlideVoice,
   createTrackSynth,
   hasDetuneParam,
-  prepareSoundfonts,
   resolveConnectTarget,
-  sustainSampledNote,
+  resolveSynthPreset,
 } from "./synth-factory.js";
 
 /**
@@ -46,7 +43,7 @@ export function createPlayer(composition, options = {}) {
     throw new Error("Invalid composition");
   }
 
-  const { Tone: externalTone = null, autoplay = false } = options;
+  const { Tone: externalTone = null, autoplay = false, sound = null } = options;
 
   // Normalize composition structure
   const tracks = composition.tracks || composition.sequences || [];
@@ -288,9 +285,13 @@ export function createPlayer(composition, options = {}) {
     tempoPlan = { segments, toSeconds };
     const secondsPerQN = 60 / tempo;
 
-    // Settle which CDN the GM samples come from before any Sampler is built.
-    // No-op, and no request, for a piece that uses none.
-    await prepareSoundfonts(originalTracksSource, composition.customPresets);
+    // Let the sampled-instrument provider settle where its samples come from
+    // before any instrument is built. No provider, no work.
+    if (typeof sound?.prepare === "function") {
+      await sound.prepare(
+        originalTracksSource.map((t) => resolveSynthPreset(t && t.synth, composition.customPresets)),
+      );
+    }
 
     // Build per-track configs
     trackConfigs = convertedTracks.map((trackConfig) => {
@@ -321,7 +322,9 @@ export function createPlayer(composition, options = {}) {
         masterGain,
       );
 
-      const { synth, isShared } = createTrackSynth(originalTrack, ToneLib, sharedSynth, composition.customPresets);
+      const { synth, isShared } = createTrackSynth(
+        originalTrack, ToneLib, sharedSynth, composition.customPresets, sound,
+      );
       if (!isShared) synth.connect(connectTarget);
 
       activeSynths.push(synth);
@@ -610,7 +613,7 @@ export function createPlayer(composition, options = {}) {
         //   3. the track's dedicated glide voice — PolySynth, which has
         //      neither, so the slide moves to a stand-in routed through the
         //      same effect chain.
-        if (pitchCurve && (hasDetuneParam(synth) || canResample(synth) || glideVoice)) {
+        if (pitchCurve && (hasDetuneParam(synth) || sound?.bendVoices || glideVoice)) {
           const microtuningCents = (note.microtuning || 0) * 100;
           // Anchor times are absolute beats; rebase to the note start.
           const anchorsSec = pitchCurve.anchors.map((a) => ({
@@ -623,7 +626,7 @@ export function createPlayer(composition, options = {}) {
               applyPitchAnchors(synth.detune, t, anchorsSec, microtuningCents);
               synth.triggerAttackRelease(noteName, duration, t, velocity);
             }, time));
-          } else if (canResample(synth)) {
+          } else if (sound?.bendVoices) {
             // The voices only exist once the note has been triggered, so
             // attack and release are separate here.
             const midi = typeof note.pitch === "number"
@@ -632,10 +635,8 @@ export function createPlayer(composition, options = {}) {
 
             scheduledEvents.push(ToneLib.Transport.schedule((t) => {
               synth.triggerAttack(noteName, t, velocity);
-              const slid = applyPitchAnchorsToSampler(
-                synth, midi, t, anchorsSec, microtuningCents,
-              );
-              if (loopSustain) sustainSampledNote(synth, midi, t, duration);
+              const slid = sound.bendVoices(synth, midi, t, anchorsSec, microtuningCents);
+              if (loopSustain) sound.holdVoices?.(synth, midi, t, duration);
               synth.triggerRelease(noteName, t + duration);
               // If Tone moved `_activeSources` the note still sounds, just
               // without the slide — the glide voice is the safety net.
@@ -658,10 +659,10 @@ export function createPlayer(composition, options = {}) {
 
           scheduledEvents.push(ToneLib.Transport.schedule((t) => {
             synth.triggerAttackRelease(playNote, duration, t, velocity);
-            // A sampled instrument's recording is finite; loop its sustain so
-            // a long note does not end in silence.
+            // A sampled instrument's recording is finite; the provider loops
+            // its sustain so a long note does not end in silence.
             if (loopSustain && typeof note.pitch === "number") {
-              sustainSampledNote(synth, note.pitch, t, duration);
+              sound?.holdVoices?.(synth, note.pitch, t, duration);
             }
           }, time));
         }

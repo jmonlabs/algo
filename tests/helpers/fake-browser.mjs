@@ -324,3 +324,47 @@ export async function playAndRecord(composition, options = {}) {
     restore();
   }
 }
+
+/**
+ * A stand-in for the `jmon/sound` provider, which records what the player
+ * asked of it.
+ *
+ * The split it enforces is the point: **jmon/algo's job is to call the
+ * contract correctly**, and that is all these tests can honestly assert.
+ * Whether resampling actually bends a note, or a loop joins without a click,
+ * is jmon/sound's own business and is tested there against real buffers.
+ *
+ * @param {Object} record - the recording from {@link createFakeTone}
+ * @param {Object} [Tone] - the fake Tone, so it can build a real fake Sampler
+ * @returns {Object} a provider plus `record.sound`, its call log
+ */
+export function createRecordingSound(record, Tone) {
+  record.sound = { created: [], prepared: [], bent: [], held: [] };
+
+  const gmProgram = (spec) => {
+    if (typeof spec === "number") return spec;
+    if (spec && typeof spec === "object" && typeof spec.gm === "number") return spec.gm;
+    return null;
+  };
+
+  return {
+    create(spec, ToneLib) {
+      if (gmProgram(spec) === null) return null;
+      record.sound.created.push(spec);
+      const node = new (ToneLib || Tone).Sampler({ ...(spec.options || {}), spec });
+      return { node, isLoadable: true };
+    },
+    async prepare(specs) {
+      record.sound.prepared.push(specs);
+      return "https://example.test/samples";
+    },
+    bendVoices(node, midi, time, anchors, baseCents) {
+      record.sound.bent.push({ node, midi, time, anchors, baseCents });
+      return true;
+    },
+    holdVoices(node, midi, time, seconds) {
+      record.sound.held.push({ node, midi, time, seconds });
+      return true;
+    },
+  };
+}

@@ -23,7 +23,6 @@ import {
   downloadMusicXML,
 } from "./converters/index.js";
 import * as jmonUtils from "./utils/jmon-utils.js";
-import { drumKits, registerDrumKit, getDrumKit } from "./utils/drumkits.js";
 import * as audioGraphModule from "./audioGraph/index.js";
 import * as scoreRenderer from "./browser/score-renderer.js";
 import { scoreSVG as pureScoreSVG } from "./score.js";
@@ -39,46 +38,6 @@ async function __loadPlayer() {
     createPlayer = playerModule.createPlayer;
   }
   return createPlayer;
-}
-
-/**
- * GM instrument helpers, loaded lazily so importing `jm` does not pull in the
- * 128-program table.
- *
- * The helpers are copied *onto this object*, which is the one `jm.instruments`
- * spreads. Assigning to module-level `let` bindings instead — as this did —
- * left `jm.instruments.GM_INSTRUMENTS` undefined forever, because the object
- * literal captured their values before `load()` ever ran.
- */
-const __gmHelpers = {};
-
-const __GM_EXPORTS = [
-  "GM_INSTRUMENTS",
-  "createGMInstrumentNode",
-  "findGMProgramByName",
-  "generateSamplerUrls",
-  "getPopularInstruments",
-  // Sample source: probed once per session across CDN_SOURCES, or pinned to
-  // your own mirror with setSoundfontBase(url).
-  "CDN_SOURCES",
-  "getSoundfontBase",
-  "setSoundfontBase",
-  "resolveSoundfontBase",
-  // The 3.19 s ceiling on every FluidR3 sample, and the beat count it buys.
-  "GM_SAMPLE_SECONDS",
-  "gmMaxBeats",
-];
-
-/** Lazy-load GM instrument helpers. Cached after the first call. */
-async function __loadGmInstruments() {
-  if (!__gmHelpers.GM_INSTRUMENTS) {
-    const gm = await import("./utils/gm-instruments.js");
-    for (const name of __GM_EXPORTS) __gmHelpers[name] = gm[name];
-    // Also onto the namespace itself, so `jm.instruments.setSoundfontBase(...)`
-    // reads the way the docs write it.
-    Object.assign(jm.instruments, __gmHelpers);
-  }
-  return __gmHelpers;
 }
 
 /**
@@ -121,6 +80,9 @@ async function render(jmonObj, options = {}) {
  * @param {Object} jmonObj - The JMON composition to play
  * @param {Object} [options]
  * @param {Object} [options.Tone] - Tone.js instance (browser path only)
+ * @param {Object} [options.sound] - jmon/sound, or any provider with the same
+ *   shape, for sampled instruments (browser path only). Without it a track
+ *   asking for a General MIDI program falls back to a synth.
  * @param {boolean} [options.autoplay=false] - Start playback immediately
  *   (browser path only)
  * @param {boolean} [options.visualizer=true] - Show piano-roll visualizer
@@ -138,6 +100,11 @@ async function render(jmonObj, options = {}) {
  * // Browser with Tone.js (Tone is a live module)
  * import * as Tone from "tone";
  * document.body.appendChild(await jm.play(composition, { Tone }));
+ *
+ * @example
+ * // With sampled instruments
+ * import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
+ * document.body.appendChild(await jm.play(composition, { Tone, sound }));
  *
  * @example
  * // Notebook / headless (Tone is a URL string — the iframe loads it)
@@ -339,21 +306,14 @@ const jm = {
   //   ];
   audioGraph: audioGraphModule,
 
-  // Instruments (optional; may be undefined in non-browser builds)
-  instruments: {
-    // Lazy loader to initialize GM instrument helpers on demand
-    // Usage: await jm.instruments.load()
-    load: __loadGmInstruments,
-    // These remain undefined until load() is called in environments where
-    // gm-instruments are not preloaded.
-    // Populated in place by load(); empty until then.
-    helpers: __gmHelpers,
-    // Drum kits — registry is mutable, register custom kits with
-    // jm.instruments.registerDrumKit(name, { baseUrl, samples }).
-    drumKits,
-    registerDrumKit,
-    getDrumKit,
-  },
+  // Sampled instruments — General MIDI, drum kits, sample loading — live in
+  // jmon/sound, injected the way Tone.js and Verovio are:
+  //
+  //   import sound from "https://cdn.jsdelivr.net/gh/jmonlabs/sound@main/src/index.js";
+  //   jm.play(composition, { Tone, sound });
+  //
+  // Without it a track asking for a General MIDI program falls back to a
+  // synth: audible and in time, but not the instrument that was written.
 
   // Keep in step with package.json; tests/converters asserts they match.
   VERSION: "1.2.0",
