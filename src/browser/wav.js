@@ -1,4 +1,11 @@
-/* JMON WAV - WAV audio generation from JMON format */
+/* JMON WAV - offline audio rendering from JMON format.
+ *
+ * Lives here rather than in `converters/` despite producing a file: the other
+ * converters turn data into data, while this one needs the whole audio stack
+ * (synth factory, audio graph, sample provider) and renders through
+ * Tone.Offline. Keeping it beside the players is also what breaks the import
+ * cycle it used to have with them.
+ */
 import { compileEvents } from "../algorithms/audio/index.js";
 import {
 	applyPitchAnchors,
@@ -7,7 +14,7 @@ import {
 	hasDetuneParam,
 	resolveConnectTarget,
 	resolveSynthPreset,
-} from "../browser/synth-factory.js";
+} from "./synth-factory.js";
 import { SYNTHESIZER_TYPES, ALL_EFFECTS } from "../constants/audio-effects.js";
 import { normalizeAudioGraph } from "../utils/normalize.js";
 

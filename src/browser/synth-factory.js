@@ -1,6 +1,6 @@
 /**
  * Shared synth/routing factory used by the live player (`music-player.js`)
- * and the offline renderer (`converters/wav.js`).
+ * and the offline renderer (`wav.js`).
  *
  * Both paths must produce identical synth choices and audioGraph routing,
  * otherwise pieces sound different live vs. exported. Centralizing the

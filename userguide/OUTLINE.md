@@ -370,6 +370,27 @@ Two more from that branch worth a line in the guide:
 
 ---
 
+## How src/ is laid out
+
+Not guide material, but the rule that keeps the guide's examples honest about
+what needs what:
+
+| | |
+|---|---|
+| `algorithms/` | composes. Imports nothing outside itself. |
+| `converters/` | data to data: MIDI both ways, MusicXML, SuperCollider. No audio. |
+| `browser/` | makes sound: the player, live, and WAV rendering. The only place that needs Tone.js. |
+| `utils/`, `constants/` | shared by the above. |
+
+`wav.js` sits in `browser/` despite producing a file, because it drives the
+synth factory and the audio graph rather than transforming data. It is still
+exported as `jm.converters.downloadWav`, where people look for it.
+
+The rule to keep: **`converters/` must never import from `browser/`.** It did,
+through `wav.js`, and that made a cycle.
+
+---
+
 ## Proposed file tree
 
 The guide is Observable Notebook Kit, so a chapter is one `.html` file. Two

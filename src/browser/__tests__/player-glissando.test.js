@@ -14,7 +14,7 @@ import {
   applyPitchAnchors,
   createGlideVoice,
   hasDetuneParam,
-} from "../../browser/synth-factory.js";
+} from "../synth-factory.js";
 
 function fakeDetune() {
   const calls = [];

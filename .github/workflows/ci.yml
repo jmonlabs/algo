@@ -40,8 +40,8 @@ jobs:
             tests/utils-transforms.test.js \
             src/algorithms/__tests__/jmon-glissando-validation.test.js \
             src/converters/__tests__/midi-glissando.test.js \
-            src/converters/__tests__/player-glissando.test.js \
-            src/converters/__tests__/wav-glissando.test.js
+            src/browser/__tests__/player-glissando.test.js \
+            src/browser/__tests__/wav-glissando.test.js
 
       # Browser-load test — protects the jsDelivr distribution path.
       # Loads src/index.js the same way `import("https://cdn.jsdelivr.net

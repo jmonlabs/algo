@@ -439,6 +439,8 @@ display(await jm.converters.downloadWav(wavPiece, Tone, "melody.wav", undefined,
   <script type="text/markdown">
 `downloadWav` renders the composition offline using `Tone.Offline()` and returns a clickable download link. The duration is auto-calculated from the composition.
 
+It is reached as `jm.converters.downloadWav` because that is where you look for an export, but it lives with the players rather than the other converters: unlike `midi` or `musicxml`, which turn data into data, it drives the whole audio stack.
+
 Parameters:
 - `composition` — your JMON piece
 - `Tone` — the Tone.js library

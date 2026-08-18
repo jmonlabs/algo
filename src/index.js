@@ -17,11 +17,13 @@ import {
   midiToJmon,
   supercollider,
   tonejs,
-  wav,
-  downloadWav,
   musicxml,
   downloadMusicXML,
 } from "./converters/index.js";
+
+// Offline rendering drives the audio stack, so it sits with the players. It
+// still appears under `jm.converters` below, where callers expect it.
+import { wav, downloadWav } from "./browser/wav.js";
 import * as jmonUtils from "./utils/jmon-utils.js";
 import * as audioGraphModule from "./audioGraph/index.js";
 import * as scoreRenderer from "./browser/score-renderer.js";
