@@ -3,10 +3,11 @@
 # Layout deployed:
 #   /                    landing page (root index.html)
 #   /live/               live coding REPL + iframe player
-#   /src/                library source
 #   /schemas/            JMON schema
 #
-# The user guide moved to jmon/studio and is not part of this site.
+# Both load the library from jsDelivr rather than a local copy, so the
+# source itself isn't part of this site. The user guide moved to
+# jmon/studio and isn't either.
 #
 # One-time setup in repo Settings → Pages: set Source to "GitHub Actions".
 
@@ -38,7 +39,6 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html _site/
-          cp -r src     _site/src
           cp -r live    _site/live
           cp -r schemas _site/schemas
 

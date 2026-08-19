@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>jmon/algo — algorithmic music composition</title>
-  <meta name="description" content="Algorithmic music composition library. Static ESM, no build. Distributed via jsDelivr from GitHub.">
+  <meta name="description" content="Algorithmic music composition library, one of four JMON packages. Static ESM, no build. Distributed via jsDelivr from GitHub.">
   <link rel="icon" href="https://avatars.githubusercontent.com/u/215883638?s=64&v=4">
   <style>
     /* Palette + font mirror algo/live/repl.html so the landing page and the
@@ -135,14 +135,27 @@
       <img src="https://avatars.githubusercontent.com/u/215883638?s=200&v=4" alt="jmonlabs">
       <div>
         <h1>jmon / algo</h1>
-        <div class="tagline">algorithmic music composition and live coding with javascript</div>
+        <div class="tagline">algorithmic music composition with javascript</div>
       </div>
     </header>
 
     <section>
       <p>
-        An ESM-distrubuted javascript library for generating music from algorithms (musical theory, minimalism, walks, fractals, cellular automata, genetic processes, etc,) emitting JMON, a JSON format for scores, MIDI, and synthesis. Composed pieces play in the browser, render to notation, or stream out via Web MIDI to a DAW.
+        An ESM-distributed javascript library for generating music from algorithms: musical theory, minimalism, walks, fractals, cellular automata, genetic processes, a rhythm generator, analysis. It makes JMON pieces — a JSON format for scores — and does nothing else with them.
       </p>
+      <p>
+        Reading, playing and drawing a piece are three sibling packages, each received by injection rather than imported (Node refuses <code>https://</code> imports, so that's the only way one of these can depend on another). <a href="https://github.com/jmonlabs/studio">jmon/studio</a> assembles all four so a call site just says what it does.
+      </p>
+    </section>
+
+    <section>
+      <h2>The four packages</h2>
+      <ul class="links">
+        <li><a href="https://github.com/jmonlabs/algo">jmon/algo</a> <span>this one — composing: theory, generators, analysis</span></li>
+        <li><a href="https://github.com/jmonlabs/io">jmon/io</a> <span>the format: MIDI both ways, MusicXML</span></li>
+        <li><a href="https://github.com/jmonlabs/show">jmon/show</a> <span>playback, live coding, WAV, score engraving</span></li>
+        <li><a href="https://github.com/jmonlabs/sound">jmon/sound</a> <span>sampled instruments for Tone.js</span></li>
+      </ul>
     </section>
 
     <section>
@@ -156,7 +169,9 @@
 
     <section>
       <h2>Drop-in import</h2>
-      <pre><code>import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+      <p>All four at once, through the facade:</p>
+      <pre><code>import studio from "https://cdn.jsdelivr.net/gh/jmonlabs/studio@main/src/index.js";
+const jm = await studio();
 
 const scale = jm.key("C", "major").scale().generate({ start: 60, length: 8 });
 const notes = scale.map((p, i) =&gt; ({
@@ -164,6 +179,10 @@ const notes = scale.map((p, i) =&gt; ({
 }));
 
 await jm.play({ tracks: [{ label: "scale", notes }] });</code></pre>
+      <p>Or just this package, to compose without an audio engine:</p>
+      <pre><code>import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
+
+const scale = jm.key("C", "major").scale().generate({ start: 60, length: 8 });</code></pre>
     </section>
 
     <footer>
