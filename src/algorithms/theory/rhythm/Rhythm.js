@@ -23,21 +23,15 @@ function _mulberry32(seed) {
  */
 export class Rhythm {
     /**
-     * Constructs a Rhythm. Takes either the positional
-     * `(measureLength, durations)` form or a single options object.
+     * Constructs a Rhythm.
      *
-     * @param {number|Object} measureLength - Measure length, or `{ measureLength, durations }`
-     * @param {Array<number>} [durations] - Durations, when using the positional form
+     * @param {Object} options
+     * @param {number} options.measureLength - Measure length, in quarter notes
+     * @param {Array<number>} options.durations - Candidate note durations to draw from
      */
-    constructor(measureLength, durations) {
-        if (typeof measureLength === 'object' && measureLength !== null) {
-            const config = measureLength;
-            this.measureLength = config.measureLength;
-            this.durations = config.durations;
-        } else {
-            this.measureLength = measureLength;
-            this.durations = durations;
-        }
+    constructor(options = {}) {
+        this.measureLength = options.measureLength;
+        this.durations = options.durations;
 
         if (typeof this.measureLength !== 'number' || this.measureLength <= 0) {
             throw new Error('Rhythm requires a positive measureLength');
@@ -50,29 +44,20 @@ export class Rhythm {
     /**
      * Generate a random rhythm that fills one measure.
      *
-     * @param {number|Object|null} seedOrOptions - Seed, or an options object
-     *   `{ seed, restProbability, maxIter, useStringTime }`
-     * @param {number} [restProbability=0] - Chance of skipping a slot, positional form
-     * @param {number} [maxIter=100] - Iteration cap, positional form
-     * @param {Object} [options={}] - Extra options when using the positional form
+     * @param {Object} [options={}]
+     * @param {number|null} [options.seed=null] - Deterministic PRNG seed; `null` uses `Math.random`
+     * @param {number} [options.restProbability=0] - Chance of skipping a slot
+     * @param {number} [options.maxIter=100] - Iteration cap
      * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time strings
      * @returns {Array<Object>} Rhythm events `{ duration, time }`
      */
-    random(seedOrOptions = null, restProbability = 0, maxIter = 100, options = {}) {
-        let seed = seedOrOptions;
-        let restProb = restProbability;
-        let maxIterations = maxIter;
-        let useStringTime = false;
-
-        if (typeof seedOrOptions === 'object' && seedOrOptions !== null && !Array.isArray(seedOrOptions)) {
-            const config = seedOrOptions;
-            seed = config.seed ?? null;
-            restProb = config.restProbability ?? 0;
-            maxIterations = config.maxIter ?? config.maxIterations ?? 100;
-            useStringTime = !!config.useStringTime;
-        } else if (options && typeof options === 'object') {
-            useStringTime = !!options.useStringTime;
-        }
+    random(options = {}) {
+        const {
+            seed = null,
+            restProbability: restProb = 0,
+            maxIter: maxIterations = 100,
+            useStringTime = false
+        } = options;
 
         const rng = seed !== null ? _mulberry32(seed) : Math.random;
 
@@ -111,35 +96,22 @@ export class Rhythm {
     /**
      * Evolve a rhythm with a small genetic algorithm.
      *
-     * Takes either positional arguments or a single options object, the same
-     * way {@link Rhythm#random} does.
-     *
-     * @param {number|Object|null} seedOrOptions - Seed, or an options object
-     *   `{ seed, populationSize, maxGenerations, mutationRate, useStringTime }`
-     * @param {number} [populationSize=10]
-     * @param {number} [maxGenerations=50]
-     * @param {number} [mutationRate=0.1]
-     * @param {Object} [options={}] - Extra options when using the positional form
+     * @param {Object} [options={}]
+     * @param {number|null} [options.seed=null] - Deterministic PRNG seed; `null` uses `Math.random`
+     * @param {number} [options.populationSize=10]
+     * @param {number} [options.maxGenerations=50]
+     * @param {number} [options.mutationRate=0.1]
      * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time strings
      * @returns {Array<Object>} Rhythm events `{ duration, time }`
      */
-    darwin(seedOrOptions = null, populationSize = 10, maxGenerations = 50, mutationRate = 0.1, options = {}) {
-        let seed = seedOrOptions;
-        let popSize = populationSize;
-        let generations = maxGenerations;
-        let mutRate = mutationRate;
-        let useStringTime = false;
-
-        if (typeof seedOrOptions === 'object' && seedOrOptions !== null && !Array.isArray(seedOrOptions)) {
-            const config = seedOrOptions;
-            seed = config.seed ?? null;
-            popSize = config.populationSize ?? config.population ?? 10;
-            generations = config.maxGenerations ?? config.generations ?? 50;
-            mutRate = config.mutationRate ?? 0.1;
-            useStringTime = !!config.useStringTime;
-        } else if (options && typeof options === 'object') {
-            useStringTime = !!options.useStringTime;
-        }
+    darwin(options = {}) {
+        const {
+            seed = null,
+            populationSize: popSize = 10,
+            maxGenerations: generations = 50,
+            mutationRate: mutRate = 0.1,
+            useStringTime = false
+        } = options;
 
         const ga = new GeneticRhythm(
             seed,

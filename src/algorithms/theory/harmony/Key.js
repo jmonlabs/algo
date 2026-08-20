@@ -28,19 +28,13 @@ import { chordify, chordifyMany } from './Chordify.js';
  */
 export class Key {
     /**
-     * @param {string|Object} tonic - Tonic note ('C', 'D#', 'Bb') or an
-     *   options object `{ tonic, mode }` (also accepts `{ key, mode }`).
-     * @param {string} [mode='major'] - Scale mode. Used as the fallback when
-     *   `tonic` is an options object that omits `mode`.
+     * @param {Object} [options={}]
+     * @param {string} [options.tonic='C'] - Tonic note ('C', 'D#', 'Bb'). Also accepts `options.key`.
+     * @param {string} [options.mode='major'] - Scale mode.
      */
-    constructor(tonic, mode) {
-        if (tonic && typeof tonic === 'object' && !Array.isArray(tonic)) {
-            this.tonic = tonic.tonic ?? tonic.key ?? 'C';
-            this.mode = tonic.mode ?? mode ?? 'major';
-        } else {
-            this.tonic = tonic ?? 'C';
-            this.mode = mode ?? 'major';
-        }
+    constructor(options = {}) {
+        this.tonic = options.tonic ?? options.key ?? 'C';
+        this.mode = options.mode ?? 'major';
     }
 
     /** Merge this key's tonic/mode with the caller's options (caller wins). */
@@ -74,12 +68,14 @@ export class Key {
 }
 
 /**
- * Factory for a `Key` context. Prefer this over `new Key(...)`.
+ * Factory for a `Key` context. Prefer this over `new Key(...)` — it keeps
+ * the common `tonic, mode` shorthand positional since the two are never
+ * ambiguous, while the class itself takes a single options object.
  *
  * @example
  * const k = key('C', 'major');
  * k.voice({ measureLength: 4 });
  */
 export function key(tonic, mode) {
-    return new Key(tonic, mode);
+    return new Key({ tonic, mode });
 }

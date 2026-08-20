@@ -23,15 +23,17 @@ test("key() builds a Key carrying tonic and mode", () => {
   assert.equal(k.mode, "dorian");
 });
 
-test("key() defaults to C major and accepts an options object", () => {
+test("key() defaults to C major", () => {
   assert.deepEqual([key().tonic, key().mode], ["C", "major"]);
   assert.deepEqual([key("F").tonic, key("F").mode], ["F", "major"]);
+});
 
-  const fromObject = key({ tonic: "A", mode: "minor" });
+test("new Key(options) is the options-object form; key() stays positional-only", () => {
+  const fromObject = new Key({ tonic: "A", mode: "minor" });
   assert.deepEqual([fromObject.tonic, fromObject.mode], ["A", "minor"]);
 
   // `key` is accepted as an alias of `tonic` in the options form.
-  const fromAlias = key({ key: "E", mode: "phrygian" });
+  const fromAlias = new Key({ key: "E", mode: "phrygian" });
   assert.deepEqual([fromAlias.tonic, fromAlias.mode], ["E", "phrygian"]);
 });
 
