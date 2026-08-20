@@ -15,7 +15,15 @@ export class Phasor {
   subPhasors;
   center;
 
-  constructor(distance = 1.0, frequency = 1.0, phase = 0, subPhasors = []) {
+  /**
+   * @param {Object} [options={}]
+   * @param {number} [options.distance=1.0]
+   * @param {number} [options.frequency=1.0]
+   * @param {number} [options.phase=0]
+   * @param {Array<Phasor>} [options.subPhasors=[]]
+   */
+  constructor(options = {}) {
+    const { distance = 1.0, frequency = 1.0, phase = 0, subPhasors = [] } = options;
     this.distance = distance;
     this.frequency = frequency;
     this.phase = phase;
@@ -166,7 +174,7 @@ export class PhasorSystem {
 
     for (let phasorIndex = 0; phasorIndex < results.length; phasorIndex++) {
       const phasorResults = results[phasorIndex];
-      const track = this.createMusicalTrack(phasorResults, phasorIndex, mappingOptions);
+      const track = this.createMusicalTrack(phasorResults, { ...mappingOptions, phasorIndex });
       musicalTracks.push(track);
     }
 
@@ -175,8 +183,18 @@ export class PhasorSystem {
 
   /**
    * Create a musical track from phasor motion
+   * @param {Array} phasorResults
+   * @param {Object} [options={}]
+   * @param {number} [options.phasorIndex=0]
+   * @param {Array<number>} [options.pitchRange=[40,80]]
+   * @param {Array<number>} [options.durationRange=[0.25,2]]
+   * @param {boolean} [options.useDistance=true]
+   * @param {boolean} [options.useAngle=false]
+   * @param {Array<number>|null} [options.quantizeToScale=null]
+   * @param {Object} [options.timingConfig]
+   * @param {boolean} [options.useStringTime=false]
    */
-  createMusicalTrack(phasorResults, phasorIndex, options = {}) {
+  createMusicalTrack(phasorResults, options = {}) {
     const {
       pitchRange = [40, 80],
       durationRange = [0.25, 2],
@@ -236,9 +254,12 @@ export class PhasorSystem {
 
   /**
    * Generate JMON tracks directly from phasor motion
+   * @param {Array} timeArray
+   * @param {Object} [options={}] - Combines what {@link PhasorSystem#createMusicalTrack}
+   *   and {@link notesToTrack} each accept; keys are passed to both.
    */
-  generateTracks(timeArray, mappingOptions = {}, trackOptions = {}) {
-    const musicalTracks = this.mapToMusic(timeArray, mappingOptions);
+  generateTracks(timeArray, options = {}) {
+    const musicalTracks = this.mapToMusic(timeArray, options);
     const jmonTracks = [];
 
     musicalTracks.forEach((notes, index) => {
@@ -246,7 +267,7 @@ export class PhasorSystem {
         label: `phasor-${index + 1}`,
         midiChannel: index % 16,
         synth: { type: 'Synth' },
-        ...trackOptions
+        ...options
       });
       jmonTracks.push(track);
     });
@@ -261,14 +282,14 @@ export class PhasorSystem {
     const system = new PhasorSystem();
     
     // Create a phasor with multiple sub-phasors (epicycles)
-    const subPhasor1 = new Phasor(0.2, 5.0, 0);
-    const subPhasor2 = new Phasor(0.3, 3.0, Math.PI / 2);
-    const subSubPhasor = new Phasor(0.1, 8.0, Math.PI);
-    
+    const subPhasor1 = new Phasor({ distance: 0.2, frequency: 5.0, phase: 0 });
+    const subPhasor2 = new Phasor({ distance: 0.3, frequency: 3.0, phase: Math.PI / 2 });
+    const subSubPhasor = new Phasor({ distance: 0.1, frequency: 8.0, phase: Math.PI });
+
     subPhasor1.addSubPhasor(subSubPhasor);
-    
-    const phasor1 = new Phasor(2.0, 1.0, 0, [subPhasor1, subPhasor2]);
-    const phasor2 = new Phasor(3.5, 0.6, Math.PI / 3);
+
+    const phasor1 = new Phasor({ distance: 2.0, frequency: 1.0, phase: 0, subPhasors: [subPhasor1, subPhasor2] });
+    const phasor2 = new Phasor({ distance: 3.5, frequency: 0.6, phase: Math.PI / 3 });
     
     system.addPhasor(phasor1);
     system.addPhasor(phasor2);
@@ -279,7 +300,7 @@ export class PhasorSystem {
   /**
    * Generate time array with linear spacing
    */
-  static generateTimeArray(start = 0, end = 10, steps = 100) {
+  static generateTimeArray({ start = 0, end = 10, steps = 100 } = {}) {
     const timeArray = [];
     const stepSize = (end - start) / (steps - 1);
     

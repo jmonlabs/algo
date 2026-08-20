@@ -379,7 +379,7 @@ test("arpeggiate 'up' runs low to high", () => {
 /* --- Rhythm -------------------------------------------------------------- */
 
 test("isorhythm cycles pitches against durations until they realign", () => {
-  const out = isorhythm([60, 62, 64], [1, 0.5]);
+  const out = isorhythm({ pitches: [60, 62, 64], durations: [1, 0.5] });
   // lcm(3, 2) = 6 events.
   assert.equal(out.length, 6);
   assert.deepEqual(out.map((n) => n.pitch), [60, 62, 64, 60, 62, 64]);
@@ -388,7 +388,7 @@ test("isorhythm cycles pitches against durations until they realign", () => {
 });
 
 test("beatcycle assigns durations cyclically, one per pitch", () => {
-  const out = beatcycle([60, 62, 64], [1, 0.5]);
+  const out = beatcycle({ pitches: [60, 62, 64], durations: [1, 0.5] });
   assert.equal(out.length, 3);
   assert.deepEqual(out.map((n) => n.duration), [1, 0.5, 1]);
 });
@@ -397,9 +397,9 @@ test("Rhythm.darwin evolves a rhythm and returns JMON events", () => {
   // Regression: darwin() assigned an undeclared `legacy` variable, which in a
   // strict-mode ES module threw ReferenceError on every call path — the
   // method was unreachable.
-  const rhythm = new Rhythm(4, [0.5, 1]);
+  const rhythm = new Rhythm({ measureLength: 4, durations: [0.5, 1] });
 
-  for (const call of [() => rhythm.darwin(42), () => rhythm.darwin({ seed: 7 })]) {
+  for (const call of [() => rhythm.darwin({ seed: 42 }), () => rhythm.darwin({ seed: 7 })]) {
     const out = call();
     assert.ok(Array.isArray(out) && out.length > 0);
     assert.ok(out.every((e) => Number.isFinite(e.duration) && Number.isFinite(e.time)));
@@ -413,10 +413,10 @@ test("Rhythm.darwin lays notes end to end inside the measure", () => {
   // duration without shifting what followed — so the result described a
   // rhythm overlapping itself. Offsets are now always rebuilt from durations.
   const measureLength = 4;
-  const rhythm = new Rhythm(measureLength, [0.25, 0.5, 1, 2]);
+  const rhythm = new Rhythm({ measureLength, durations: [0.25, 0.5, 1, 2] });
 
   for (let seed = 0; seed < 40; seed++) {
-    const out = rhythm.darwin(seed);
+    const out = rhythm.darwin({ seed });
     assert.ok(out.length > 0, `seed ${seed} produced nothing`);
 
     let expectedTime = 0;
@@ -432,10 +432,9 @@ test("Rhythm.darwin lays notes end to end inside the measure", () => {
 });
 
 test("rhythm helpers always emit JMON objects", () => {
-  // The `legacy: true` tuple-output flag is gone; passing it changes nothing.
-  const iso = isorhythm([60, 62], [1], { legacy: true });
-  const cycle = beatcycle([60, 62], [1], { legacy: true });
-  const random = new Rhythm(4, [1]).random(1, 0, 100, { legacy: true });
+  const iso = isorhythm({ pitches: [60, 62], durations: [1] });
+  const cycle = beatcycle({ pitches: [60, 62], durations: [1] });
+  const random = new Rhythm({ measureLength: 4, durations: [1] }).random({ seed: 1 });
 
   for (const [name, out] of [["isorhythm", iso], ["beatcycle", cycle], ["random", random]]) {
     assert.ok(out.every((e) => !Array.isArray(e) && typeof e === "object"),
@@ -444,9 +443,9 @@ test("rhythm helpers always emit JMON objects", () => {
 });
 
 test("Rhythm.random fills exactly the requested measure length", () => {
-  const rhythm = new Rhythm(4, [1, 0.5, 0.25]);
+  const rhythm = new Rhythm({ measureLength: 4, durations: [1, 0.5, 0.25] });
   for (let i = 0; i < 20; i++) {
-    const out = rhythm.random(4);
+    const out = rhythm.random({ seed: 4 });
     const total = out.reduce((sum, n) => sum + n.duration, 0);
     assert.ok(Math.abs(total - 4) < 1e-9, `measure summed to ${total}, expected 4`);
   }

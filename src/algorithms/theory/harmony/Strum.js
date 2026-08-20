@@ -24,7 +24,6 @@ export class Strum {
    * @param {Object} options - Configuration options
    * @param {string|Array<number>} [options.direction='down'] - Strum direction: 'down', 'up', 'alternate', 'random', or pattern array where each value determines direction for successive chords (0=down, 1=up). Example: [0,0,1,0] = down, down, up, down
    * @param {number} [options.speed=0.1] - Time delay between each note in the strum (in quarter notes)
-   * @param {string} [options.output='track'] - Accepted for forward compatibility; generate() always returns JMON notes
    * @param {number} [options.velocity] - Base velocity for strummed notes (default: undefined - preserves original)
    * @param {number} [options.velocityVariation=0] - Random variation in velocity (+/- range)
    */
@@ -32,14 +31,12 @@ export class Strum {
     const {
       direction = 'down',
       speed = 0.1,
-      output = 'track',
       velocity = undefined,
       velocityVariation = 0
     } = options;
 
     this.direction = direction;
     this.speed = speed;
-    this.output = output;
     this.velocity = velocity;
     this.velocityVariation = velocityVariation;
     this.alternateState = 0; // For alternate strumming
@@ -81,8 +78,7 @@ export class Strum {
     const arp = new Arpeggiate({
       order,
       delay: speed,
-      velocityBase: velocity,
-      output: this.output
+      velocityBase: velocity
     });
 
     const result = arp.generate(track);

@@ -32,11 +32,12 @@ export class Chain {
 
   /**
    * Generate random walk sequence(s) with branching and merging
-   * @param {number} length - Length of the walk
-   * @param {number} seed - Random seed for reproducibility
+   * @param {Object} options
+   * @param {number} options.length - Length of the walk
+   * @param {number} [options.seed] - Random seed for reproducibility
    * @returns {Array<Array>} Array of walk sequences (branches)
    */
-  generate(length, seed) {
+  generate({ length, seed } = {}) {
     // Use a simple seeded random if seed is provided
     let randomFunc = Math.random;
     if (seed !== undefined) {
@@ -141,8 +142,9 @@ export class Chain {
    * `mergingProbability = 0` for this call only; the configured
    * probabilities on the instance are restored afterwards.
    *
-   * @param {number} length - Length of the walk
-   * @param {number} [seed] - Random seed for reproducibility
+   * @param {Object} options
+   * @param {number} options.length - Length of the walk
+   * @param {number} [options.seed] - Random seed for reproducibility
    * @returns {Array<number>} A flat array of walk values
    *
    * @example
@@ -153,16 +155,16 @@ export class Chain {
    *   walkProbability: [-1, 0, 1],
    *   roundTo: 0
    * });
-   * const walk = chain.line(16, 42);  // [3, 4, 5, 5, 5, 6, 7, 7, ...]
+   * const walk = chain.line({ length: 16, seed: 42 });  // [3, 4, 5, 5, 5, 6, 7, 7, ...]
    * ```
    */
-  line(length, seed) {
+  line({ length, seed } = {}) {
     const prevBranch = this.branchingProbability;
     const prevMerge = this.mergingProbability;
     this.branchingProbability = 0;
     this.mergingProbability = 0;
     try {
-      const walks = this.generate(length, seed);
+      const walks = this.generate({ length, seed });
       return (walks[0] || []).filter(v => v !== null);
     } finally {
       this.branchingProbability = prevBranch;
@@ -282,12 +284,13 @@ export class Chain {
   /**
    * Convert walk sequences to JMON notes
    * @param {Array<Array>} walks - Walk sequences
-   * @param {Array} durations - Duration sequence to map to
-   * @param {Object} options - Conversion options
+   * @param {Object} [options={}]
+   * @param {Array} [options.durations=[1]] - Duration sequence to map to
+   * @param {boolean} [options.useStringTime=false]
    * @returns {Array} JMON note objects
    */
-  toJmonNotes(walks, durations = [1], options = {}) {
-    const useStringTime = options.useStringTime || false;
+  toJmonNotes(walks, options = {}) {
+    const { durations = [1], useStringTime = false } = options;
     const notes = [];
     let currentTime = 0;
     let durationIndex = 0;
@@ -321,20 +324,22 @@ export class Chain {
 
   /**
    * Generate a JMON track directly from walk
-   * @param {number} length - Walk length
-   * @param {Array} durations - Duration sequence
-   * @param {Object} trackOptions - Track options
+   * @param {Object} options
+   * @param {number} options.length - Walk length
+   * @param {number} [options.seed]
+   * @param {Array} [options.durations=[1]] - Duration sequence
    * @returns {Object} JMON track
    */
-  generateTrack(length, durations = [1], trackOptions = {}) {
-    const walks = this.generate(length, trackOptions.seed);
-    const notes = this.toJmonNotes(walks, durations, trackOptions);
-    
+  generateTrack(options = {}) {
+    const { length, seed, durations = [1] } = options;
+    const walks = this.generate({ length, seed });
+    const notes = this.toJmonNotes(walks, { durations, ...options });
+
     return notesToTrack(notes, {
       label: 'random-walk',
       midiChannel: 0,
       synth: { type: 'Synth' },
-      ...trackOptions
+      ...options
     });
   }
 

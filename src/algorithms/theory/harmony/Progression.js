@@ -11,7 +11,7 @@ import { cdeToMidi } from '../../utils.js';
  * prog.generate(['I', 'IV', 'V', 'I'])
  * 
  * // Generate a random progression
- * const prog2 = new Progression({ tonic: 'A', mode: 'minor', type: 'chords' })
+ * const prog2 = new Progression({ tonic: 'A', mode: 'minor' })
  * prog2.generate(4)
  * ```
  */
@@ -22,8 +22,6 @@ export class Progression extends MusicTheoryConstants {
      * @param {string} [options.tonic='C4'] - The tonic pitch or key (e.g., 'C4', 'C', 'D')
      * @param {string} [options.mode='major'] - The scale/mode ('major', 'minor', 'dorian', etc.)
      * @param {string} [options.circleOf='P5'] - Interval to form the circle (e.g., 'P5', 'P4')
-     * @param {string} [options.type='chords'] - Validated against `'chords'`/`'pitches'`
-     *   but not otherwise read; `generate()` always returns chord arrays
      * @param {Array} [options.radius=[3, 3, 1]] - Range for major, minor, and diminished chords
      * @param {Array} [options.weights] - Weights for selecting chord types (defaults to radius)
      */
@@ -34,7 +32,6 @@ export class Progression extends MusicTheoryConstants {
             tonic = 'C4',
             mode = 'major',
             circleOf = 'P5',
-            type = 'chords',
             radius = [3, 3, 1],
             weights
         } = options;
@@ -53,13 +50,8 @@ export class Progression extends MusicTheoryConstants {
         this.scale = mode;
         this.mode = mode;
         this.circleOf = circleOf;
-        this.type = type;
         this.radius = radius;
         this.weights = weights || radius;
-
-        if (!['chords', 'pitches'].includes(this.type)) {
-            throw new Error("Type must either be 'pitches' or 'chords'.");
-        }
     }
 
     /**

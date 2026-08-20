@@ -14,8 +14,7 @@
  * const loop = new jm.generative.loops.Loop({ loops: { melody } });
  * const tracks = loop.toJMonTracks();
  *
- * // The static Euclidean rhythm helper takes positional args, not options.
- * const euclidean = jm.generative.loops.Loop.euclidean(16, 5);
+ * const euclidean = jm.generative.loops.Loop.euclidean({ beats: 16, pulses: 5 });
  * ```
  */
 export class Loop {
@@ -172,12 +171,19 @@ export class Loop {
 
   /**
    * Create a loop from simple pitch/duration arrays
-   * @param {Array} pitches - Array of MIDI pitches (or null for rests)
-   * @param {Array} durations - Array of durations in beats
-   * @param {Object} options - Optional configuration (iterations, transpose, offset, label)
+   * @param {Object} options
+   * @param {Array} options.pitches - Array of MIDI pitches (or null for rests)
+   * @param {Array} options.durations - Array of durations in beats
+   * @param {number} [options.iterations=1]
+   * @param {number} [options.transpose=0]
+   * @param {number} [options.offset=0]
+   * @param {string} [options.label='Pattern']
+   * @param {number} [options.measureLength=4]
    * @returns {Loop} A new Loop instance
    */
-  static fromPattern(pitches, durations, options = {}) {
+  static fromPattern(options = {}) {
+    const { pitches, durations } = options;
+
     if (!Array.isArray(pitches) || !Array.isArray(durations)) {
       throw new Error('pitches and durations must be arrays');
     }
@@ -186,8 +192,6 @@ export class Loop {
       throw new Error('pitches and durations arrays cannot be empty');
     }
 
-    // Calculate total duration of one pattern iteration
-    const totalDuration = durations.reduce((sum, d) => sum + d, 0);
     const iterations = options.iterations || 1;
     const transpose = options.transpose || 0;
     const offset = options.offset || 0;
@@ -224,14 +228,15 @@ export class Loop {
 
   /**
    * Create loop from Euclidean rhythm (JMON format)
-   * @param {number} beats - Total number of beats
-   * @param {number} pulses - Number of active pulses to distribute
-   * @param {Array} [pitches=[60]] - Array of MIDI pitches to cycle through
-   * @param {string} [label] - Label for the loop
+   * @param {Object} options
+   * @param {number} options.beats - Total number of beats
+   * @param {number} options.pulses - Number of active pulses to distribute
+   * @param {Array} [options.pitches=[60]] - Array of MIDI pitches to cycle through
+   * @param {string} [options.label] - Label for the loop
    * @returns {Loop} A new Loop instance
    */
-  static euclidean(beats, pulses, pitches = [60], label) {
-    
+  static euclidean({ beats, pulses, pitches = [60], label }) {
+
     // Input validation
     if (typeof beats !== 'number' || beats <= 0 || !Number.isInteger(beats)) {
       throw new Error('beats must be a positive integer');
@@ -367,7 +372,7 @@ export class Loop {
    * @returns {Array<{loop: string, time: number, duration: number, pitch: number, velocity: number}>}
    *
    * @example
-   * const loop = Loop.euclidean(8, 3, [60]);
+   * const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
    * const plotData = loop.toPlotData();
    * // Use with Observable Plot:
    * Plot.plot({ marks: [

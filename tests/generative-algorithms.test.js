@@ -133,29 +133,29 @@ test("Chain stays inside its range and repeats for a given seed", () => {
   const build = () => new Chain({
     walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
   });
-  const walk = build().line(20, 42);
+  const walk = build().line({ length: 20, seed: 42 });
 
   assert.equal(walk.length, 20);
   assert.ok(walk.every((v) => v >= 0 && v <= 10), "walk left [0,10]");
-  assert.deepEqual(build().line(20, 42), walk);
-  assert.notDeepEqual(build().line(20, 7), walk);
+  assert.deepEqual(build().line({ length: 20, seed: 42 }), walk);
+  assert.notDeepEqual(build().line({ length: 20, seed: 7 }), walk);
 });
 
 test("Chain.generate returns branches, line() flattens to one", () => {
   const chain = new Chain({
     walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
   });
-  const branches = chain.generate(10, 42);
+  const branches = chain.generate({ length: 10, seed: 42 });
 
   assert.ok(Array.isArray(branches));
   assert.ok(Array.isArray(branches[0]), "generate() should nest its walks");
-  assert.equal(chain.line(10, 42).length, 10);
+  assert.equal(chain.line({ length: 10, seed: 42 }).length, 10);
 });
 
 test("Chain steps only by the offsets it was given", () => {
   const walk = new Chain({
     walkRange: [0, 100], walkStart: 50, walkProbability: [-2, 2], roundTo: 0,
-  }).line(30, 3);
+  }).line({ length: 30, seed: 3 });
 
   for (let i = 1; i < walk.length; i++) {
     assert.ok([-2, 2].includes(walk[i] - walk[i - 1]), `illegal step ${walk[i] - walk[i - 1]}`);
@@ -171,7 +171,7 @@ test("RandomWalk produces a finite series", () => {
 
 test("a Phasor system oscillates without drifting to infinity", () => {
   const system = new PhasorSystem();
-  system.addPhasor(new Phasor(1.0, 1.0, 0));
+  system.addPhasor(new Phasor({ distance: 1.0, frequency: 1.0, phase: 0 }));
   const points = [0, 0.25, 0.5, 0.75, 1].map((t) => system.getPosition?.(t) ?? t);
   assert.ok(points.every((p) => p === undefined || Number.isFinite(p) || typeof p === "object"));
 });
@@ -288,13 +288,13 @@ test("Darwin is reproducible for a given seed", () => {
 /* --- loops --------------------------------------------------------------- */
 
 test("Loop.euclidean places the expected onsets", () => {
-  const loop = Loop.euclidean(8, 3, [60]);
+  const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
   const data = loop.toPlotData();
   assert.deepEqual(data.map((d) => d.time), [1, 4, 7]);
 });
 
 test("Loop exposes its loops as JMON tracks", () => {
-  const loop = Loop.euclidean(8, 3, [60]);
+  const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
   const tracks = loop.toJMonTracks();
   assert.ok(Array.isArray(tracks));
   assert.ok(Array.isArray(tracks[0].notes));

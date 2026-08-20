@@ -28,7 +28,6 @@ export class Arpeggiate {
    * @param {Array<number>} [options.velocityCurve] - Optional velocity values for each position in the pattern (0.0-1.0)
    * @param {number} [options.velocityBase] - Base velocity if not specified in note or curve (0.0-1.0, default: undefined - preserves original)
    * @param {boolean} [options.loop=false] - Whether to loop the order pattern for chords longer than the pattern
-   * @param {string} [options.output='track'] - Accepted for forward compatibility; `generate()` always returns JMON notes
    */
   constructor(options = {}) {
     const {
@@ -36,8 +35,7 @@ export class Arpeggiate {
       delay = 0.1,
       velocityCurve = null,
       velocityBase = undefined,
-      loop = false,
-      output = 'track'
+      loop = false
     } = options;
 
     this.order = order;
@@ -45,7 +43,6 @@ export class Arpeggiate {
     this.velocityCurve = velocityCurve;
     this.velocityBase = velocityBase;
     this.loop = loop;
-    this.output = output;
   }
 
   /**

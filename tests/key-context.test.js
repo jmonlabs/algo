@@ -23,15 +23,17 @@ test("key() builds a Key carrying tonic and mode", () => {
   assert.equal(k.mode, "dorian");
 });
 
-test("key() defaults to C major and accepts an options object", () => {
+test("key() defaults to C major", () => {
   assert.deepEqual([key().tonic, key().mode], ["C", "major"]);
   assert.deepEqual([key("F").tonic, key("F").mode], ["F", "major"]);
+});
 
-  const fromObject = key({ tonic: "A", mode: "minor" });
+test("new Key(options) is the options-object form; key() stays positional-only", () => {
+  const fromObject = new Key({ tonic: "A", mode: "minor" });
   assert.deepEqual([fromObject.tonic, fromObject.mode], ["A", "minor"]);
 
   // `key` is accepted as an alias of `tonic` in the options form.
-  const fromAlias = key({ key: "E", mode: "phrygian" });
+  const fromAlias = new Key({ key: "E", mode: "phrygian" });
   assert.deepEqual([fromAlias.tonic, fromAlias.mode], ["E", "phrygian"]);
 });
 
@@ -121,7 +123,7 @@ test("the pre-context constructors keep working unchanged", () => {
 test("Chain.line() returns one flat walk of the requested length", () => {
   const walk = new Chain({
     walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
-  }).line(8, 42);
+  }).line({ length: 8, seed: 42 });
 
   assert.ok(Array.isArray(walk));
   assert.equal(walk.length, 8);
@@ -133,14 +135,14 @@ test("Chain.line() is reproducible for a given seed", () => {
   const build = () => new Chain({
     walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
   });
-  assert.deepEqual(build().line(8, 42), build().line(8, 42));
-  assert.notDeepEqual(build().line(8, 42), build().line(8, 7));
+  assert.deepEqual(build().line({ length: 8, seed: 42 }), build().line({ length: 8, seed: 42 }));
+  assert.notDeepEqual(build().line({ length: 8, seed: 42 }), build().line({ length: 8, seed: 7 }));
 });
 
 test("Chain.line() starts where walkStart says", () => {
   const walk = new Chain({
     walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
-  }).line(4, 42);
+  }).line({ length: 4, seed: 42 });
   assert.equal(walk[0], 5);
 });
 
@@ -148,8 +150,8 @@ test("Chain.line() leaves the instance reusable", () => {
   const chain = new Chain({
     walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
   });
-  const first = chain.line(8, 42);
-  const second = chain.line(8, 42);
+  const first = chain.line({ length: 8, seed: 42 });
+  const second = chain.line({ length: 8, seed: 42 });
   assert.deepEqual(second, first, "instance state leaked between calls");
   assert.equal(chain.walkStart, 5, "walkStart was mutated");
 });
