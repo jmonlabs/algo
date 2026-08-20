@@ -70,7 +70,7 @@ test("the Fractal factory yields instances that carry toPlotData", () => {
 
 test("Loop.toPlotData emits sounding notes and drops rests", () => {
   // Euclidean 3/8 places 3 onsets across 8 beats; the gaps are null-pitch rests.
-  const loop = Loop.euclidean(8, 3, [60]);
+  const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
   const data = loop.toPlotData();
 
   assert.equal(data.length, 3, "expected exactly the 3 Euclidean onsets");
@@ -115,5 +115,5 @@ test("the removed visualization wrappers are gone from the public surface", asyn
   for (const method of ["plotEvolution", "plotGeneration", "plotDensity"]) {
     assert.equal(ca[method], undefined, `CellularAutomata.${method} should be removed`);
   }
-  assert.equal(Loop.euclidean(8, 3, [60]).plot, undefined, "Loop.plot should be removed");
+  assert.equal(Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] }).plot, undefined, "Loop.plot should be removed");
 });
