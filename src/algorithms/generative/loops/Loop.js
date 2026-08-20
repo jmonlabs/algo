@@ -174,6 +174,8 @@ export class Loop {
    * @param {Object} options
    * @param {Array} options.pitches - Array of MIDI pitches (or null for rests)
    * @param {Array} options.durations - Array of durations in beats
+   * @param {Array<number>} [options.velocities=[0.8]] - Cycled against the
+   *   pitches the same way durations is, so it need not match either length
    * @param {number} [options.iterations=1]
    * @param {number} [options.transpose=0]
    * @param {number} [options.offset=0]
@@ -196,6 +198,9 @@ export class Loop {
     const transpose = options.transpose || 0;
     const offset = options.offset || 0;
     const label = options.label || 'Pattern';
+    const velocities = Array.isArray(options.velocities) && options.velocities.length > 0
+      ? options.velocities
+      : [0.8];
 
     // Generate notes for all iterations
     const notes = [];
@@ -207,12 +212,13 @@ export class Loop {
       for (let i = 0; i < pitches.length; i++) {
         const pitch = pitches[i];
         const duration = durations[i % durations.length];
+        const velocity = velocities[i % velocities.length];
 
         notes.push({
           pitch: pitch === null ? null : pitch + transposition,
           duration,
           time: currentTime,
-          velocity: 0.8
+          velocity
         });
 
         currentTime += duration;
@@ -232,10 +238,12 @@ export class Loop {
    * @param {number} options.beats - Total number of beats
    * @param {number} options.pulses - Number of active pulses to distribute
    * @param {Array} [options.pitches=[60]] - Array of MIDI pitches to cycle through
+   * @param {Array<number>} [options.velocities=[0.8]] - Cycled against the active
+   *   pulses the same way pitches is
    * @param {string} [options.label] - Label for the loop
    * @returns {Loop} A new Loop instance
    */
-  static euclidean({ beats, pulses, pitches = [60], label }) {
+  static euclidean({ beats, pulses, pitches = [60], velocities = [0.8], label }) {
 
     // Input validation
     if (typeof beats !== 'number' || beats <= 0 || !Number.isInteger(beats)) {
@@ -254,10 +262,14 @@ export class Loop {
       throw new Error('pitches must be a non-empty array');
     }
 
+    const activeVelocities = Array.isArray(velocities) && velocities.length > 0
+      ? velocities
+      : [0.8];
+
     const pattern = this.generateEuclideanRhythm(beats, pulses);
     const notes = [];
     const beatDuration = 1.0; // Each beat is 1 quarter note
-    
+
     pattern.forEach((active, index) => {
       if (active) {
         const time = index * beatDuration;
@@ -266,7 +278,7 @@ export class Loop {
           pitch,
           duration: beatDuration * 0.8,
           time,
-          velocity: 0.8
+          velocity: activeVelocities[index % activeVelocities.length]
         });
       }
     });
