@@ -202,7 +202,7 @@ export class RandomWalk {
   /**
    * Map walk to musical scale
    */
-  mapToScale(dimension = 0, scale = [0, 2, 4, 5, 7, 9, 11], octaveRange = 3) {
+  mapToScale({ dimension = 0, scale = [0, 2, 4, 5, 7, 9, 11], octaveRange = 3 } = {}) {
     const projection = this.getProjection(dimension);
     if (projection.length === 0) return [];
     
@@ -223,7 +223,7 @@ export class RandomWalk {
   /**
    * Map walk to rhythmic durations
    */
-  mapToRhythm(dimension = 0, durations = [0.25, 0.5, 1, 2]) {
+  mapToRhythm({ dimension = 0, durations = [0.25, 0.5, 1, 2] } = {}) {
     const projection = this.getProjection(dimension);
     if (projection.length === 0) return [];
     
@@ -242,7 +242,7 @@ export class RandomWalk {
   /**
    * Map walk to velocities
    */
-  mapToVelocity(dimension = 0, minVel = 0.3, maxVel = 1.0) {
+  mapToVelocity({ dimension = 0, minVel = 0.3, maxVel = 1.0 } = {}) {
     const projection = this.getProjection(dimension);
     if (projection.length === 0) return [];
     
@@ -259,7 +259,7 @@ export class RandomWalk {
   /**
    * Generate correlated walk (walk that follows another walk with some correlation)
    */
-  generateCorrelated(targetWalk, correlation = 0.5, dimension = 0) {
+  generateCorrelated(targetWalk, { correlation = 0.5, dimension = 0 } = {}) {
     if (targetWalk.length === 0) return [];
     
     const correlatedWalk = [];
@@ -338,19 +338,25 @@ export class RandomWalk {
   
   /**
    * Convert walk to JMON notes
-   * @param {Array} durations - Duration sequence
-   * @param {Object} options - Conversion options
+   * @param {Object} [options={}]
+   * @param {Array} [options.durations=[1]] - Duration sequence
+   * @param {boolean} [options.useStringTime=false]
+   * @param {Object} [options.timingConfig]
+   * @param {number} [options.dimension=0]
+   * @param {Array<number>|null} [options.mapToScale=null]
+   * @param {Array<number>} [options.scaleRange=[60,72]]
    * @returns {Array} JMON note objects
    */
-  toJmonNotes(durations = [1], options = {}) {
+  toJmonNotes(options = {}) {
     const {
+      durations = [1],
       useStringTime = false,
       timingConfig = DEFAULT_TIMING_CONFIG,
       dimension = 0,
       mapToScale = null,
       scaleRange = [60, 72]
     } = options;
-    
+
     const projection = this.getProjection(dimension);
     const notes = [];
     let currentTime = 0;
@@ -370,7 +376,7 @@ export class RandomWalk {
         pitch = mapToScale[clampedIndex];
       } else {
         // Use existing mapToScale method
-        const scaledWalk = this.mapToScale([projection], mapToScale || [60, 62, 64, 65, 67, 69, 71]);
+        const scaledWalk = this.mapToScale({ dimension: [projection], scale: mapToScale || [60, 62, 64, 65, 67, 69, 71] });
         pitch = scaledWalk[0][i];
       }
       
@@ -388,21 +394,21 @@ export class RandomWalk {
   
   /**
    * Generate JMON track directly from walk
-   * @param {Array} startPosition - Starting position
-   * @param {Array} durations - Duration sequence
-   * @param {Object} options - Generation and conversion options
-   * @param {Object} trackOptions - Track options
+   * @param {Object} [options={}] - Combines what {@link RandomWalk#generate},
+   *   {@link RandomWalk#toJmonNotes} and {@link notesToTrack} each accept;
+   *   keys are passed to all three.
+   * @param {Array} [options.startPosition] - Starting position
    * @returns {Object} JMON track
    */
-  generateTrack(startPosition, durations = [1], options = {}, trackOptions = {}) {
-    this.generate(startPosition);
-    const notes = this.toJmonNotes(durations, options);
-    
+  generateTrack(options = {}) {
+    this.generate(options.startPosition);
+    const notes = this.toJmonNotes(options);
+
     return notesToTrack(notes, {
       label: 'random-walk',
       midiChannel: 0,
       synth: { type: 'Synth' },
-      ...trackOptions
+      ...options
     });
   }
 }
