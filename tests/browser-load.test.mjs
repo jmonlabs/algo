@@ -91,7 +91,7 @@ const FIXTURE_HTML = `<!doctype html>
       walkRange: [0, 7], walkStart: 3,
       walkProbability: [-1, 0, 1], roundTo: 0,
     });
-    const walk = chain.line(8, 42);
+    const walk = chain.line({ length: 8, seed: 42 });
     checks["Chain.line returns 8-length array"] =
       Array.isArray(walk) && walk.length === 8;
     window.__results = checks;
