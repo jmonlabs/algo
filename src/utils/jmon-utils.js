@@ -204,44 +204,49 @@ export function shiftTime(notes, timeShift) {
 export const offsetNotes = shiftTime;
 
 /**
- * Concatenate multiple note sequences with proper timing
- * Each sequence's timing is adjusted to start after the previous one ends
- * @param {Array} sequences - Array of note sequences
+ * Concatenate multiple tracks with proper timing
+ * Each track's timing is adjusted to start after the previous one ends
+ * @param {Array} tracks - Array of tracks (note arrays)
  * @returns {Array} Concatenated notes with adjusted timing
  */
-export function concatenateSequences(sequences) {
-  if (sequences.length === 0) return [];
-  
+export function concatenateTracks(tracks) {
+  if (tracks.length === 0) return [];
+
   const result = [];
   let currentTime = 0;
-  
-  // Detect if we're using numeric or string time format from first sequence
-  const useNumericTime = sequences[0]?.length > 0 && typeof sequences[0][0]?.time === 'number';
-  
-  for (const sequence of sequences) {
-    // Shift this sequence by the current time
-    const shiftedSequence = shiftTime(sequence, currentTime);
-    result.push(...shiftedSequence);
-    
-    // Calculate the end time of this sequence
-    const endTimes = shiftedSequence.map(note => {
+
+  // Detect if we're using numeric or string time format from first track
+  const useNumericTime = tracks[0]?.length > 0 && typeof tracks[0][0]?.time === 'number';
+
+  for (const track of tracks) {
+    // Shift this track by the current time
+    const shiftedTrack = shiftTime(track, currentTime);
+    result.push(...shiftedTrack);
+
+    // Calculate the end time of this track
+    const endTimes = shiftedTrack.map(note => {
       const noteTime = typeof note.time === 'number' ? note.time : timeToBeats(note.time);
       return noteTime + note.duration;
     });
     currentTime = Math.max(...endTimes, currentTime);
   }
-  
+
   return result;
+}
+
+/** @deprecated Use {@link concatenateTracks}. JMON calls them tracks, not sequences. */
+export function concatenateSequences(sequences) {
+  return concatenateTracks(sequences);
 }
 
 /**
  * Chain/concatenate tracks with proper timing adjustment
- * Alias for concatenateSequences for clarity
- * @param {...Array} tracks - Note sequences to chain
+ * Variadic wrapper around concatenateTracks for clarity
+ * @param {...Array} tracks - Tracks (note arrays) to chain
  * @returns {Array} Chained notes with sequential timing
  */
 export function chain(...tracks) {
-  return concatenateSequences(tracks);
+  return concatenateTracks(tracks);
 }
 
 /**
@@ -266,12 +271,17 @@ export function recalculateTiming(notes, startTime = 0) {
 }
 
 /**
- * Combine multiple sequences to play simultaneously
- * @param {Array} sequences - Array of note sequences
+ * Combine multiple tracks to play simultaneously
+ * @param {Array} tracks - Array of tracks (note arrays)
  * @returns {Array} Combined notes
  */
+export function combineTracks(tracks) {
+  return tracks.flat();
+}
+
+/** @deprecated Use {@link combineTracks}. JMON calls them tracks, not sequences. */
 export function combineSequences(sequences) {
-  return sequences.flat();
+  return combineTracks(sequences);
 }
 
 /**

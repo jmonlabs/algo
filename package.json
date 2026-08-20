@@ -6,6 +6,9 @@
   "type": "module",
   "license": "GPL-3.0-or-later",
   "author": "JMON Labs",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jmonlabs/algo.git"
@@ -24,11 +27,6 @@
     "genetic-algorithms",
     "gaussian-processes",
     "minimalism",
-    "jmon",
-    "midi",
-    "audio",
-    "tone.js",
-    "vexflow",
-    "observable"
+    "jmon"
   ]
 }

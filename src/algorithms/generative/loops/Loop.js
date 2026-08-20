@@ -12,7 +12,7 @@
  * ];
  *
  * const loop = new jm.generative.loops.Loop({ loops: { melody } });
- * const sequences = loop.toJMonSequences();
+ * const tracks = loop.toJMonTracks();
  *
  * // The static Euclidean rhythm helper takes positional args, not options.
  * const euclidean = jm.generative.loops.Loop.euclidean(16, 5);
@@ -350,8 +350,13 @@ export class Loop {
   /**
    * Get loops as JMON tracks (already in JMON format)
    */
-  toJMonSequences() {
+  toJMonTracks() {
     return Object.values(this.loops);
+  }
+
+  /** @deprecated Use {@link Loop#toJMonTracks}. JMON calls them tracks, not sequences. */
+  toJMonSequences() {
+    return this.toJMonTracks();
   }
 
   /**

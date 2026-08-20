@@ -26,4 +26,14 @@ export class Mandelbrot extends ComplexPlaneFractal {
     }
     return this.maxIterations;
   }
+
+  /**
+   * Backward-compatible alias for {@link Mandelbrot#iterate}, for people
+   * arriving from Djalgo.
+   * @param {{ real: number, imaginary: number }} point
+   * @returns {number}
+   */
+  mandelbrotIterations(point) {
+    return this.iterate(point);
+  }
 }
