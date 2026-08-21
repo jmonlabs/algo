@@ -81,7 +81,7 @@ export function barsBeatsTicksToOffset(barsBeatsTicks, config = DEFAULT_TIMING_C
  * @param {boolean} keepNumericDuration - Keep numeric durations (default: true for MIDI consistency)
  * @returns {Array} Array of JMON-format notes with numeric time
  */
-export function sequenceToJMONTiming(sequence, config = DEFAULT_TIMING_CONFIG, keepNumericDuration = true) {
+export function sequenceToJmonTiming(sequence, config = DEFAULT_TIMING_CONFIG, keepNumericDuration = true) {
   return sequence.map(note => {
     const jmonNote = { ...note };
     
@@ -170,7 +170,7 @@ export function notesToTrack(notes, options = {}) {
   } = options;
 
   // Convert notes to JMON timing format - always numeric time
-  const jmonNotes = sequenceToJMONTiming(notes, timingConfig, keepNumericDuration);
+  const jmonNotes = sequenceToJmonTiming(notes, timingConfig, keepNumericDuration);
 
   const track = {
     label,
@@ -208,7 +208,7 @@ export function isValidBarsBeatsTicks(timeString) {
  *   given as a `bars:beats:ticks` string
  * @returns {Array} Sequence with adjusted numeric time values
  */
-export function setOffsetsAccordingToDurationsJMON(sequence, config = DEFAULT_TIMING_CONFIG) {
+export function setOffsetsAccordingToDurationsJmon(sequence, config = DEFAULT_TIMING_CONFIG) {
   let currentOffset = 0;
   
   return sequence.map(note => {

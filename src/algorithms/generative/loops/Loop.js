@@ -12,7 +12,7 @@
  * ];
  *
  * const loop = new jm.generative.loops.Loop({ loops: { melody } });
- * const tracks = loop.toJMonTracks();
+ * const tracks = loop.toJmonTracks();
  *
  * const euclidean = jm.generative.loops.Loop.euclidean({ beats: 16, pulses: 5 });
  * ```
@@ -367,13 +367,18 @@ export class Loop {
   /**
    * Get loops as JMON tracks (already in JMON format)
    */
-  toJMonTracks() {
+  toJmonTracks() {
     return Object.values(this.loops);
   }
 
-  /** @deprecated Use {@link Loop#toJMonTracks}. JMON calls them tracks, not sequences. */
+  /** @deprecated Use {@link Loop#toJmonTracks}. */
+  toJMonTracks() {
+    return this.toJmonTracks();
+  }
+
+  /** @deprecated Use {@link Loop#toJmonTracks}. JMON calls them tracks, not sequences. */
   toJMonSequences() {
-    return this.toJMonTracks();
+    return this.toJmonTracks();
   }
 
   /**
