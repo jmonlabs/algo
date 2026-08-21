@@ -295,7 +295,7 @@ test("Loop.euclidean places the expected onsets", () => {
 
 test("Loop exposes its loops as JMON tracks", () => {
   const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
-  const tracks = loop.toJMonTracks();
+  const tracks = loop.toJmonTracks();
   assert.ok(Array.isArray(tracks));
   assert.ok(Array.isArray(tracks[0].notes));
 });
