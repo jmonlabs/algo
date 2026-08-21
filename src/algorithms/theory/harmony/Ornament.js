@@ -3,6 +3,42 @@ import { ORNAMENT_TYPES } from '../../constants/OrnamentTypes.js';
 import { Voice } from './Voice.js';
 
 /**
+ * A note derived from `source`: everything the note carried, with the
+ * ornament's own pitch, duration and time on top.
+ *
+ * Every ornament used to build bare `{ pitch, duration, time }` literals,
+ * which dropped `velocity` — and with it whatever dynamics the caller had
+ * written — along with `articulations`, `channel`, `label` and anything else
+ * the note held. An ornament replaces one note with several; each of them is
+ * still that note.
+ *
+ * @param {Object} source - The note being ornamented
+ * @param {number} pitch
+ * @param {number} duration - In quarter notes
+ * @param {number} time - In quarter notes
+ * @returns {Object} A new note
+ */
+function derive(source, pitch, duration, time) {
+    return { ...source, pitch, duration, time };
+}
+
+/**
+ * Mulberry32 — the same small deterministic PRNG `Progression` uses, so a
+ * seeded ornament reproduces exactly.
+ * @private
+ */
+function mulberry32(seed) {
+    let s = seed >>> 0;
+    return function () {
+        s = (s + 0x6D2B79F5) >>> 0;
+        let t = s;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/**
  * A class to represent and validate musical ornaments
  */
 export class Ornament {
@@ -131,6 +167,10 @@ export class Ornament {
      * @param {Object} [options.key] - A `Key` context (from `jm.key(...)`)
      *   that supplies both `tonic` and `mode` in one shot. Explicit
      *   `tonic`/`mode` on the options object override the key's values.
+     * @param {number} [options.seed] - Makes the two random choices
+     *   reproducible: which note to ornament when `apply` is called without an
+     *   index, and which of several `gracePitches` to use. Without it, both
+     *   fall back to `Math.random`, as they always did.
      */
     constructor(options) {
         const ornamentDef = ORNAMENT_TYPES[options.type];
@@ -139,6 +179,9 @@ export class Ornament {
         }
 
         this.type = options.type;
+        this.rng = options.seed !== undefined && options.seed !== null
+            ? mulberry32(options.seed)
+            : Math.random;
         this.params = {
             ...ornamentDef.defaultParams,
             ...options.parameters
@@ -187,7 +230,7 @@ export class Ornament {
 
         // Use random note index if none provided
         if (noteIndex === null) {
-            noteIndex = Math.floor(Math.random() * notes.length);
+            noteIndex = Math.floor(this.rng() * notes.length);
         }
 
         if (noteIndex < 0 || noteIndex >= notes.length) {
@@ -229,30 +272,24 @@ export class Ornament {
         const mainOffset = mainNote.time;
         
         const ornamentPitch = this.params.gracePitches ? 
-            this.params.gracePitches[Math.floor(Math.random() * this.params.gracePitches.length)] :
+            this.params.gracePitches[Math.floor(this.rng() * this.params.gracePitches.length)] :
             mainPitch + 1;
 
-        if (this.params.graceNoteType === 'acciaccatura') {
-            // Very brief, does not alter main note's start time
-            const graceDuration = mainDuration * 0.125;
-            const modifiedMain = { pitch: mainPitch, duration: mainDuration, time: mainOffset + graceDuration };
-            return [
-                ...notes.slice(0, noteIndex),
-                { pitch: ornamentPitch, duration: graceDuration, time: mainOffset },
-                modifiedMain,
-                ...notes.slice(noteIndex + 1)
-            ];
-        } else { // appoggiatura
-            // Takes half the time of the main note
-            const graceDuration = mainDuration / 2;
-            const modifiedMain = { pitch: mainPitch, duration: graceDuration, time: mainOffset + graceDuration };
-            return [
-                ...notes.slice(0, noteIndex),
-                { pitch: ornamentPitch, duration: graceDuration, time: mainOffset },
-                modifiedMain,
-                ...notes.slice(noteIndex + 1)
-            ];
-        }
+        // Both kinds take their time from the main note, so the figure occupies
+        // exactly the span that was written. The acciaccatura used to keep the
+        // main note at full length while starting it a grace later, which made
+        // the pair 12.5% longer than the note it replaced and ran it into
+        // whatever followed.
+        const graceDuration = this.params.graceNoteType === 'acciaccatura'
+            ? mainDuration * 0.125   // crushed: as short as it is written
+            : mainDuration / 2;      // appoggiatura: half the main note
+
+        return [
+            ...notes.slice(0, noteIndex),
+            derive(mainNote, ornamentPitch, graceDuration, mainOffset),
+            derive(mainNote, mainPitch, mainDuration - graceDuration, mainOffset + graceDuration),
+            ...notes.slice(noteIndex + 1)
+        ];
     }
 
     /**
@@ -286,8 +323,8 @@ export class Ornament {
             const noteLength = Math.min(trillRate, remainingTime / 2);
             
             if (remainingTime >= noteLength * 2) {
-                trillNotes.push({ pitch: mainPitch, duration: noteLength, time: currentOffset });
-                trillNotes.push({ pitch: trillPitch, duration: noteLength, time: currentOffset + noteLength });
+                trillNotes.push(derive(mainNote, mainPitch, noteLength, currentOffset));
+                trillNotes.push(derive(mainNote, trillPitch, noteLength, currentOffset + noteLength));
                 currentOffset += 2 * noteLength;
             } else {
                 break;
@@ -323,9 +360,9 @@ export class Ornament {
 
         const partDuration = mainDuration / 3;
         const mordentNotes = [
-            { pitch: mainPitch, duration: partDuration, time: mainOffset },
-            { pitch: mordentPitch, duration: partDuration, time: mainOffset + partDuration },
-            { pitch: mainPitch, duration: partDuration, time: mainOffset + 2 * partDuration }
+            derive(mainNote, mainPitch, partDuration, mainOffset),
+            derive(mainNote, mordentPitch, partDuration, mainOffset + partDuration),
+            derive(mainNote, mainPitch, partDuration, mainOffset + 2 * partDuration)
         ];
 
         return [
@@ -357,10 +394,10 @@ export class Ornament {
         }
 
         const turnNotes = [
-            { pitch: mainPitch, duration: partDuration, time: mainOffset },
-            { pitch: upperPitch, duration: partDuration, time: mainOffset + partDuration },
-            { pitch: mainPitch, duration: partDuration, time: mainOffset + 2 * partDuration },
-            { pitch: lowerPitch, duration: partDuration, time: mainOffset + 3 * partDuration }
+            derive(mainNote, mainPitch, partDuration, mainOffset),
+            derive(mainNote, upperPitch, partDuration, mainOffset + partDuration),
+            derive(mainNote, mainPitch, partDuration, mainOffset + 2 * partDuration),
+            derive(mainNote, lowerPitch, partDuration, mainOffset + 3 * partDuration)
         ];
 
         return [
@@ -397,11 +434,8 @@ export class Ornament {
         if (direction === 'both') pitches.push(...pitches.slice(0, -1).reverse());
 
         const partDuration = mainDuration / pitches.length;
-        const arpeggioNotes = pitches.map((pitch, i) => ({
-            pitch: pitch,
-            duration: partDuration,
-            time: mainOffset + i * partDuration
-        }));
+        const arpeggioNotes = pitches.map((pitch, i) =>
+            derive(mainNote, pitch, partDuration, mainOffset + i * partDuration));
 
         return [
             ...notes.slice(0, noteIndex),
