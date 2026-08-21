@@ -341,13 +341,13 @@ export function scaleList(numbers, toMin, toMax, minNumbers = null, maxNumbers =
 }
 
 /**
- * Offset track by given amount
- * @param {Array} track - Array of notes
+ * Offset a note sequence by a given amount
+ * @param {Array} notes - Array of `[pitch, duration, offset]` tuples
  * @param {number} by - Offset amount
- * @returns {Array} Offset track
+ * @returns {Array} Offset notes
  */
-export function offsetTrack(track, by) {
-    return track.map(([pitch, duration, offset]) => [pitch, duration, offset + by]);
+export function offsetTrack(notes, by) {
+    return notes.map(([pitch, duration, offset]) => [pitch, duration, offset + by]);
 }
 
 /**

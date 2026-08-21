@@ -17,12 +17,12 @@ import { findClosestPitchAtMeasureStart } from '../../utils.js';
  *   measureLength: 4  // extract roots at each 4-beat measure
  * });
  * 
- * // Generate chords from a track (extracts roots at measure starts)
- * const chordTrack = voice.generate(melodyTrack);
+ * // Generate chords from a melody (extracts roots at measure starts)
+ * const chordNotes = voice.generate(melody);
  * 
  * // Or generate chords from every note
  * const voice2 = new Voice({ tonic: 'C', mode: 'major', extractRoots: false });
- * const fullChords = voice2.generate(track);
+ * const fullChords = voice2.generate(melody);
  * ```
  */
 export class Voice extends MusicTheoryConstants {
@@ -71,7 +71,7 @@ export class Voice extends MusicTheoryConstants {
     /**
      * Generate voiced output from a track
      * 
-     * @param {Array<Object>} track - Array of JMON notes with { pitch, duration, time }
+     * @param {Array<Object>} notes - Array of JMON notes with { pitch, duration, time }
      * @param {Object} [options={}] - Override options for this generation
      * @returns {Array} Generated output based on the output format setting
      * 
@@ -79,15 +79,15 @@ export class Voice extends MusicTheoryConstants {
      * ```js
      * // Extract one chord per measure as a JMON track
      * const voice = new Voice({ tonic: 'C', mode: 'major', output: 'track' });
-     * const chordTrack = voice.generate(melody);
+     * const chordNotes = voice.generate(melody);
      * 
      * // Get bass notes (roots only) transposed down an octave
      * const bass = new Voice({ tonic: 'C', mode: 'major', output: 'bass', transpose: -12 });
-     * const bassTrack = bass.generate(melody);
+     * const bassNotes = bass.generate(melody);
      * ```
      */
-    generate(track, options = {}) {
-        if (!Array.isArray(track) || track.length === 0) {
+    generate(notes, options = {}) {
+        if (!Array.isArray(notes) || notes.length === 0) {
             return [];
         }
 
@@ -105,15 +105,15 @@ export class Voice extends MusicTheoryConstants {
         if (extractRoots) {
             // Extract root pitches at measure starts
             // Convert track to tuple format for findClosestPitchAtMeasureStart
-            const tuples = track.map(note => [note.pitch, note.duration, note.time]);
+            const tuples = notes.map(note => [note.pitch, note.duration, note.time]);
             rootPitches = findClosestPitchAtMeasureStart(tuples, measureLength);
             
             // Generate times for each measure
             rootTimes = rootPitches.map((_, i) => i * measureLength);
         } else {
             // Use every note's pitch
-            rootPitches = track.map(note => note.pitch);
-            rootTimes = track.map(note => note.time);
+            rootPitches = notes.map(note => note.pitch);
+            rootTimes = notes.map(note => note.time);
         }
 
         // Apply transposition to roots
@@ -143,7 +143,7 @@ export class Voice extends MusicTheoryConstants {
                 // Return as JMON track with chord arrays as pitch
                 return transposedChords.map((chord, i) => ({
                     pitch: chord,
-                    duration: extractRoots ? measureLength : track[i].duration,
+                    duration: extractRoots ? measureLength : notes[i].duration,
                     time: rootTimes[i]
                 }));
 
@@ -151,7 +151,7 @@ export class Voice extends MusicTheoryConstants {
                 // Return single-note bass track (first note of each chord = root)
                 return transposedRoots.map((pitch, i) => ({
                     pitch,
-                    duration: extractRoots ? measureLength : track[i].duration,
+                    duration: extractRoots ? measureLength : notes[i].duration,
                     time: rootTimes[i]
                 }));
 
@@ -164,18 +164,18 @@ export class Voice extends MusicTheoryConstants {
 
     /**
      * Static method to transpose a track by semitones
-     * @param {Array<Object>} track - Array of JMON notes
+     * @param {Array<Object>} notes - Array of JMON notes
      * @param {number} semitones - Number of semitones to transpose
-     * @returns {Array<Object>} Transposed track
+     * @returns {Array<Object>} Transposed notes
      * 
      * @example
      * ```js
      * // Transpose down an octave
-     * const bassTrack = Voice.transpose(melodyTrack, -12);
+     * const bassNotes = Voice.transpose(melody, -12);
      * ```
      */
-    static transpose(track, semitones) {
-        return track.map(note => ({
+    static transpose(notes, semitones) {
+        return notes.map(note => ({
             ...note,
             pitch: Array.isArray(note.pitch) 
                 ? note.pitch.map(p => p + semitones)
