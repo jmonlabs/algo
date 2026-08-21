@@ -6,7 +6,7 @@
  * ```js
  * // Basic arpeggio
  * const arp = new Arpeggiate({ order: [0, 1, 2], delay: 0.1 });
- * const result = arp.generate(chordTrack);
+ * const result = arp.generate(chordNotes);
  *
  * // Custom ordering
  * const arp2 = new Arpeggiate({ order: [0, 2, 1, 0], delay: 0.08 });
@@ -46,18 +46,18 @@ export class Arpeggiate {
   }
 
   /**
-   * Generate arpeggiated notes from a track containing chords
-   * @param {Array<Object>} track - Array of JMON notes
+   * Generate arpeggiated notes from a list of notes containing chords
+   * @param {Array<Object>} notes - Array of JMON notes
    * @param {Object} [options={}] - Override options
-   * @returns {Array<Object>} Arpeggiated track
+   * @returns {Array<Object>} Arpeggiated notes
    *
    * @example
    * ```js
-   * const track = [
+   * const chordNotes = [
    *   { pitch: [60, 64, 67], duration: 2, time: 0 }
    * ];
    * const arp = new Arpeggiate({ order: [0, 1, 2, 1], delay: 0.1 });
-   * const result = arp.generate(track);
+   * const result = arp.generate(chordNotes);
    * // => [
    * //   { pitch: 60, duration: 2, time: 0 },
    * //   { pitch: 64, duration: 2, time: 0.1 },
@@ -66,7 +66,7 @@ export class Arpeggiate {
    * // ]
    * ```
    */
-  generate(track, options = {}) {
+  generate(notes, options = {}) {
     const {
       order = this.order,
       delay = this.delay,
@@ -77,7 +77,7 @@ export class Arpeggiate {
 
     const result = [];
 
-    for (const note of track) {
+    for (const note of notes) {
       // If not a chord, just pass through
       if (!Array.isArray(note.pitch) || note.pitch.length <= 1) {
         result.push({ ...note });
@@ -236,20 +236,20 @@ export class Arpeggiate {
 }
 
 /**
- * Convenience function to arpeggiate a track
- * @param {Array<Object>} track - Array of JMON notes
+ * Convenience function to arpeggiate a list of notes
+ * @param {Array<Object>} notes - Array of JMON notes
  * @param {Object} [options={}] - Arpeggiate options
- * @returns {Array<Object>} Arpeggiated track
+ * @returns {Array<Object>} Arpeggiated notes
  *
  * @example
  * ```js
  * import { arpeggiate } from './Arpeggiate.js';
  *
- * const track = [{ pitch: [60, 64, 67], duration: 2, time: 0 }];
- * const result = arpeggiate(track, { order: 'updown', delay: 0.08 });
+ * const chordNotes = [{ pitch: [60, 64, 67], duration: 2, time: 0 }];
+ * const result = arpeggiate(chordNotes, { order: 'updown', delay: 0.08 });
  * ```
  */
-export function arpeggiate(track, options = {}) {
+export function arpeggiate(notes, options = {}) {
   const arp = new Arpeggiate(options);
-  return arp.generate(track);
+  return arp.generate(notes);
 }

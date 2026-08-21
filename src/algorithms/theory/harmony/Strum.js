@@ -8,11 +8,11 @@ import { Arpeggiate } from './Arpeggiate.js';
  * ```js
  * // Strum downward
  * const strum = new Strum({ direction: 'down', speed: 0.1 });
- * const strummedTrack = strum.generate(chordTrack);
+ * const strummedNotes = strum.generate(chordNotes);
  *
  * // Strum with alternating pattern
  * const altStrum = new Strum({ pattern: [1, 0, 1, 0], speed: 0.08 });
- * const result = altStrum.generate(track);
+ * const result = altStrum.generate(chordNotes);
  *
  * // Random strumming
  * const randomStrum = new Strum({ direction: 'random', speed: 0.12 });
@@ -43,22 +43,22 @@ export class Strum {
   }
 
   /**
-   * Generate strummed notes from a track containing chords
-   * @param {Array<Object>} track - Array of JMON notes, where notes with array pitch are chords
+   * Generate strummed notes from a list of notes containing chords
+   * @param {Array<Object>} notes - Array of JMON notes, where notes with array pitch are chords
    * @param {Object} [options={}] - Override options for this generation
    * @returns {Array<Object>} Array of JMON notes with strummed chords
    *
    * @example
    * ```js
-   * const track = [
+   * const chordNotes = [
    *   { pitch: [60, 64, 67], duration: 2, time: 0 },  // C major chord
    *   { pitch: [62, 65, 69], duration: 2, time: 2 }   // D minor chord
    * ];
    * const strum = new Strum({ direction: 'down', speed: 0.08 });
-   * const result = strum.generate(track);
+   * const result = strum.generate(chordNotes);
    * ```
    */
-  generate(track, options = {}) {
+  generate(notes, options = {}) {
     const {
       direction = this.direction,
       speed = this.speed,
@@ -68,11 +68,11 @@ export class Strum {
 
     // If direction is a custom pattern (array), we need to handle each chord individually
     if (Array.isArray(direction)) {
-      return this._generateWithPattern(track, direction, speed, velocity, velocityVariation);
+      return this._generateWithPattern(notes, direction, speed, velocity, velocityVariation);
     }
 
     // Convert strum direction to arpeggiate order
-    const order = this._directionToOrder(direction, track);
+    const order = this._directionToOrder(direction);
 
     // Use Arpeggiate for the heavy lifting
     const arp = new Arpeggiate({
@@ -81,7 +81,7 @@ export class Strum {
       velocityBase: velocity
     });
 
-    const result = arp.generate(track);
+    const result = arp.generate(notes);
 
     // Apply velocity variation if specified (only to notes that already have velocity)
     if (velocityVariation > 0) {
@@ -101,11 +101,11 @@ export class Strum {
    * Pattern determines strum direction for each successive chord
    * @private
    */
-  _generateWithPattern(track, pattern, speed, velocity, velocityVariation) {
+  _generateWithPattern(notes, pattern, speed, velocity, velocityVariation) {
     const result = [];
     let chordIndex = 0; // Track which chord we're on for pattern cycling
 
-    for (const note of track) {
+    for (const note of notes) {
       // If not a chord, just pass through
       if (!Array.isArray(note.pitch) || note.pitch.length <= 1) {
         result.push({ ...note });
@@ -167,7 +167,7 @@ export class Strum {
    * Convert strum direction to arpeggiate order
    * @private
    */
-  _directionToOrder(direction, track) {
+  _directionToOrder(direction) {
     // Handle custom pattern (array of 0s and 1s)
     if (Array.isArray(direction)) {
       // For custom patterns, we need to know chord length
@@ -260,20 +260,20 @@ export class Strum {
 }
 
 /**
- * Convenience function to strum a track
- * @param {Array<Object>} track - Array of JMON notes
+ * Convenience function to strum a list of notes
+ * @param {Array<Object>} notes - Array of JMON notes
  * @param {Object} [options={}] - Strum options
- * @returns {Array<Object>} Strummed track
+ * @returns {Array<Object>} Strummed notes
  *
  * @example
  * ```js
  * import { strum } from './Strum.js';
  *
- * const track = [{ pitch: [60, 64, 67], duration: 2, time: 0 }];
- * const result = strum(track, { direction: 'up', speed: 0.08 });
+ * const chordNotes = [{ pitch: [60, 64, 67], duration: 2, time: 0 }];
+ * const result = strum(chordNotes, { direction: 'up', speed: 0.08 });
  * ```
  */
-export function strum(track, options = {}) {
+export function strum(notes, options = {}) {
   const strummer = new Strum(options);
-  return strummer.generate(track);
+  return strummer.generate(notes);
 }
