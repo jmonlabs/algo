@@ -26,6 +26,7 @@ import {
   quantizeTrack,
   quantizePiece,
 } from "../src/algorithms/utils.js";
+import { sustained } from "../src/utils/jmon-utils.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
 
@@ -379,4 +380,43 @@ test("jm imports nothing outside itself", async () => {
 
   assert.deepEqual(external, [], "algo must reach nothing outside itself");
   assert.ok(seen.size > 30, `only walked ${seen.size} files; the graph looks wrong`);
+});
+
+/* --- sustained ------------------------------------------------------------ */
+
+test("sustained fills the span with a uniform step, as it always did", () => {
+  const out = sustained(38, 10, 0, 0.4, 4);
+
+  assert.deepEqual(out.map((x) => [x.duration, x.time]), [[4, 0], [4, 4], [2, 8]]);
+  assert.ok(out.every((x) => x.pitch === 38 && x.velocity === 0.4));
+});
+
+test("sustained takes a pattern of durations, cycled", () => {
+  const out = sustained(69, 8, 0, 0.5, [1, 1, 2]);
+
+  assert.deepEqual(out.map((x) => x.duration), [1, 1, 2, 1, 1, 2]);
+  assert.deepEqual(out.map((x) => x.time), [0, 1, 2, 4, 5, 6]);
+});
+
+test("sustained shapes velocity alongside the pattern", () => {
+  const out = sustained(69, 8, 0, [0.5, 0.36, 0.43], [1, 1, 2]);
+
+  assert.deepEqual(out.map((x) => x.velocity), [0.5, 0.36, 0.43, 0.5, 0.36, 0.43]);
+});
+
+test("sustained never overruns the span it was given", () => {
+  for (const [total, step] of [[7, [1, 1, 2]], [5, [2, 3]], [3.5, [1, 1, 2]], [10, 4]]) {
+    const out = sustained(60, total, 2, 0.4, step);
+    const spanned = out.reduce((sum, x) => sum + x.duration, 0);
+    assert.ok(Math.abs(spanned - total) < 1e-9,
+      `pattern ${JSON.stringify(step)} spanned ${spanned} of ${total}`);
+    assert.equal(out[0].time, 2);
+    assert.ok(out.every((x) => x.duration > 0), "produced a zero-length note");
+  }
+});
+
+test("sustained refuses a step that would never advance", () => {
+  assert.throws(() => sustained(60, 8, 0, 0.4, 0), /greater than 0/);
+  assert.throws(() => sustained(60, 8, 0, 0.4, [1, 0, 2]), /greater than 0/);
+  assert.throws(() => sustained(60, 8, 0, 0.4, []), /greater than 0/);
 });

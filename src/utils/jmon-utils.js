@@ -303,18 +303,41 @@ export function combineSequences(sequences) {
  *   sustained(p, totalDur, startTime, 0.25, 6)
  * );
  *
+ * @example
+ * // A bowing rather than a metronome: two quarters and a half, cycled, with
+ * // the downbeat carrying the weight. `step` and `vel` advance together.
+ * const bowed = sustained(69, 8, 0, [0.5, 0.36, 0.43], [1, 1, 2]);
+ *
  * @param {number} pitch - MIDI pitch
  * @param {number} totalDur - Total duration to fill (beats)
  * @param {number} [startTime=0] - When the held tone begins (beats)
- * @param {number} [vel=0.4] - Velocity for each attack
- * @param {number} [step=4] - Re-attack interval (beats). Smaller = more attacks
+ * @param {number|number[]} [vel=0.4] - Velocity per attack. An array cycles
+ *   alongside `step`, so an uneven pattern can be shaped as a bowing or a
+ *   strum rather than a row of identical attacks.
+ * @param {number|number[]} [step=4] - Re-attack interval (beats). Smaller =
+ *   more attacks. An array is a pattern of durations, cycled until `totalDur`
+ *   is filled: `[1, 1, 2]` fills a 4/4 bar with two quarters and a half.
  * @returns {Array} Array of JMON notes covering `[startTime, startTime+totalDur)`
  */
 export function sustained(pitch, totalDur, startTime = 0, vel = 0.4, step = 4) {
+  const pattern = Array.isArray(step) ? step : [step];
+  const velocities = Array.isArray(vel) ? vel : [vel];
+
+  if (pattern.length === 0 || pattern.some((d) => !(d > 0))) {
+    throw new Error("sustained: every step must be a duration greater than 0");
+  }
+
   const notes = [];
-  for (let t = 0; t < totalDur; t += step) {
-    const dur = Math.min(step, totalDur - t);
-    notes.push({ pitch, duration: dur, time: startTime + t, velocity: vel });
+  let t = 0;
+  for (let i = 0; t < totalDur - 1e-9; i++) {
+    const dur = Math.min(pattern[i % pattern.length], totalDur - t);
+    notes.push({
+      pitch,
+      duration: dur,
+      time: startTime + t,
+      velocity: velocities[i % velocities.length],
+    });
+    t += pattern[i % pattern.length];
   }
   return notes;
 }
