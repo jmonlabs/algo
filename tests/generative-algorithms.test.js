@@ -342,3 +342,74 @@ test("follow/diverge variations require a leader track", () => {
   assert.throws(() => drummer({ style: "jazz", bars: 4, variation: "follow" }), /requires/);
   assert.throws(() => drummer({ style: "jazz", bars: 4, variation: "diverge" }), /requires/);
 });
+
+test("the style grid decides where the drums land", () => {
+  const GM_KICK = 36;
+  const onsets = (style, pitch) => {
+    // humanize: 0 so onsets sit exactly on the grid
+    return drummer({ style, bars: 1, variation: "fixed", seed: 1, humanize: 0 })
+      .filter((h) => h.pitch === pitch)
+      .map((h) => h.time);
+  };
+
+  // house: four-on-the-floor — kick on every beat
+  assert.deepEqual(onsets("house", GM_KICK), [0, 1, 2, 3]);
+  // rock: kick on 1 and 3 only
+  assert.deepEqual(onsets("rock", GM_KICK), [0, 2]);
+  // reggae one-drop: nothing on beat 1, kick on beat 3
+  assert.deepEqual(onsets("reggae", GM_KICK), [2]);
+});
+
+test("each style plays its own instrument layers", () => {
+  const GM = { ride: 51, clap: 39, hihat: 42 };
+  const pitches = (style) => new Set(
+    drummer({ style, bars: 2, variation: "fixed", seed: 1 }).map((h) => h.pitch),
+  );
+
+  assert.ok(pitches("jazz").has(GM.ride), "jazz keeps time on the ride");
+  assert.ok(pitches("house").has(GM.clap), "house claps the backbeat");
+  assert.ok(pitches("rock").has(GM.hihat), "rock keeps time on the hihat");
+});
+
+test("a seeded non-live drummer is reproducible, and probability shapes accents", () => {
+  const build = () => drummer({ style: "funk", bars: 4, variation: "follow", seed: 9,
+    leader: [{ pitch: 40, time: 0, duration: 1 }] });
+  assert.deepEqual(build(), build(), "same seed, same leader — same take");
+
+  // In the funk grid the backbeat snare (p=0.9) must come out louder than
+  // any ghost-slot snare (p≤0.25). diverge samples the grid under the given
+  // seed (unlike live), so the roll is reproducible and ghosts do land.
+  const GM_SNARE = 38;
+  const hits = drummer({
+    style: "funk", bars: 8, variation: "diverge", seed: 3, humanize: 0,
+    fillEvery: 0, leader: [{ pitch: 40, time: 1000, duration: 1 }],
+  }).filter((h) => h.pitch === GM_SNARE);
+  const backbeat = hits.filter((h) => [1, 3].includes(h.time % 4));
+  const ghosts = hits.filter((h) => ![1, 3].includes(h.time % 4));
+  assert.ok(backbeat.length > 0, "no backbeat snare");
+  assert.ok(ghosts.length > 0, "the roll landed no ghost notes — pick another seed");
+  for (const g of ghosts) {
+    for (const b of backbeat) {
+      assert.ok(g.velocity < b.velocity, "ghost slots must be quieter than the backbeat");
+    }
+  }
+});
+
+test("multi-meter sections keep the meter's anchors and add the style's layers", () => {
+  const GM = { kick: 36, clap: 39, openhat: 46 };
+  const hits = drummer({
+    style: "house",
+    sections: [{ meter: 3.5, bars: 2 }],
+    variation: "fixed",
+    seed: 1,
+    humanize: 0,
+  });
+  // Meter anchors: 7/8 kick pattern starts every bar at 0, 1.5, 2.5.
+  const kicks = hits.filter((h) => h.pitch === GM.kick).map((h) => h.time);
+  for (const anchor of [0, 1.5, 2.5, 3.5, 5, 6]) {
+    assert.ok(kicks.some((t) => Math.abs(t - anchor) < 1e-9), `missing kick anchor at ${anchor}`);
+  }
+  // Style layer: house's off-beat open hihat survives the odd meter.
+  assert.ok(hits.some((h) => h.pitch === GM.openhat), "style cymbal layer missing");
+  assert.ok(hits.every((h) => h.time < 7), "3.5 × 2 beats is the whole span");
+});
