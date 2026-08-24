@@ -7,10 +7,13 @@
  * - `patterns` — per-instrument array of probabilities (0-1) per step
  * - `velocities` — per-instrument base velocity (0-1) when triggered
  *
- * Probabilities serve as the style's character profile, describing how
- * kick, snare, hi-hat etc. are typically distributed in 4/4 for that
- * style. The `drummer()` function uses the velocities directly and adapts
- * the kick/snare positioning to whichever meter the user requests.
+ * The probabilities are what `drummer()` actually plays: each bar rolls
+ * seeded dice against them (variation 'live'), or keeps just the canonical
+ * steps at probability ≥ 0.5 (variation 'fixed'). A step's probability also
+ * sets its accent — sure slots hit at full base velocity, unlikely slots
+ * come out as ghost notes. In multi-meter `sections` mode the kick/snare
+ * anchors come from the meter, and these grids are tiled over the bar as
+ * the style's syncopation and cymbal layers.
  *
  * Instrument keys correspond to the General MIDI drum map (see drum-map.js):
  *   kick, snare, hihat, openhat, ride, crash, clap, rim, tom_low/mid/high
