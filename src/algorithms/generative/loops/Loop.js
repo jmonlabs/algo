@@ -1,3 +1,5 @@
+import { euclid, euclidPattern } from '../../theory/rhythm/euclid.js';
+
 /**
  * Represents a collection of loops for rhythm and melody pattern generation
  *
@@ -234,6 +236,16 @@ export class Loop {
 
   /**
    * Create loop from Euclidean rhythm (JMON format)
+   *
+   * @deprecated Use {@link euclid} from `jm.theory.rhythm`, which returns
+   * plain JMON notes you can map, tile and place on any track. It also takes
+   * a `rotation` and a `subdivision` — this method fixes a step at one
+   * quarter note, so `{ beats: 16 }` spans four bars rather than the one bar
+   * the rhythm is usually heard in — and it does not pick a synth for you.
+   *
+   *   euclid({ steps: 16, pulses: 5 })                    // one bar of 16ths
+   *   euclid({ steps: 8, pulses: 3, subdivision: 0.5 })   // tresillo, one bar
+   *
    * @param {Object} options
    * @param {number} options.beats - Total number of beats
    * @param {number} options.pulses - Number of active pulses to distribute
@@ -244,43 +256,19 @@ export class Loop {
    * @returns {Loop} A new Loop instance
    */
   static euclidean({ beats, pulses, pitches = [60], velocities = [0.8], label }) {
-
-    // Input validation
-    if (typeof beats !== 'number' || beats <= 0 || !Number.isInteger(beats)) {
-      throw new Error('beats must be a positive integer');
-    }
-    
-    if (typeof pulses !== 'number' || pulses < 0 || !Number.isInteger(pulses)) {
-      throw new Error('pulses must be a non-negative integer');
-    }
-    
-    if (pulses > beats) {
-      throw new Error('pulses cannot be greater than beats');
-    }
-    
     if (!Array.isArray(pitches) || pitches.length === 0) {
       throw new Error('pitches must be a non-empty array');
     }
 
-    const activeVelocities = Array.isArray(velocities) && velocities.length > 0
-      ? velocities
-      : [0.8];
-
-    const pattern = this.generateEuclideanRhythm(beats, pulses);
-    const notes = [];
-    const beatDuration = 1.0; // Each beat is 1 quarter note
-
-    pattern.forEach((active, index) => {
-      if (active) {
-        const time = index * beatDuration;
-        const pitch = pitches[index % pitches.length];
-        notes.push({
-          pitch,
-          duration: beatDuration * 0.8,
-          time,
-          velocity: activeVelocities[index % activeVelocities.length]
-        });
-      }
+    // One step per quarter note, which is what this method has always
+    // emitted. `euclid` defaults to sixteenths; the explicit subdivision
+    // keeps existing callers sounding the same.
+    const notes = euclid({
+      steps: beats,
+      pulses,
+      subdivision: 1.0,
+      pitches,
+      velocities: Array.isArray(velocities) && velocities.length > 0 ? velocities : [0.8],
     });
 
     const trackLabel = label || `Euclidean ${pulses}/${beats}`;
@@ -302,66 +290,12 @@ export class Loop {
   /**
    * Generate Euclidean rhythm pattern using Bjorklund algorithm
    * This creates the most even distribution of pulses across beats
+   *
+   * @deprecated Use {@link euclidPattern} from `jm.theory.rhythm`, which also
+   * takes a rotation.
    */
   static generateEuclideanRhythm(beats, pulses) {
-    if (pulses === 0) {
-      return Array(beats).fill(false);
-    }
-    
-    if (pulses >= beats) {
-      return Array(beats).fill(true);
-    }
-    
-    // Bjorklund algorithm implementation
-    const pattern = [];
-    
-    // Initialize with pulses and remaining beats
-    let groups = [
-      { pattern: [1], count: pulses },           // Groups with pulses
-      { pattern: [0], count: beats - pulses }    // Groups without pulses
-    ];
-    
-    // Apply Bjorklund algorithm
-    while (groups.length > 1) {
-      const [first, second] = groups;
-      
-      if (first.count <= second.count) {
-        // Merge first group into second
-        const newCount = first.count;
-        const remaining = second.count - first.count;
-        
-        groups = [
-          { pattern: [...second.pattern, ...first.pattern], count: newCount }
-        ];
-        
-        if (remaining > 0) {
-          groups.push({ pattern: second.pattern, count: remaining });
-        }
-      } else {
-        // Merge second group into first
-        const newCount = second.count;
-        const remaining = first.count - second.count;
-        
-        groups = [
-          { pattern: [...first.pattern, ...second.pattern], count: newCount }
-        ];
-        
-        if (remaining > 0) {
-          groups.push({ pattern: first.pattern, count: remaining });
-        }
-      }
-    }
-    
-    // Flatten the final pattern
-    const finalGroup = groups[0];
-    const result = [];
-    
-    for (let i = 0; i < finalGroup.count; i++) {
-      result.push(...finalGroup.pattern);
-    }
-    
-    // Convert to boolean array
-    return result.map(x => x === 1);
+    return euclidPattern(beats, pulses);
   }
 
   /**

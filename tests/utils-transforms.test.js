@@ -26,7 +26,7 @@ import {
   quantizeTrack,
   quantizePiece,
 } from "../src/algorithms/utils.js";
-import { sustained } from "../src/utils/jmon-utils.js";
+import { sustained, tile } from "../src/utils/jmon-utils.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
 
@@ -419,4 +419,33 @@ test("sustained refuses a step that would never advance", () => {
   assert.throws(() => sustained(60, 8, 0, 0.4, 0), /greater than 0/);
   assert.throws(() => sustained(60, 8, 0, 0.4, [1, 0, 2]), /greater than 0/);
   assert.throws(() => sustained(60, 8, 0, 0.4, []), /greater than 0/);
+});
+
+/* --- tile ---------------------------------------------------------------- */
+
+test("tile repeats a phrase on its own extent by default", () => {
+  const cell = [
+    { pitch: 60, duration: 0.75, time: 0 },
+    { pitch: 62, duration: 0.25, time: 0.75 },
+  ];
+  const out = tile(cell, 3);
+  assert.deepEqual(out.map((n) => n.time), [0, 0.75, 1, 1.75, 2, 2.75]);
+  assert.deepEqual(out.map((n) => n.pitch), [60, 62, 60, 62, 60, 62]);
+  assert.deepEqual(cell.map((n) => n.time), [0, 0.75], "the source must not be mutated");
+});
+
+test("tile honours an explicit cycle length, leaving air or overlapping", () => {
+  const cell = [{ pitch: 60, duration: 1, time: 0 }];
+  assert.deepEqual(tile(cell, 4, 4).map((n) => n.time), [0, 4, 8, 12], "a beat per bar");
+  assert.deepEqual(tile(cell, 3, 0.5).map((n) => n.time), [0, 0.5, 1], "cycles may overlap");
+});
+
+test("tile keeps bars:beats:ticks times in their own notation", () => {
+  const out = tile([{ pitch: 60, duration: 1, time: "0:0:0" }], 2, 4);
+  assert.deepEqual(out.map((n) => n.time), ["0:0:0", "1:0:0"]);
+});
+
+test("tile returns nothing when there is nothing to repeat", () => {
+  assert.deepEqual(tile([], 4), []);
+  assert.deepEqual(tile([{ pitch: 60, duration: 1, time: 0 }], 0), []);
 });

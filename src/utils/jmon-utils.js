@@ -204,6 +204,48 @@ export function shiftTime(notes, timeShift) {
 export const offsetNotes = shiftTime;
 
 /**
+ * Repeat a phrase end to end.
+ *
+ * The phrase keeps its own internal timing; each repeat starts `cycle` beats
+ * after the previous one. Pass `cycle` when the phrase should sit in a longer
+ * frame than its notes occupy — a 3-beat cell tiled every 4 leaves a beat of
+ * air per bar; omit it and the phrase's own extent (its latest note end) is
+ * used, which is what "just repeat this" usually means.
+ *
+ * A player that loops per track (JMON `tracks[].loop`) does this at playback
+ * time; this is the same repeat as data, for rendering, engraving and export,
+ * where there is no player to do the looping.
+ *
+ * @example
+ * const cell = isorhythm({ pitches: [60, 62, 64], durations: [0.75, 0.75, 0.5] });
+ * const notes = tile(cell, 4);          // four cycles, back to back
+ * const spaced = tile(cell, 4, 8);      // one cycle per 8 beats
+ *
+ * @param {Array} notes - JMON notes
+ * @param {number} times - How many cycles to emit (0 gives an empty array)
+ * @param {number} [cycle] - Beats between cycle starts; defaults to the phrase's extent
+ * @returns {Array} The tiled notes, in time order
+ */
+export function tile(notes, times, cycle) {
+  if (!Array.isArray(notes) || notes.length === 0 || !(times > 0)) return [];
+
+  let length = cycle;
+  if (typeof length !== 'number' || !(length > 0)) {
+    length = notes.reduce(
+      (end, note) => Math.max(end, timeToBeats(note.time) + (note.duration || 0)),
+      0,
+    );
+  }
+  if (!(length > 0)) return notes.map((note) => ({ ...note }));
+
+  const out = [];
+  for (let cycleIndex = 0; cycleIndex < times; cycleIndex++) {
+    for (const note of shiftTime(notes, cycleIndex * length)) out.push(note);
+  }
+  return out;
+}
+
+/**
  * Concatenate multiple tracks with proper timing
  * Each track's timing is adjusted to start after the previous one ends
  * @param {Array} tracks - Array of tracks (note arrays)

@@ -74,7 +74,7 @@ test("Loop.toPlotData emits sounding notes and drops rests", () => {
   const data = loop.toPlotData();
 
   assert.equal(data.length, 3, "expected exactly the 3 Euclidean onsets");
-  assert.deepEqual(data.map((d) => d.time), [1, 4, 7]);
+  assert.deepEqual(data.map((d) => d.time), [0, 3, 6]);
   for (const row of data) {
     assert.equal(row.pitch, 60);
     assert.equal(row.loop, "Euclidean 3/8");

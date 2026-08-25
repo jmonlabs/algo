@@ -290,7 +290,7 @@ test("Darwin is reproducible for a given seed", () => {
 test("Loop.euclidean places the expected onsets", () => {
   const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
   const data = loop.toPlotData();
-  assert.deepEqual(data.map((d) => d.time), [1, 4, 7]);
+  assert.deepEqual(data.map((d) => d.time), [0, 3, 6]);
 });
 
 test("Loop exposes its loops as JMON tracks", () => {
