@@ -24,6 +24,7 @@ import { chordify, chordifyMany } from "../src/algorithms/theory/harmony/Chordif
 import { Rhythm } from "../src/algorithms/theory/rhythm/Rhythm.js";
 import { isorhythm } from "../src/algorithms/theory/rhythm/isorhythm.js";
 import { beatcycle } from "../src/algorithms/theory/rhythm/beatcycle.js";
+import { euclid, euclidPattern } from "../src/algorithms/theory/rhythm/euclid.js";
 
 const note = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, duration, time, velocity });
 
@@ -449,4 +450,44 @@ test("Rhythm.random fills exactly the requested measure length", () => {
     const total = out.reduce((sum, n) => sum + n.duration, 0);
     assert.ok(Math.abs(total - 4) < 1e-9, `measure summed to ${total}, expected 4`);
   }
+});
+
+test("euclid spreads its pulses evenly and starts on an onset", () => {
+  const at = (opts) => euclid(opts).map((n) => n.time);
+  // Canonical patterns: tresillo, and Toussaint's West African bell.
+  assert.deepEqual(at({ steps: 8, pulses: 3, subdivision: 1 }), [0, 3, 6]);
+  assert.deepEqual(
+    euclidPattern(12, 7).map((x) => (x ? "x" : ".")).join(""),
+    "x.x.x.xx.x.x",
+  );
+  // A step is a sixteenth by default, so the canonical 5/16 fits one bar.
+  assert.deepEqual(at({ steps: 16, pulses: 5 }), [0, 1, 1.75, 2.5, 3.25]);
+});
+
+test("euclid rotation turns the pattern without changing its gaps", () => {
+  const gaps = (pattern) => {
+    const onsets = pattern.flatMap((x, i) => (x ? [i] : []));
+    return onsets.map((t, i) =>
+      i === 0 ? t + pattern.length - onsets[onsets.length - 1] : t - onsets[i - 1],
+    ).sort();
+  };
+  const plain = euclidPattern(8, 3);
+  const turned = euclidPattern(8, 3, 3);
+  assert.notDeepEqual(turned, plain, "rotation should move the onsets");
+  assert.deepEqual(gaps(turned), gaps(plain), "rotation must preserve the gap multiset");
+  assert.deepEqual(euclidPattern(8, 3, 8), plain, "a full turn is the identity");
+  assert.deepEqual(euclidPattern(8, 3, -8), plain, "and so is a negative full turn");
+});
+
+test("euclid cycles pitches across onsets, not across steps", () => {
+  const out = euclid({ steps: 8, pulses: 3, subdivision: 1, pitches: [36, 38] });
+  assert.deepEqual(out.map((n) => n.pitch), [36, 38, 36], "silent steps must not consume a pitch");
+});
+
+test("euclid handles the degenerate densities", () => {
+  assert.deepEqual(euclid({ steps: 8, pulses: 0 }), []);
+  assert.equal(euclid({ steps: 4, pulses: 4 }).length, 4);
+  assert.throws(() => euclid({ steps: 4, pulses: 5 }), /cannot exceed/);
+  assert.throws(() => euclid({ steps: 0, pulses: 0 }), /positive integer/);
+  assert.throws(() => euclid({ steps: 8, pulses: 3, subdivision: 0 }), /subdivision/);
 });
