@@ -4,11 +4,12 @@ import { MusicTheoryConstants, ARTICULATION_TYPES, ORNAMENT_TYPES, ConstantsAPI 
 // Theory imports
 import harmony from './theory/harmony/index.js';
 import rhythm from './theory/rhythm/index.js';
+import profile from './theory/profile/index.js';
 
 // Generative algorithm imports
 import { CellularAutomata } from './generative/cellular-automata/index.js';
 import { Loop } from './generative/loops/index.js';
-import { Darwin } from './generative/genetic/index.js';
+import { Darwin, operators as geneticOperators, metrics as geneticMetrics, metric as geneticMetric, phraseToNotes as geneticPhraseToNotes } from './generative/genetic/index.js';
 import { RandomWalk, Chain, Phasor, PhasorSystem } from './generative/walks/index.js';
 import { Mandelbrot, Julia, BurningShip, Fractal, LogisticMap } from './generative/fractals/index.js';
 import { MinimalismProcess, Tintinnabuli, phaseShift } from './generative/minimalism/index.js';
@@ -19,6 +20,7 @@ import { drummer, presets as drummerPresets } from './generative/drummer/index.j
 
 // Processor imports
 import { Corruptor, corruptJmon } from './processors/Corruptor.js';
+import { groove, anticipate, applySteps, STEPS as GROOVE_STEPS } from './processors/Groove.js';
 
 // Analysis imports
 import * as analysisModule from './analysis/index.js';
@@ -29,7 +31,10 @@ import * as Utils from './utils.js';
 // Export namespaces
 export const theory = {
     harmony,
-    rhythm
+    rhythm,
+    // Weight profiles over a cycle: the Rhythm Code, the Tonality Code, the
+    // stability order — and whatever you fold out of your own material.
+    profile
 };
 
 export const constants = {
@@ -53,7 +58,12 @@ export const generative = {
     },
     loops: { Loop },
     genetic: {
-        Darwin: Darwin
+        Darwin: Darwin,
+        // Position-aware mutations and Bodzsar-derived fitness terms for Darwin
+        operators: geneticOperators,
+        metrics: geneticMetrics,
+        metric: geneticMetric,
+        phraseToNotes: geneticPhraseToNotes
     },
     walks: {
         Random: RandomWalk,
@@ -82,7 +92,12 @@ export const generative = {
 
 export const processors = {
     Corruptor,
-    corruptJmon
+    corruptJmon,
+    // Move onsets to better places on a rhythm profile
+    groove,
+    anticipate,
+    applySteps,
+    GROOVE_STEPS
 };
 
 export const analysis = {

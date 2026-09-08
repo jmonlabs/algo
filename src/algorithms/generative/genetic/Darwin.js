@@ -26,10 +26,16 @@ export class Darwin {
       mutationProbabilities = null,
       scale = null,
       measureLength = 4,
-      timeResolution = [0.125, 4],
+      timeResolution = null,
       weights = null,
       targets = null,
-      seed = null
+      seed = null,
+      metrics = [],
+      context = {},
+      operators = [],
+      operatorRate = 0.15,
+      crossoverMode = 'index',
+      period = null
     } = config;
 
     this.initialPhrases = initialPhrases;
@@ -37,7 +43,30 @@ export class Darwin {
     this.populationSize = populationSize;
     this.scale = scale;
     this.measureLength = measureLength;
-    this.timeResolution = timeResolution;
+    // Shortest and longest durations a mutation may pick. When a `context.pulse`
+    // is given the floor defaults to it, so evolved onsets stay on the grid the
+    // rhythm metrics read; otherwise a 32nd note, as before.
+    this.timeResolution = timeResolution ?? [context.pulse ?? 0.125, 4];
+
+    // Pluggable fitness terms: `{ name, fn(phrase, ctx), target, weight }`.
+    // The built-in metrics only see pitches, durations or offsets one at a
+    // time; these see the whole phrase plus `context` (key, chords, profile,
+    // pulse ...), which is what a clave fit or an emotional-map balance needs.
+    this.metrics = metrics.map((m, i) => ({
+      name: m.name ?? `metric${i}`,
+      fn: m.fn,
+      target: m.target ?? 1,
+      weight: m.weight ?? 1,
+    }));
+    this.context = context;
+    // Position-aware mutations `(phrase, rng, ctx) => phrase`, each applied
+    // to a child with probability `operatorRate` (or its own `rate`).
+    this.operators = operators;
+    this.operatorRate = operatorRate;
+    // 'index' cuts parents at a note index; 'time' cuts at a multiple of
+    // `period` so a two-bar clave phase survives the splice.
+    this.crossoverMode = crossoverMode;
+    this.period = period;
 
     // Initialize random seed if provided
     if (seed !== null) {
@@ -50,7 +79,7 @@ export class Darwin {
     // Set up possible durations based on time resolution
     const allDurations = [0.125, 0.25, 0.5, 1, 2, 3, 4, 8];
     this.possibleDurations = allDurations.filter(d => 
-      d >= timeResolution[0] && d <= Math.min(timeResolution[1], measureLength)
+      d >= this.timeResolution[0] && d <= Math.min(this.timeResolution[1], measureLength)
     );
 
     // Set up mutation probabilities
@@ -183,7 +212,7 @@ export class Darwin {
     
     // Fill remaining slots
     while (population.length < this.populationSize) {
-      const randomPhrase = this.initialPhrases[Math.floor(Math.random() * this.initialPhrases.length)];
+      const randomPhrase = this.initialPhrases[Math.floor(this.randomState.random() * this.initialPhrases.length)];
       population.push(this.mutate(randomPhrase, 0));
     }
     
@@ -237,6 +266,12 @@ export class Darwin {
     const restProportion = pitches.filter(p => p === null || p === undefined).length / pitches.length;
     fitnessComponents.rest = restProportion;
 
+    // Custom metrics see the whole phrase and the context
+    for (const m of this.metrics) {
+      const value = m.fn(phrase, this.context, this);
+      fitnessComponents[m.name] = Number.isFinite(value) ? value : 0;
+    }
+
     return fitnessComponents;
   }
 
@@ -274,6 +309,15 @@ export class Darwin {
       const targetRest = this.targets.rest[0];
       const similarity = 1 - Math.abs(actualRest - targetRest) / Math.max(targetRest, 1);
       fitnessScore += Math.max(0, similarity) * this.weights.rest[0];
+    }
+
+    // Custom metrics: same similarity-to-target rule as the built-ins
+    for (const m of this.metrics) {
+      if (!(m.weight > 0)) continue;
+      const actualValue = components[m.name] || 0;
+      const maxVal = Math.max(Math.abs(m.target), 1);
+      const similarity = 1 - Math.abs(actualValue - m.target) / maxVal;
+      fitnessScore += Math.max(0, similarity) * m.weight;
     }
 
     return fitnessScore;
@@ -323,6 +367,27 @@ export class Darwin {
   }
 
   /**
+   * Run each operator on the phrase with its probability. An operator is a
+   * function `(phrase, rng, ctx) => phrase` or `{ fn, rate }`; `rng()` is the
+   * seeded generator so runs stay reproducible.
+   * @param {Array} phrase
+   * @returns {Array}
+   */
+  applyOperators(phrase) {
+    if (!this.operators || this.operators.length === 0) return phrase;
+    const rng = () => this.randomState.random();
+    let out = phrase;
+    for (const op of this.operators) {
+      const fn = typeof op === 'function' ? op : op.fn;
+      const rate = typeof op === 'function' ? this.operatorRate : (op.rate ?? this.operatorRate);
+      if (typeof fn !== 'function' || rng() >= rate) continue;
+      const result = fn(out, rng, this.context, this);
+      if (Array.isArray(result) && result.length > 0) out = result;
+    }
+    return out;
+  }
+
+  /**
    * Select top performers from population
    * @param {number} k - Number of individuals to select
    * @returns {Array} Selected phrases
@@ -348,6 +413,54 @@ export class Darwin {
    * @returns {Array} Child phrase
    */
   crossover(parent1, parent2) {
+    if (this.crossoverMode === 'time') return this.crossoverTime(parent1, parent2);
+    return this.crossoverIndex(parent1, parent2);
+  }
+
+  /**
+   * Cut both parents at the same moment — a multiple of `period` (default
+   * `measureLength`) — and splice head to tail so the child keeps each
+   * parent's bar phase. Falls back to an index cut when the parents are
+   * shorter than one period.
+   * @param {Array} parent1
+   * @param {Array} parent2
+   * @returns {Array} Child phrase with valid offsets
+   */
+  crossoverTime(parent1, parent2) {
+    if (parent1.length === 0 || parent2.length === 0) {
+      return parent1.length > 0 ? parent1.map(n => [...n]) : parent2.map(n => [...n]);
+    }
+    const period = this.period ?? this.measureLength;
+    const end = (p) => p[p.length - 1][2] + p[p.length - 1][1];
+    const cuts = Math.floor(Math.min(end(parent1), end(parent2)) / period);
+    if (cuts < 1) return this.crossoverIndex(parent1, parent2);
+    // Cut strictly inside the shorter parent when possible, so the tail is never empty
+    const k = 1 + Math.floor(this.randomState.random() * Math.max(1, cuts - 1));
+    const t = k * period;
+
+    const i1 = parent1.findIndex(n => n[2] >= t - 1e-9);
+    const head = (i1 === -1 ? parent1 : parent1.slice(0, i1)).map(n => [...n]);
+    const i2 = parent2.findIndex(n => n[2] >= t - 1e-9);
+    const tail = (i2 === -1 ? [] : parent2.slice(i2)).map(n => [...n]);
+
+    // Head must end exactly where the tail begins
+    const tailStart = tail.length > 0 ? tail[0][2] : t;
+    if (head.length > 0) {
+      const last = head[head.length - 1];
+      last[1] = tailStart - last[2];
+    } else if (tailStart > 0) {
+      head.push([null, tailStart, 0]);
+    }
+    return [...head, ...tail];
+  }
+
+  /**
+   * Cut both parents at the same note indices and splice.
+   * @param {Array} parent1
+   * @param {Array} parent2
+   * @returns {Array} Child phrase with valid offsets
+   */
+  crossoverIndex(parent1, parent2) {
     if (parent1.length === 0 || parent2.length === 0) {
       return parent1.length > 0 ? [...parent1] : [...parent2];
     }
@@ -413,14 +526,14 @@ export class Darwin {
     
     while (newPopulation.length < this.populationSize) {
       // Select two random parents
-      const parent1 = selectedParents[Math.floor(Math.random() * selectedParents.length)];
-      const parent2 = selectedParents[Math.floor(Math.random() * selectedParents.length)];
+      const parent1 = selectedParents[Math.floor(this.randomState.random() * selectedParents.length)];
+      const parent2 = selectedParents[Math.floor(this.randomState.random() * selectedParents.length)];
       
       // Create child through crossover
       const child = this.crossover([...parent1], [...parent2]);
       
-      // Mutate child
-      const mutatedChild = this.mutate(child);
+      // Mutate child, then apply position-aware operators
+      const mutatedChild = this.applyOperators(this.mutate(child));
       
       newPopulation.push(mutatedChild);
     }
