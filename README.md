@@ -78,7 +78,11 @@ const track = [
 ### Theory — `jm.theory.*`
 Scales, intervals, chords, voice leading, progressions, ornaments and articulations, rhythm generation.
 
-`jm.key(tonic, mode)` sets the key once and builds Scale, Voice, Ornament, Progression and chords without repeating `{ tonic, mode }`.
+`jm.key(tonic, mode)` sets the key once and builds Scale, Voice, Ornament, Progression and chords without repeating `{ tonic, mode }`. It also answers `k.solfege(pitch)` and `k.stability(pitch)`: the syllable relative to the relative major (a minor tonic is LA) and its rank on the stability order DO SO MI LA RE TI FA.
+
+- `theory.rhythm.clave` — son, rumba, bossa, tresillo and afro claves as grids or notes, in 2-3 or 3-2. `metricStrengths` grades the places of any meter into downbeat, half-bar, beat, upbeat.
+- `theory.profile.Profile` — a weight per position over a cycle, with `fit`, `rotate`, `bestRotation` and `fromPositions`. Bodzsar's Rhythm Code (16 eighth-note places), Tonality Code (12 pitch classes) and stability order (7 degrees) ship as presets; a profile folded out of your own tracks is the same object.
+- `theory.harmony.Solfege` — degree, syllable, stability rank and distance to the nearest chord tone.
 
 ### Generative — `jm.generative.*`
 - Minimalism: additive and subtractive processes, tintinnabuli, phase shifting
@@ -87,15 +91,24 @@ Scales, intervals, chords, voice leading, progressions, ornaments and articulati
 - Automata: Cellular automata
 - Genetic: Genetic algorithms for evolutionary compositions with `Darwin`
 - Loops: Euclidean rhythms and polyrhythm
-- Drummer: 19 styles, multi-metre sections, variations and fills
+- Drummer: 19 styles, multi-metre sections, variations and fills. `orientation: '2-3' | '3-2'` reweights the kick by the Rhythm Code over a two-bar cycle; `decorations` adds ghost snares, open hats, phrase crashes, a clave sidestick and several fill shapes.
+
+`Darwin` takes `metrics` (`{ name, fn(phrase, ctx), target, weight }`), a `context` (key, chords, profile, pulse), position-aware `operators`, and `crossoverMode: 'time'` to splice parents on a bar boundary. `generative.genetic.metrics` provides clave fit, anticipation rate, upbeat ratio, emotional-map sweetness and balance, last-note stability and more; `generative.genetic.operators` provides anticipate, delay, restify, to-chord-tone, to-non-chord-tone and step-stability moves.
 
 Gaussian processes live in [`@tangent.to/ds`](https://tangent-to.github.io/ds/) and are used directly. A thin wrapper ships here but is deliberately not reachable from `jm`, so importing this package never pulls that in.
 
 ### Analysis — `jm.analysis.*`
 16 metrics: Gini coefficient, syncopation, contour entropy, and the rest, useful as target in genetic algorithms.
 
+- `analysis.rhythm` — a track as a binary onset grid, after Bodzsar's *Rhythm Code*: stops, eighth- and quarter-note anticipations, upbeat ratio, fit to a profile in either clave orientation, `detectOrientation`, and `profileFromTracks` to learn a profile from a corpus.
+- `analysis.melody` — Bodzsar's *Emotional Map of Melody*: every note placed by solfège stability and distance from the chord under it, quadrant shares, the four behaviours at a chord change, and `pillars` to pick a non-chord tone per chord to land on.
+- `analysis.salience` — which notes those two look at: stops, accents, contour peaks, notes on chord changes, long or repeated notes, motif edges.
+
+The books' tables are data, not rules: every score is a measurement, and every table is a preset you can swap for one folded out of your own material.
+
 ### Utils — `jm.utils.*`
 - Transformations: `invert`, `retrograde`, `augment`, `transpose`, `applySwing`, `splitLongNotes`, `removeDuplicates`, `normalizeVelocities`
+- `jm.processors.groove` slides stops to heavier places on a rhythm profile; `anticipate` moves chosen onsets earlier when the target is free; `applySteps` runs Bodzsar's four-step procedure.
 - Queries: `getPitchRange`, `getTotalDuration`, `extractRhythm`
 - Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizePiece` (grids in quarter notes; `1/3` for triplets)
 - Builders: `createTrack`, `createPiece`
@@ -106,9 +119,13 @@ Gaussian processes live in [`@tangent.to/ds`](https://tangent-to.github.io/ds/) 
 node --test tests/*.test.js
 ```
 
-172 assertion-backed tests, nothing to install. One of them walks the import graph from `src/index.js` and fails if anything outside the package is reached, which is the property the whole layout rests on.
+267 assertion-backed tests, nothing to install. One of them walks the import graph from `src/index.js` and fails if anything outside the package is reached, which is the property the whole layout rests on.
 
 The scripts in `tests/integration/` need a real Tone.js or `@tangent.to/ds` and are observations rather than tests — see the README there.
+
+## Sources
+
+The rhythm and melody analyses implement methods from Tamas Bodzsar, *The Rhythm Code* (2022) and *The Emotional Map of Melody* (2026), howtowritebettersongs.com. The weights in `theory/profile/presets.js` are read from the books' diagrams; the text and song transcriptions are not reproduced.
 
 ## License
 

@@ -3,6 +3,7 @@ import { Rhythm } from './Rhythm.js';
 import { isorhythm } from './isorhythm.js';
 import { beatcycle } from './beatcycle.js';
 import { euclid, euclidPattern } from './euclid.js';
+import { clave, clavePattern, CLAVES, metricStrengths } from './clave.js';
 
 // Export individual components
 export {
@@ -10,7 +11,11 @@ export {
     isorhythm,
     beatcycle,
     euclid,
-    euclidPattern
+    euclidPattern,
+    clave,
+    clavePattern,
+    CLAVES,
+    metricStrengths
 };
 
 // Export rhythm namespace
@@ -19,5 +24,9 @@ export default {
     isorhythm,
     beatcycle,
     euclid,
-    euclidPattern
+    euclidPattern,
+    clave,
+    clavePattern,
+    CLAVES,
+    metricStrengths
 };

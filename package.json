@@ -28,5 +28,8 @@
     "gaussian-processes",
     "minimalism",
     "jmon"
-  ]
+  ],
+  "devDependencies": {
+    "puppeteer": "^25.10.0"
+  }
 }

@@ -3,6 +3,7 @@ import { Voice } from './Voice.js';
 import { Ornament } from './Ornament.js';
 import { Progression } from './Progression.js';
 import { chordify, chordifyMany } from './Chordify.js';
+import { solfege, stability, degree } from './Solfege.js';
 
 /**
  * A reusable key context that collapses the repeated `{tonic, mode}`
@@ -65,6 +66,23 @@ export class Key {
      * @returns {Array<Array<number>>}
      */
     chords(pitches, options = {}) { return chordifyMany(pitches, this._opts(options)); }
+
+    /**
+     * Solfège syllable of a pitch in this key ('DO' … 'TI', or `null` when
+     * chromatic). Minor keys read the tonic as LA.
+     * @returns {string|null}
+     */
+    solfege(pitch) { return solfege(pitch, this._opts()); }
+
+    /** Solfège degree 0 (DO) … 6 (TI), or `null` when chromatic. */
+    degree(pitch) { return degree(pitch, this._opts()); }
+
+    /**
+     * Stability rank of a pitch, 0 (DO, most stable) … 6 (FA), 7 when
+     * chromatic — the horizontal axis of the Emotional Map.
+     * @returns {number}
+     */
+    stability(pitch, options = {}) { return stability(pitch, this._opts(), options); }
 }
 
 /**
