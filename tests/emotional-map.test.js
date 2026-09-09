@@ -104,6 +104,23 @@ test("behaviour at a chord change: stay, resolve, twist", () => {
   assert.equal(stay.behaviours.ctStay, 1);
 });
 
+test("a note just before a chord change is read against the chord it anticipates", () => {
+  const Cmaj = [60, 64, 67];
+  // E an eighth before C major arrives: its third (chord tone), not the semitone below F's root
+  const e = [note(76, 3.5, 2)];
+  const anticipating = E.mapNotes(e, { key: C, chords: [{ time: 0, pitches: F }, { time: 4, pitches: Cmaj }] });
+  assert.equal(anticipating[0].chordTone, true);
+  const sounding = E.mapNotes(e, { key: C, chords: [{ time: 0, pitches: F }, { time: 4, pitches: Cmaj }], anticipation: 0 });
+  assert.equal(sounding[0].chordDistance, 1, "read against F, E is a semitone from F");
+  // D an eighth before C major: the ninth, a non-chord tone two semitones from C and E
+  const d = E.mapNotes([note(74, 3.5, 2)], { key: C, chords: [{ time: 0, pitches: G }, { time: 4, pitches: Cmaj }] });
+  assert.equal(d[0].chordTone, false);
+  assert.equal(d[0].chordDistance, 2);
+  // a full beat early is outside the default window
+  const early = E.mapNotes([note(76, 3, 2)], { key: C, chords: [{ time: 0, pitches: F }, { time: 4, pitches: Cmaj }] });
+  assert.equal(early[0].chordDistance, 1);
+});
+
 test("first and last notes are reported; an empty melody is harmless", () => {
   const m = E.emotionalMap([note(64, 0), note(60, 3)], { key: C, chords });
   assert.equal(m.first.solfege, "MI");

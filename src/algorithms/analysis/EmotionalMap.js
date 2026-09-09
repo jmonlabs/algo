@@ -20,17 +20,24 @@ const isRest = (n) => n.pitch === null || n.pitch === undefined;
 const topPitch = (n) => (Array.isArray(n.pitch) ? Math.max(...n.pitch) : n.pitch);
 
 /**
- * The chord sounding at a time: the last one that started at or before it.
- * @param {Array<{time:number, pitches:Array<number>}>} chords
+ * The chord a note belongs to. Normally the last chord that started at or
+ * before the note. But a note that starts up to `anticipation` beats before
+ * a chord change belongs to the chord it anticipates — Bodzsar's rule that
+ * the melody note "of" a chord change is often played early. Pass
+ * `anticipation: 0` for the plain sounding-chord reading.
+ * @param {Array<{time:number, pitches:Array<number>}>} chords - Sorted by time
  * @param {number} time
+ * @param {number} [anticipation=0.5] - Window before a change, in quarter notes
  * @returns {Array<number>|null}
  */
-export function chordAt(chords, time) {
+export function chordAt(chords, time, anticipation = 0.5) {
     let current = null;
+    let next = null;
     for (const c of chords) {
         if (numericTime(c.time) <= time + 1e-9) current = c;
-        else break;
+        else { next = c; break; }
     }
+    if (next && anticipation > 0 && numericTime(next.time) - time <= anticipation + 1e-9) return next.pitches;
     return current ? current.pitches : null;
 }
 
@@ -58,9 +65,10 @@ export function quadrantOf(stab, dist, { stableMax = 2 } = {}) {
  * @param {Array<{time:number, pitches:Array<number>}>} [options.chords=[]] - Chord timeline; without it chordDistance is 0 everywhere
  * @param {boolean} [options.triads=true] - Count only root, third, fifth as chord tones, as the book does
  * @param {number} [options.stableMax=2]
+ * @param {number} [options.anticipation=0.5] - A note starting this close before a chord change is read against that chord
  * @returns {Array<Object>} One point per sounding note: `{ index, time, pitch, degree, solfege, stability, chordDistance, chordTone, quadrant }`
  */
-export function mapNotes(melody, { key, chords = [], triads = true, stableMax = 2 } = {}) {
+export function mapNotes(melody, { key, chords = [], triads = true, stableMax = 2, anticipation = 0.5 } = {}) {
     if (!key) throw new Error('EmotionalMap: key is required');
     const sorted = [...chords].sort((a, b) => numericTime(a.time) - numericTime(b.time));
     const points = [];
@@ -68,7 +76,7 @@ export function mapNotes(melody, { key, chords = [], triads = true, stableMax = 
         if (isRest(n)) return;
         const pitch = topPitch(n);
         const time = numericTime(n.time);
-        const chord = chordAt(sorted, time);
+        const chord = chordAt(sorted, time, anticipation);
         const dist = chord ? chordDistance(pitch, triads ? triadOf(chord) : chord) : 0;
         const stab = stability(pitch, key);
         points.push({
@@ -136,11 +144,12 @@ function entropy(shares) {
  * @param {number} [options.threshold=0.25] - Salience cutoff
  * @param {boolean} [options.triads=true]
  * @param {number} [options.stableMax=2]
+ * @param {number} [options.anticipation=0.5] - See `mapNotes`
  * @returns {Object} `{ points, centroid, spread, quadrants, entropy, chordToneRate, behaviours, first, last, sweetness }`
  */
 export function emotionalMap(melody, options = {}) {
-    const { key, chords = [], salience: mode = 'anchors', threshold = 0.25, triads = true, stableMax = 2 } = options;
-    const all = mapNotes(melody, { key, chords, triads, stableMax });
+    const { key, chords = [], salience: mode = 'anchors', threshold = 0.25, triads = true, stableMax = 2, anticipation = 0.5 } = options;
+    const all = mapNotes(melody, { key, chords, triads, stableMax, anticipation });
     let points = all;
     if (mode !== 'all') {
         const w = weigh(melody, { mode, chords, ...options });
