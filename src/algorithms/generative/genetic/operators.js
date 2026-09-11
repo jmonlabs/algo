@@ -1,4 +1,5 @@
 import { scalePitchClasses, stability, chordDistance, triadOf } from '../../theory/harmony/Solfege.js';
+import { normalizeChords } from '../../analysis/chords.js';
 
 /**
  * Position-aware mutations for `Darwin`.
@@ -97,6 +98,7 @@ export function swapDurations(phrase, rng) {
 /* --- melody ------------------------------------------------------------- */
 
 function chordAt(chords, time) {
+    chords = normalizeChords(chords);
     let cur = null;
     for (const c of chords) { if (c.time <= time + 1e-9) cur = c; else break; }
     return cur ? cur.pitches : null;
@@ -104,7 +106,7 @@ function chordAt(chords, time) {
 
 /** Indices of notes that carry a chord change: on it, or up to a pulse before it. */
 function chordChangeIndices(phrase, ctx) {
-    const chords = ctx.chords ?? [];
+    const chords = normalizeChords(ctx.chords ?? []);
     const pulse = ctx.pulse ?? 0.5;
     const out = new Set();
     for (const c of chords) {

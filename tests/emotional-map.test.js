@@ -171,3 +171,35 @@ test("melody analysis is reachable from jm", () => {
   assert.equal(typeof jm.analysis.salience.salient, "function");
   assert.equal(typeof jm.theory.harmony.Solfege.stability, "function");
 });
+
+/* --- chord timelines: JMON chord notes are accepted everywhere ----------- */
+
+test("chordTrack lays a progression out as JMON chord notes", () => {
+  const prog = jm.key("D", "minor").progression().generate(["i", "VI", "III", "VII"]);
+  const track = jm.utils.chordTrack(prog, { duration: 4, start: 8 });
+  assert.equal(track.length, 4);
+  assert.deepEqual(track[0].pitch, prog[0]);
+  assert.equal(track[1].time, 12);
+  assert.equal(track[3].duration, 4);
+  assert.ok(track[0].pitch !== prog[0], "pitches are copied, not shared");
+});
+
+test("the analyses read JMON chord notes and bare { time, pitches } alike", () => {
+  const prog = [[62, 65, 69], [58, 62, 65], [65, 69, 72], [60, 64, 67]];
+  const track = jm.utils.chordTrack(prog, { duration: 4 });
+  const bare = prog.map((pitches, i) => ({ time: i * 4, pitches }));
+  const melody = [note(62, 0, 2), note(65, 3.5, 2), note(69, 8, 4), note(67, 12, 4)];
+  const D = { tonic: "D", mode: "minor" };
+  const a = E.emotionalMap(melody, { key: D, chords: track });
+  const b = E.emotionalMap(melody, { key: D, chords: bare });
+  assert.deepEqual(a.quadrants, b.quadrants);
+  assert.deepEqual(a.behaviours, b.behaviours);
+  assert.deepEqual(
+    jm.analysis.salience.chordChanges(melody, { chords: track }),
+    jm.analysis.salience.chordChanges(melody, { chords: bare }),
+  );
+  assert.deepEqual(E.pillars(track, { key: D }).map((p) => p.pitch), E.pillars(bare, { key: D }).map((p) => p.pitch));
+  // a single-pitch note counts as a one-note chord, and string times are read
+  const one = E.mapNotes([note(62, 0)], { key: D, chords: [{ time: "0:0:0", pitch: 62, duration: 4 }] });
+  assert.equal(one[0].chordTone, true);
+});

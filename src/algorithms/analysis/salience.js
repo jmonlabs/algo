@@ -12,6 +12,8 @@
  * `salient(notes, opts)` filters by a threshold.
  */
 
+import { normalizeChords } from './chords.js';
+
 const numericTime = (t) => (typeof t === 'number' ? t : parseFloat(t) || 0);
 const isRest = (n) => n.pitch === null || n.pitch === undefined;
 const topPitch = (n) => (Array.isArray(n.pitch) ? Math.max(...n.pitch) : n.pitch);
@@ -87,13 +89,15 @@ export function contourPeaks(notes) {
 }
 
 /**
- * Notes that start on, or anticipate, a chord change. `chords` is
- * `[{ time, pitches }]`; a note within `tolerance` before the change (or
+ * Notes that start on, or anticipate, a chord change. `chords` is a chord
+ * timeline, JMON chord notes or `[{ time, pitches }]`; a note within
+ * `tolerance` before the change (or
  * exactly on it) is the one "belonging" to that chord.
  */
 export function chordChanges(notes, { chords = [], tolerance = 0.5 } = {}) {
     const out = new Array(notes.length).fill(0);
-    if (!Array.isArray(chords) || chords.length === 0) return out;
+    chords = normalizeChords(chords);
+    if (chords.length === 0) return out;
     const times = notes.map((n) => numericTime(n.time));
     for (const chord of chords) {
         const ct = numericTime(chord.time);

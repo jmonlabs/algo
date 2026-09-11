@@ -1,5 +1,6 @@
 import { degree, solfege, stability, chordDistance, triadOf, scalePitchClasses } from '../theory/harmony/Solfege.js';
 import { salience as weigh } from './salience.js';
+import { normalizeChords } from './chords.js';
 
 /**
  * Bodzsar's Emotional Map of Melody, as measurements.
@@ -62,7 +63,7 @@ export function quadrantOf(stab, dist, { stableMax = 2 } = {}) {
  * @param {Array<Object>} melody - JMON notes
  * @param {Object} options
  * @param {{tonic:string|number, mode?:string}} options.key
- * @param {Array<{time:number, pitches:Array<number>}>} [options.chords=[]] - Chord timeline; without it chordDistance is 0 everywhere
+ * @param {Array<Object>} [options.chords=[]] - Chord timeline: JMON chord notes (`pitch: [..]`) or `{ time, pitches }`; without it chordDistance is 0 everywhere
  * @param {boolean} [options.triads=true] - Count only root, third, fifth as chord tones, as the book does
  * @param {number} [options.stableMax=2]
  * @param {number} [options.anticipation=0.5] - A note starting this close before a chord change is read against that chord
@@ -70,7 +71,7 @@ export function quadrantOf(stab, dist, { stableMax = 2 } = {}) {
  */
 export function mapNotes(melody, { key, chords = [], triads = true, stableMax = 2, anticipation = 0.5 } = {}) {
     if (!key) throw new Error('EmotionalMap: key is required');
-    const sorted = [...chords].sort((a, b) => numericTime(a.time) - numericTime(b.time));
+    const sorted = normalizeChords(chords);
     const points = [];
     melody.forEach((n, index) => {
         if (isRest(n)) return;
@@ -110,7 +111,7 @@ export function mapNotes(melody, { key, chords = [], triads = true, stableMax = 
  * @returns {Array<{ index:number, time:number, behaviour:string }>}
  */
 export function chordChangeBehaviours(points, melody, { chords = [], gap = 1 } = {}) {
-    const w = weigh(melody, { mode: 'chordChanges', chords });
+    const w = weigh(melody, { mode: 'chordChanges', chords: normalizeChords(chords) });
     const byIndex = new Map(points.map((p) => [p.index, p]));
     const sounding = points.slice().sort((a, b) => a.time - b.time);
     const out = [];
@@ -152,7 +153,7 @@ export function emotionalMap(melody, options = {}) {
     const all = mapNotes(melody, { key, chords, triads, stableMax, anticipation });
     let points = all;
     if (mode !== 'all') {
-        const w = weigh(melody, { mode, chords, ...options });
+        const w = weigh(melody, { mode, ...options, chords: normalizeChords(chords) });
         points = all.filter((p) => w[p.index] >= threshold - 1e-9);
         if (points.length === 0) points = all;
     }
@@ -171,7 +172,7 @@ export function emotionalMap(melody, options = {}) {
     const quadrants = [0, 0, 0, 0];
     for (const p of points) quadrants[p.quadrant - 1] += 1 / n;
 
-    const beh = chordChangeBehaviours(all, melody, { chords });
+    const beh = chordChangeBehaviours(all, melody, { chords: normalizeChords(chords) });
     const behaviours = { ctStay: 0, nctStay: 0, nctResolve: 0, ctTwist: 0 };
     for (const b of beh) behaviours[b.behaviour] += 1 / Math.max(1, beh.length);
 
@@ -200,7 +201,7 @@ export function emotionalMap(melody, options = {}) {
  * `prefer` says otherwise; `alternate: true` swaps to a chord tone every
  * other chord, as the book suggests.
  *
- * @param {Array<{time:number, pitches:Array<number>}>} chords
+ * @param {Array<Object>} chords - JMON chord notes or `{ time, pitches }`
  * @param {Object} options
  * @param {{tonic:string|number, mode?:string}} options.key
  * @param {number} [options.low=60] - Register floor, MIDI
@@ -212,6 +213,7 @@ export function emotionalMap(melody, options = {}) {
  */
 export function pillars(chords, { key, low = 60, high = 72, alternate = false, prefer = 'stable', triads = true } = {}) {
     if (!key) throw new Error('pillars: key is required');
+    chords = normalizeChords(chords);
     const pcs = scalePitchClasses(key);
     const range = [];
     for (let p = low; p <= high; p++) if (pcs.includes(((p % 12) + 12) % 12)) range.push(p);
