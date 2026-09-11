@@ -126,7 +126,7 @@ Breaking, and the compositions written against 2.x stay on the `v2.1.0` tag.
 
 - `generative.automata.CellularAutomata`, `generative.walks.RandomWalk`, `Phasor`, `PhasorSystem`, `generative.minimalism.MinimalismProcess` replace the short keys `Cellular`, `Random`, `Phasor.Vector`, `Phasor.System`, `Process`.
 - `MusicTheoryConstants.scaleIntervals`, `chromaticScale`, `chromaticScaleFlats`, `flatToSharp`; drum map keys `tomLow`, `tomMid`, `tomHigh`.
-- `createPart`, `createComposition`, `offsetNotes`, `concatenateSequences`, `combineSequences`, `setOffsetsAccordingToDurations`, `sequenceToPart` are gone; use `createTrack`, `createPiece`, `shiftTime`, `concatenateTracks`, `combineTracks`, `setTimeAccordingToDurations`, `notesToTrack`.
+- `createPart`, `createComposition`, `offsetNotes`, `concatenateSequences`, `combineSequences`, `setOffsetsAccordingToDurations`, `sequenceToPart`, `Loop#toJMonTracks`, `Loop#toJMonSequences` are gone; use `createTrack`, `createPiece`, `shiftTime`, `concatenateTracks`, `combineTracks`, `setTimeAccordingToDurations`, `notesToTrack`.
 - `MusicalIndex` methods are `gini`, `spread`, `motifStrength`, `dissonance`, `measureFit`, `restProportion`, each the same function as in `MusicalAnalysis`; `balance`, `motif`, `rhythmic` on the index are gone. `Darwin` weights and targets use these names.
 - `Darwin` accepts JMON notes in `initialPhrases` and returns notes from `getBestIndividual()`; `getBestGenome()` returns the triples.
 - `Rhythm.random()` and `Rhythm.darwin()` return JMON notes with a `pitch`.

@@ -305,16 +305,6 @@ export class Loop {
     return Object.values(this.loops);
   }
 
-  /** @deprecated Use {@link Loop#toJmonTracks}. */
-  toJMonTracks() {
-    return this.toJmonTracks();
-  }
-
-  /** @deprecated Use {@link Loop#toJmonTracks}. JMON calls them tracks, not sequences. */
-  toJMonSequences() {
-    return this.toJmonTracks();
-  }
-
   /**
    * Convert the loops to flat plot data, one row per sounding note.
    * Returns data rather than a rendered figure — draw it with whichever
