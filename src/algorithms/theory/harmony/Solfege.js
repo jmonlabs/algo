@@ -21,7 +21,7 @@ function tonicPitchClass(tonic) {
     if (typeof tonic === 'number') return ((tonic % 12) + 12) % 12;
     // 'C', 'Bb', 'F#' — a bare name; with an octave ('C4') fall through to MIDI parsing
     const bare = MusicTheoryConstants.convertFlatToSharp(String(tonic).trim());
-    const idx = MusicTheoryConstants.chromatic_scale.indexOf(bare);
+    const idx = MusicTheoryConstants.chromaticScale.indexOf(bare);
     if (idx !== -1) return idx;
     return MusicTheoryConstants.noteNameToMidi(tonic) % 12;
 }

@@ -42,20 +42,28 @@ export class Rhythm {
     }
 
     /**
-     * Generate a random rhythm that fills one measure.
+     * Generate a random rhythm that fills one measure, as JMON notes.
+     *
+     * A rhythm alone has no pitch, so `pitches` supplies them, cycled across
+     * the notes (a single number repeats it), the way `euclid` does. Replace
+     * them afterwards, or keep 60 as a placeholder while you shape the rhythm.
      *
      * @param {Object} [options={}]
      * @param {number|null} [options.seed=null] - Deterministic PRNG seed; `null` uses `Math.random`
      * @param {number} [options.restProbability=0] - Chance of skipping a slot
      * @param {number} [options.maxIter=100] - Iteration cap
+     * @param {number|Array<number>} [options.pitches=60] - Pitch, or pitches cycled across the notes
+     * @param {number} [options.velocity=0.8]
      * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time strings
-     * @returns {Array<Object>} Rhythm events `{ duration, time }`
+     * @returns {Array<Object>} JMON notes `{ pitch, duration, time, velocity }`
      */
     random(options = {}) {
         const {
             seed = null,
             restProbability: restProb = 0,
             maxIter: maxIterations = 100,
+            pitches = 60,
+            velocity = 0.8,
             useStringTime = false
         } = options;
 
@@ -87,9 +95,18 @@ export class Rhythm {
             console.warn('Max iterations reached. The sum of the durations may not equal the measure length.');
         }
         
-        return rhythm.map(([duration, offset]) => ({
+        return Rhythm._toNotes(rhythm, { pitches, velocity, useStringTime });
+    }
+
+    /** `[duration, offset]` pairs to JMON notes, pitches cycled. @private */
+    static _toNotes(pairs, { pitches, velocity, useStringTime }) {
+        const list = Array.isArray(pitches) ? pitches : [pitches];
+        if (list.length === 0) throw new Error('Rhythm: pitches cannot be an empty array');
+        return pairs.map(([duration, offset], i) => ({
+            pitch: list[i % list.length],
             duration,
-            time: useStringTime ? beatsToTime(offset) : offset
+            time: useStringTime ? beatsToTime(offset) : offset,
+            velocity
         }));
     }
 
@@ -101,8 +118,10 @@ export class Rhythm {
      * @param {number} [options.populationSize=10]
      * @param {number} [options.maxGenerations=50]
      * @param {number} [options.mutationRate=0.1]
+     * @param {number|Array<number>} [options.pitches=60] - Pitch, or pitches cycled across the notes
+     * @param {number} [options.velocity=0.8]
      * @param {boolean} [options.useStringTime=false] - Emit bars:beats:ticks time strings
-     * @returns {Array<Object>} Rhythm events `{ duration, time }`
+     * @returns {Array<Object>} JMON notes `{ pitch, duration, time, velocity }`
      */
     darwin(options = {}) {
         const {
@@ -110,6 +129,8 @@ export class Rhythm {
             populationSize: popSize = 10,
             maxGenerations: generations = 50,
             mutationRate: mutRate = 0.1,
+            pitches = 60,
+            velocity = 0.8,
             useStringTime = false
         } = options;
 
@@ -121,10 +142,7 @@ export class Rhythm {
             mutRate,
             this.durations
         );
-        return ga.generate().map(([duration, offset]) => ({
-            duration,
-            time: useStringTime ? beatsToTime(offset) : offset
-        }));
+        return Rhythm._toNotes(ga.generate(), { pitches, velocity, useStringTime });
     }
 }
 

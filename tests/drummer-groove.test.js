@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { drummer } from "../src/algorithms/generative/drummer/index.js";
 import { detectOrientation } from "../src/algorithms/analysis/RhythmCode.js";
 
-const GM = { kick: 36, snare: 38, hihat: 42, openhat: 46, crash: 49, rim: 37, tom_low: 41 };
+const GM = { kick: 36, snare: 38, hihat: 42, openhat: 46, crash: 49, rim: 37, tomLow: 41 };
 const only = (hits, pitch) => hits.filter((h) => h.pitch === pitch);
 
 test("orientation reweights the kick so bar A and bar B differ, and the analysis hears it", () => {
@@ -67,7 +67,7 @@ test("fills come in shapes, and half fills keep the groove in the first half", (
   const toms = drummer({ ...base, decorations: { fills: ["toms"], halfFills: 1, crash: false, ghosts: 0 } });
   const firstHalf = toms.filter((h) => h.time >= 12 && h.time < 14);
   assert.ok(only(firstHalf, GM.hihat).length > 0, "the groove plays through the first half of a half fill");
-  assert.ok(only(toms.filter((h) => h.time >= 14 && h.time < 16), GM.tom_low).length > 0);
+  assert.ok(only(toms.filter((h) => h.time >= 14 && h.time < 16), GM.tomLow).length > 0);
 });
 
 test("multi-meter sections still get fills, now meter-sized", () => {
@@ -75,5 +75,5 @@ test("multi-meter sections still get fills, now meter-sized", () => {
     fillEvery: 4, decorations: { fills: ["toms"], halfFills: 0, crash: false }, leader: [{ pitch: 40, time: 1000, duration: 1 }] });
   assert.ok(hits.every((h) => h.time < 24));
   const fill = hits.filter((h) => h.time >= 9 && h.time < 12);
-  assert.ok(only(fill, GM.tom_low).length > 0, "fill lands in the 4th bar of 3/4");
+  assert.ok(only(fill, GM.tomLow).length > 0, "fill lands in the 4th bar of 3/4");
 });

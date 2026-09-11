@@ -25,9 +25,16 @@
  * @property {string|number} duration - Note duration
  */
 
+import { timeToBeats } from '../../utils/jmon-utils.js';
+
+/** A note's time in beats, whether it was given as a number or as "bars:beats:ticks". */
+const beatsOf = (time) => (typeof time === 'number' ? time : timeToBeats(time));
+
 /**
- * Musical analysis tools inspired by the Python djalgo analysis module
- * Provides statistical and musical evaluation metrics for sequences
+ * Musical analysis: statistical and musical metrics over pitches, durations,
+ * onsets and notes. This is the one implementation; `MusicalIndex` and
+ * `Darwin` read the same functions, so a score means the same thing wherever
+ * it appears.
  */
 /**
  * MusicalAnalysis
@@ -86,6 +93,81 @@ export class MusicalAnalysis {
     const totalWeight = w.reduce((sum, weight) => sum + weight, 0);
 
     return totalWeight === 0 ? 0 : weightedSum / totalWeight;
+  }
+
+  /**
+   * Spread of a sequence around its mean: the coefficient of variation
+   * (standard deviation over the absolute mean). 0 for a constant sequence.
+   * Darwin's `spread` target reads this.
+   * @param {number[]} values
+   * @returns {number}
+   */
+  static spread(values) {
+    if (values.length === 0) return 0;
+    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
+    return mean === 0 ? 0 : Math.sqrt(variance) / Math.abs(mean);
+  }
+
+  /**
+   * Motif strength: how much a sequence repeats itself, counting every
+   * sub-sequence of length 2 to `maxMotifLength` and summing the squares of
+   * the counts of those that recur, over the number of sub-sequences. A
+   * sequence with no repeated pattern scores 0; a sequence that is one
+   * pattern repeated scores high. Darwin's `motifStrength` target reads this.
+   * `motif` below is the simpler share of the most frequent pattern.
+   * @param {number[]} values
+   * @param {number} [maxMotifLength=4]
+   * @returns {number}
+   */
+  static motifStrength(values, maxMotifLength = 4) {
+    if (values.length < 2) return 0;
+    const counts = new Map();
+    let total = 0;
+    for (let length = 2; length <= Math.min(maxMotifLength, values.length); length++) {
+      for (let i = 0; i <= values.length - length; i++) {
+        const key = values.slice(i, i + length).join(",");
+        counts.set(key, (counts.get(key) || 0) + 1);
+        total++;
+      }
+    }
+    let strength = 0;
+    for (const count of counts.values()) if (count > 1) strength += count * count;
+    return total === 0 ? 0 : strength / total;
+  }
+
+  /**
+   * How well a series of durations tiles measures: 1 when no note crosses a
+   * barline awkwardly, lower as more of the total duration does.
+   * Darwin's `measureFit` target reads this.
+   * @param {number[]} durations
+   * @param {number} [measureLength=4]
+   * @returns {number}
+   */
+  static measureFit(durations, measureLength = 4) {
+    if (durations.length === 0) return 0;
+    let beat = 0;
+    let errors = 0;
+    const total = durations.reduce((sum, d) => sum + d, 0);
+    for (const duration of durations) {
+      const next = beat + duration;
+      if (Math.floor(beat / measureLength) !== Math.floor(next / measureLength)) {
+        const remaining = measureLength - (beat % measureLength);
+        if (remaining < duration && remaining > 0) errors += Math.min(remaining, duration - remaining);
+      }
+      beat = next;
+    }
+    return total === 0 ? 0 : 1 - errors / total;
+  }
+
+  /**
+   * Share of rests (null or undefined entries) in a sequence.
+   * @param {Array} values
+   * @returns {number} 0..1
+   */
+  static restProportion(values) {
+    if (!values || values.length === 0) return 0;
+    return values.filter((v) => v === null || v === undefined).length / values.length;
   }
 
   /**
@@ -300,11 +382,7 @@ export class MusicalAnalysis {
 
     // Convert time to numeric for calculation
     const numericTimes = notes.map((note) => {
-      if (typeof note.time === "string") {
-        // Simple conversion for demonstration - would need proper time parsing
-        return parseFloat(note.time) || 0;
-      }
-      return note.time || 0;
+      return beatsOf(note.time ?? 0);
     });
 
     const minTime = Math.min(...numericTimes);
@@ -342,7 +420,7 @@ export class MusicalAnalysis {
   static onsets(notes) {
     return notes
       .map((note) =>
-        typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+        beatsOf(note.time)
       )
       .sort((a, b) => a - b);
   }
@@ -357,7 +435,7 @@ export class MusicalAnalysis {
     if (notes.length === 0) return [];
 
     const times = notes.map((note) =>
-      typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+      beatsOf(note.time)
     );
     const minTime = Math.min(...times);
     const maxTime = Math.max(...times);
@@ -388,7 +466,7 @@ export class MusicalAnalysis {
     if (notes.length === 0) return [];
 
     const times = notes.map((note) =>
-      typeof note.time === "number" ? note.time : parseFloat(note.time) || 0
+      beatsOf(note.time)
     );
     const velocities = notes.map((note) =>
       typeof note.velocity === "number" ? note.velocity : 1
@@ -429,9 +507,7 @@ export class MusicalAnalysis {
     if (notes.length === 0) return histogram;
 
     for (const note of notes) {
-      const t = typeof note.time === "number"
-        ? note.time
-        : parseFloat(note.time) || 0;
+      const t = beatsOf(note.time);
       const phase = ((t % 1) + 1) % 1;
       const idx = Math.min(Math.floor(phase * bins), bins - 1);
       histogram[idx]++;
@@ -461,8 +537,7 @@ export class MusicalAnalysis {
     });
 
     const onsets = notes.map((note) => {
-      if (typeof note.time === "number") return note.time;
-      return parseFloat(note.time) || 0;
+      return beatsOf(note.time ?? 0);
     });
 
     return {

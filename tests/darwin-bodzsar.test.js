@@ -137,12 +137,12 @@ test("a clave-fit target pulls the population off the downbeats", () => {
     initialPhrases: [FLAT], populationSize: 30, seed: 3, mutationRate: 0.02,
     operators: ops.rhythmOperators, operatorRate: 0.5, crossoverMode: "time", period: 4,
     context: { pulse: 0.5, orientation: "auto" },
-    weights: { gini: [0, 0, 0], balance: [0, 0, 0], motif: [0, 0, 0], dissonance: [0, 0, 0], rhythmic: [0, 0, 0], rest: [0, 0, 0] },
+    weights: { gini: [0, 0, 0], spread: [0, 0, 0], motifStrength: [0, 0, 0], dissonance: [0, 0, 0], measureFit: [0, 0, 0], rest: [0, 0, 0] },
     metrics: [metric("claveFit", { target: 1, weight: 10 }), metric("rareRate", { target: 0, weight: 5 })],
   });
   const before = metrics.claveFit(FLAT, {});
   d.evolveGenerations({ generations: 25, k: 10 });
-  const after = metrics.claveFit(d.getBestIndividual(), {});
+  const after = metrics.claveFit(d.getBestGenome(), {});   // metrics read genomes; getBestIndividual() returns notes
   assert.ok(after > before, `claveFit ${before} → ${after}`);
 });
 

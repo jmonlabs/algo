@@ -230,7 +230,7 @@ test("Tintinnabuli maps every note onto the t-chord", () => {
 });
 
 test("phaseShift returns two voices that drift apart", () => {
-  const out = phaseShift(SEQ, 2, 0.25);
+  const out = phaseShift(SEQ, { cycles: 2, shift: 0.25 });
   assert.deepEqual(Object.keys(out).sort(), ["voice1", "voice2"]);
   assert.ok(Array.isArray(out.voice1) && Array.isArray(out.voice2));
   assert.notDeepEqual(

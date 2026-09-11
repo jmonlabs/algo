@@ -16,7 +16,7 @@
  * the style's syncopation and cymbal layers.
  *
  * Instrument keys correspond to the General MIDI drum map (see drum-map.js):
- *   kick, snare, hihat, openhat, ride, crash, clap, rim, tom_low/mid/high
+ *   kick, snare, hihat, openhat, ride, crash, clap, rim, tomLow/mid/high
  */
 
 export const presets = {

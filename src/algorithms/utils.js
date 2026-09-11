@@ -65,13 +65,14 @@ export function getSharp(noteString) {
 }
 
 /**
- * Get scale degree from pitch
- * @param {number|string} pitch - Pitch (MIDI number or string)
- * @param {Array} scaleList - List of scale pitches
- * @param {number|string} tonicPitch - Tonic pitch
+ * Scale degree of a pitch, counted from the tonic; fractional between scale notes.
+ * @param {number|string} pitch - Pitch (MIDI number or note name)
+ * @param {Object} options
+ * @param {Array<number>} options.scale - The scale's pitches
+ * @param {number|string} options.tonic - Tonic pitch
  * @returns {number} Scale degree
  */
-export function getDegreeFromPitch(pitch, scaleList, tonicPitch) {
+export function getDegreeFromPitch(pitch, { scale: scaleList, tonic: tonicPitch } = {}) {
     if (typeof pitch === 'string') {
         pitch = cdeToMidi(pitch);
     }
@@ -109,13 +110,14 @@ export function getDegreeFromPitch(pitch, scaleList, tonicPitch) {
 }
 
 /**
- * Get pitch from scale degree
+ * Pitch of a scale degree, counted from the tonic.
  * @param {number} degree - Scale degree
- * @param {Array} scaleList - List of scale pitches  
- * @param {number} tonicPitch - Tonic pitch
+ * @param {Object} options
+ * @param {Array<number>} options.scale - The scale's pitches
+ * @param {number} options.tonic - Tonic pitch
  * @returns {number} Pitch value
  */
-export function getPitchFromDegree(degree, scaleList, tonicPitch) {
+export function getPitchFromDegree(degree, { scale: scaleList, tonic: tonicPitch } = {}) {
     const tonicIndex = scaleList.indexOf(tonicPitch);
     const pitchIndex = Math.round(tonicIndex + degree);
 
@@ -169,7 +171,6 @@ export function setTimeAccordingToDurations(notes) {
 }
 
 // Alias for backwards compatibility
-export const setOffsetsAccordingToDurations = setTimeAccordingToDurations;
 
 /**
  * Fill gaps with rests
@@ -327,7 +328,8 @@ export function checkInput(inputList) {
  * @param {number} maxNumbers - Current maximum (optional)
  * @returns {Array} Scaled numbers
  */
-export function scaleList(numbers, toMin, toMax, minNumbers = null, maxNumbers = null) {
+export function scaleList(numbers, { toMin, toMax, from = null, to = null } = {}) {
+    const minNumbers = from, maxNumbers = to;
     const minNum = minNumbers !== null ? minNumbers : Math.min(...numbers);
     const maxNum = maxNumbers !== null ? maxNumbers : Math.max(...numbers);
     
@@ -458,11 +460,12 @@ export function* fibonacci(a = 0, b = 1, base = 0, scale = 1) {
 /**
  * Repeat polyloops for specified measures
  * @param {Object} polyloopsDict - Dictionary of polyloops
- * @param {number} nMeasures - Number of measures to repeat
- * @param {number} measureLength - Length of a measure
+ * @param {Object} options
+ * @param {number} options.measures - Number of measures to repeat
+ * @param {number} options.measureLength - Length of a measure
  * @returns {Object} Dictionary of repeated polyloops
  */
-export function repeatPolyloops(polyloopsDict, nMeasures, measureLength) {
+export function repeatPolyloops(polyloopsDict, { measures: nMeasures, measureLength } = {}) {
     const repeatedDict = {};
     
     for (const [name, polyloop] of Object.entries(polyloopsDict)) {

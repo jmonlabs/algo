@@ -1,7 +1,7 @@
 {
   "name": "@jmon/algo",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Algorithmic music composition: scales, processes, walks, fractals, rhythm, analysis. Imports nothing; playback, format and instruments are sibling packages.",
   "type": "module",
   "license": "GPL-3.0-or-later",

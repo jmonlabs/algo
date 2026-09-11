@@ -86,13 +86,13 @@ test("a custom scale registered on the shared table is usable", async () => {
   const { MusicTheoryConstants } = await import(
     "../src/algorithms/constants/MusicTheoryConstants.js"
   );
-  MusicTheoryConstants.scale_intervals["test hirajoshi"] = [0, 2, 3, 7, 8];
+  MusicTheoryConstants.scaleIntervals["test hirajoshi"] = [0, 2, 3, 7, 8];
   try {
     const scale = new Scale({ tonic: "D", mode: "test hirajoshi" });
     assert.deepEqual(scale.generate({ start: 62, length: 5 }), [62, 64, 65, 69, 70]);
     assert.deepEqual(scale.getNoteNames(), ["D", "E", "F", "A", "A#"]);
   } finally {
-    delete MusicTheoryConstants.scale_intervals["test hirajoshi"];
+    delete MusicTheoryConstants.scaleIntervals["test hirajoshi"];
   }
 });
 

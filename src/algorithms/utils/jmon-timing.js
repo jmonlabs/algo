@@ -187,7 +187,6 @@ export function notesToTrack(notes, options = {}) {
  * @deprecated Use notesToTrack instead
  * Backward compatibility alias for notesToTrack
  */
-export const sequenceToPart = notesToTrack;
 
 /**
  * Validate that a time string follows bars:beats:ticks format

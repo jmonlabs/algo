@@ -21,7 +21,7 @@
  * import jm from "https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js";
  *
  * // Create a Rule 110 automaton
- * const ca = new jm.generative.automata.Cellular({
+ * const ca = new jm.generative.automata.CellularAutomata({
  *   ruleNumber: 110,
  *   width: 64
  * })

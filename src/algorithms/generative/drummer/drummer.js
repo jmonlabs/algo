@@ -70,7 +70,7 @@ function findAnticipationBars(leader, barStarts, threshold) {
 const DEFAULT_VELOCITIES = {
   kick: 0.9, snare: 0.85, hihat: 0.5, openhat: 0.6,
   ride: 0.6, crash: 0.8, clap: 0.8, rim: 0.6,
-  tom_low: 0.8, tom_mid: 0.8, tom_high: 0.8,
+  tomLow: 0.8, tomMid: 0.8, tomHigh: 0.8,
 };
 
 /**
@@ -371,7 +371,7 @@ function compose(plan, ctx) {
     const { t0, stepsPerBar, stepDur } = bar;
     const n = stepsPerBar - from;
     const at = (inst, s, vel) => out.push(makeNote(drumMap[inst], t0 + s * stepDur, vel ?? velFor(inst), stepDur));
-    const toms = ["tom_high", "tom_mid", "tom_low"];
+    const toms = ["tomHigh", "tomMid", "tomLow"];
     const cadence = Math.min(4, n);
 
     switch (shape) {

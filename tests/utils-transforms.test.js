@@ -284,12 +284,11 @@ test("everything migrated is reachable through jm.utils", async () => {
 /* --- the JMON builders --------------------------------------------------- */
 
 test("createTrack labels a track the way the rest of the library reads it", async () => {
-  const { createTrack, createPart } = await import("../src/utils/jmon-utils.js");
+  const { createTrack } = await import("../src/utils/jmon-utils.js");
   const track = createTrack([{ pitch: 60, duration: 1, time: 0 }], "Bass");
 
   assert.equal(track.label, "Bass", "the players and the score renderer read `label`");
   assert.equal(track.name, undefined, "`name` is not a JMON field");
-  assert.equal(createPart, createTrack, "the old name still resolves");
 });
 
 test("createPiece emits one tempo, not a tempo and a bpm", async () => {

@@ -47,20 +47,20 @@ export class ConstantsAPI {
       case 'ornaments':
         return ORNAMENT_TYPES;
       case 'scales':
-        return MusicTheoryConstants.scale_intervals;
+        return MusicTheoryConstants.scaleIntervals;
       case 'intervals':
         return MusicTheoryConstants.intervals;
       case 'chromaticScale':
-        return MusicTheoryConstants.chromatic_scale;
+        return MusicTheoryConstants.chromaticScale;
       case 'modes':
         return {
-          ionian: MusicTheoryConstants.scale_intervals.major,
-          dorian: MusicTheoryConstants.scale_intervals.dorian,
-          phrygian: MusicTheoryConstants.scale_intervals.phrygian,
-          lydian: MusicTheoryConstants.scale_intervals.lydian,
-          mixolydian: MusicTheoryConstants.scale_intervals.mixolydian,
-          aeolian: MusicTheoryConstants.scale_intervals.minor,
-          locrian: MusicTheoryConstants.scale_intervals.locrian
+          ionian: MusicTheoryConstants.scaleIntervals.major,
+          dorian: MusicTheoryConstants.scaleIntervals.dorian,
+          phrygian: MusicTheoryConstants.scaleIntervals.phrygian,
+          lydian: MusicTheoryConstants.scaleIntervals.lydian,
+          mixolydian: MusicTheoryConstants.scaleIntervals.mixolydian,
+          aeolian: MusicTheoryConstants.scaleIntervals.minor,
+          locrian: MusicTheoryConstants.scaleIntervals.locrian
         };
       default:
         throw new Error(`Unknown constant category: ${category}. Available: ${this.list().join(', ')}`);
@@ -205,7 +205,7 @@ export class ConstantsAPI {
    * // => ['major', 'minor', 'pentatonic', ...]
    */
   static listScales() {
-    return Object.keys(MusicTheoryConstants.scale_intervals);
+    return Object.keys(MusicTheoryConstants.scaleIntervals);
   }
 
   /**

@@ -31,13 +31,13 @@ export class Scale {
         }
         
         const convertedTonic = MusicTheoryConstants.convertFlatToSharp(tonic);
-        if (!MusicTheoryConstants.chromatic_scale.includes(convertedTonic)) {
-            throw new Error(`'${tonic}' is not a valid tonic note. Select one among '${MusicTheoryConstants.chromatic_scale.join(', ')}'.`);
+        if (!MusicTheoryConstants.chromaticScale.includes(convertedTonic)) {
+            throw new Error(`'${tonic}' is not a valid tonic note. Select one among '${MusicTheoryConstants.chromaticScale.join(', ')}'.`);
         }
         this.tonic = convertedTonic;
 
-        if (!Object.keys(MusicTheoryConstants.scale_intervals).includes(mode)) {
-            throw new Error(`'${mode}' is not a valid scale. Select one among '${Object.keys(MusicTheoryConstants.scale_intervals).join(', ')}'.`);
+        if (!Object.keys(MusicTheoryConstants.scaleIntervals).includes(mode)) {
+            throw new Error(`'${mode}' is not a valid scale. Select one among '${Object.keys(MusicTheoryConstants.scaleIntervals).join(', ')}'.`);
         }
         this.mode = mode;
     }/**
@@ -49,7 +49,7 @@ export class Scale {
      * @returns {Array} Array of MIDI note numbers representing the scale
      */
     generate(options = {}) {
-        const intervals = MusicTheoryConstants.scale_intervals[this.mode];
+        const intervals = MusicTheoryConstants.scaleIntervals[this.mode];
         if (!intervals) {
             console.warn(`Unknown scale mode: ${this.mode}`);
             return [];
@@ -64,7 +64,7 @@ export class Scale {
         }
 
         // Get scale pattern
-        const tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(this.tonic);
+        const tonicIndex = MusicTheoryConstants.chromaticScale.indexOf(this.tonic);
         if (tonicIndex === -1) {
             console.warn(`Unknown tonic: ${this.tonic}`);
             return [];
@@ -114,15 +114,15 @@ export class Scale {
      * @returns {Array} Array of note names in the scale
      */
     getNoteNames() {
-        const intervals = MusicTheoryConstants.scale_intervals[this.mode];
+        const intervals = MusicTheoryConstants.scaleIntervals[this.mode];
         if (!intervals) return [];
         
-        const tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(this.tonic);
+        const tonicIndex = MusicTheoryConstants.chromaticScale.indexOf(this.tonic);
         if (tonicIndex === -1) return [];
         
         return intervals.map(interval => {
             const noteIndex = (tonicIndex + interval) % 12;
-            return MusicTheoryConstants.chromatic_scale[noteIndex];
+            return MusicTheoryConstants.chromaticScale[noteIndex];
         });
     }
 
