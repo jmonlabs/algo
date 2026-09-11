@@ -12,7 +12,8 @@ import { doPitchClass } from '../../theory/harmony/Solfege.js';
  *   profile      a `Profile` for the rhythm terms (default: the Rhythm Code)
  *   orientation  '2-3' | '3-2' | 'auto'
  *   key          { tonic, mode } for the melody terms
- *   chords       [{ time, pitches }] for the melody terms
+ *   chords       a chord timeline for the melody terms: JMON chord notes
+ *                (`jm.utils.chordTrack(progression)`) or [{ time, pitches }]
  *   salience     which notes the map plots (default 'anchors')
  *
  * Use with `metric(name, { target, weight })`, e.g.

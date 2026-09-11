@@ -159,3 +159,11 @@ test("genetic extensions are reachable from jm", () => {
   assert.equal(typeof jm.generative.genetic.operators.anticipateOnset, "function");
   assert.ok(Array.isArray(jm.generative.genetic.operators.rhythmOperators));
 });
+
+test("melody operators accept a JMON chord track as context.chords", () => {
+  const ctx = { key: { tonic: "C" }, chords: jm.utils.chordTrack([[65, 69, 72], [57, 60, 64]], { duration: 4 }) };
+  const phrase = relayout([[65, 4], [60, 4]]);
+  const moved = ops.toNonChordTone(phrase, () => 0, ctx);
+  assert.ok(moved.some((n, i) => n[0] !== phrase[i][0]), "an anchor moved onto a non-chord tone");
+  assert.ok(metrics.sweetness(phrase, ctx) >= 0, "fitness terms read the track");
+});

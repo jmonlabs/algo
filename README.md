@@ -111,7 +111,7 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - `jm.processors.groove` slides stops to heavier places on a rhythm profile; `anticipate` moves chosen onsets earlier when the target is free; `applySteps` runs Bodzsar's four-step procedure.
 - Queries: `getPitchRange`, `getTotalDuration`, `extractRhythm`
 - Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizePiece` (grids in quarter notes; `1/3` for triplets)
-- Builders: `createTrack`, `createPiece`
+- Builders: `createTrack`, `createPiece`, `chordTrack` (a progression laid out as JMON chord notes: playable, and what the analyses and `Darwin` read as `chords`)
 
 ## Tests
 

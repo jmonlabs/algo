@@ -183,6 +183,36 @@ export function createScale(pitches, duration = 1, startTime = 0) {
 }
 
 /**
+ * Lay a progression on a timeline as JMON chord notes.
+ *
+ * A `Progression` returns chords as arrays of pitches. This gives each one a
+ * time and a duration, so the result is a track you can play, export, or hand
+ * to the analyses and to Darwin as `chords`. It is `createScale` with names
+ * that say what it is for.
+ *
+ * @example
+ * const prog = jm.key("D", "minor").progression().generate(["i", "VI", "III", "VII"]);
+ * const chords = jm.utils.chordTrack(prog, { duration: 4 });
+ * // [{ pitch: [50, 53, 57], duration: 4, time: 0 }, { pitch: [...], duration: 4, time: 4 }, ...]
+ *
+ * @param {Array<Array<number>|number>} progression - Chords as pitch arrays (a bare number is a one-note chord)
+ * @param {Object} [options]
+ * @param {number} [options.duration=4] - Beats per chord
+ * @param {number} [options.start=0] - Time of the first chord, in beats
+ * @param {number} [options.velocity=0.8]
+ * @returns {Array<Object>} JMON notes with array pitches and numeric times
+ */
+export function chordTrack(progression, { duration = 4, start = 0, velocity = 0.8 } = {}) {
+  if (!Array.isArray(progression)) return [];
+  return progression.map((chord, i) => ({
+    pitch: Array.isArray(chord) ? chord.slice() : chord,
+    duration,
+    time: start + i * duration,
+    velocity,
+  }));
+}
+
+/**
  * Shift all notes in a sequence by a given time
  * @param {Array} notes - JMON notes
  * @param {number} timeShift - Time shift in beats
