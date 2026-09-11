@@ -13,8 +13,9 @@
  */
 
 import { normalizeChords } from './chords.js';
+import { timeToBeats } from '../../utils/jmon-utils.js';
 
-const numericTime = (t) => (typeof t === 'number' ? t : parseFloat(t) || 0);
+const numericTime = (t) => (typeof t === 'number' ? t : timeToBeats(t));
 const isRest = (n) => n.pitch === null || n.pitch === undefined;
 const topPitch = (n) => (Array.isArray(n.pitch) ? Math.max(...n.pitch) : n.pitch);
 

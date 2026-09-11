@@ -11,9 +11,9 @@ export const DEFAULT_DRUM_MAP = {
   openhat: 46,
   ride: 51,
   crash: 49,
-  tom_low: 41,
-  tom_mid: 47,
-  tom_high: 50,
+  tomLow: 41,
+  tomMid: 47,
+  tomHigh: 50,
   clap: 39,
   rim: 37
 };

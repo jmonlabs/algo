@@ -2,16 +2,16 @@
  * Constants and utility functions for music theory
  */
 export class MusicTheoryConstants {
-    static chromatic_scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    static chromatic_scale_flats = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+    static chromaticScale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    static chromaticScaleFlats = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
-    static flat_to_sharp = {
+    static flatToSharp = {
         'Bb': 'A#', 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#',
         'B♭': 'A#', 'D♭': 'C#', 'E♭': 'D#', 'G♭': 'F#', 'A♭': 'G#',
         'B-': 'A#', 'D-': 'C#', 'E-': 'D#', 'G-': 'F#', 'A-': 'G#'
     };
     
-    static scale_intervals = {
+    static scaleIntervals = {
         'major': [0, 2, 4, 5, 7, 9, 11],  // Ionian
         'minor': [0, 2, 3, 5, 7, 8, 10],  // Aeolian
         'diminished': [0, 2, 3, 5, 6, 8, 9, 11],
@@ -39,7 +39,7 @@ export class MusicTheoryConstants {
      * @returns {string} The converted note or original if no conversion needed
      */
     static convertFlatToSharp(note) {
-        return this.flat_to_sharp[note] || note;
+        return this.flatToSharp[note] || note;
     }
 
     /**
@@ -54,7 +54,7 @@ export class MusicTheoryConstants {
         }
         const [, note, octave] = match;
         const normalizedNote = this.convertFlatToSharp(note);
-        const noteIndex = this.chromatic_scale.indexOf(normalizedNote);
+        const noteIndex = this.chromaticScale.indexOf(normalizedNote);
         if (noteIndex === -1) {
             throw new Error(`Invalid note name: ${note}`);
         }
@@ -70,7 +70,7 @@ export class MusicTheoryConstants {
     static midiToNoteName(midiNumber, preferFlat = false) {
         const octave = Math.floor(midiNumber / 12) - 1;
         const noteIndex = midiNumber % 12;
-        const noteName = (preferFlat ? this.chromatic_scale_flats : this.chromatic_scale)[noteIndex];
+        const noteName = (preferFlat ? this.chromaticScaleFlats : this.chromaticScale)[noteIndex];
         return `${noteName}${octave}`;
     }
 

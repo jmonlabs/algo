@@ -1,4 +1,5 @@
 import { Profile } from '../theory/profile/Profile.js';
+import { timeToBeats } from '../../utils/jmon-utils.js';
 import { presets as profilePresets } from '../theory/profile/presets.js';
 import { metricStrengths } from '../theory/rhythm/clave.js';
 import { onsetPositions } from '../analysis/salience.js';
@@ -19,7 +20,7 @@ import { onsetPositions } from '../analysis/salience.js';
  * still tile the way they did. Rests (null pitch) are left alone.
  */
 
-const numericTime = (t) => (typeof t === 'number' ? t : parseFloat(t) || 0);
+const numericTime = (t) => (typeof t === 'number' ? t : timeToBeats(t));
 const isRest = (n) => n.pitch === null || n.pitch === undefined;
 
 function clone(notes) {

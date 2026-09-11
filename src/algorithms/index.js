@@ -53,41 +53,22 @@ export const constants = {
 };
 
 export const generative = {
-    automata: {
-        Cellular: CellularAutomata
-    },
+    automata: { CellularAutomata },
     loops: { Loop },
     genetic: {
-        Darwin: Darwin,
-        // Position-aware mutations and Bodzsar-derived fitness terms for Darwin
+        Darwin,
+        // Position-aware mutations and fitness terms for Darwin
         operators: geneticOperators,
         metrics: geneticMetrics,
         metric: geneticMetric,
         phraseToNotes: geneticPhraseToNotes
     },
-    walks: {
-        Random: RandomWalk,
-        Chain: Chain,
-        Phasor: {
-            Vector: Phasor,
-            System: PhasorSystem
-        }
-    },
-    fractals: {
-        Mandelbrot,
-        Julia,
-        BurningShip,
-        Fractal,
-        LogisticMap
-    },
-    minimalism: {
-        Process: MinimalismProcess,
-        Tintinnabuli,
-        phaseShift
-    },
+    walks: { RandomWalk, Chain, Phasor, PhasorSystem },
+    fractals: { Mandelbrot, Julia, BurningShip, Fractal, LogisticMap },
+    minimalism: { MinimalismProcess, Tintinnabuli, phaseShift },
     drummer: Object.assign(drummer, { presets: drummerPresets })
-    // Note: GaussianProcessRegressor removed to avoid @tangent.to/ds dependency
-    // Import it separately if needed: import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
+    // GaussianProcessRegressor is not exported here: it depends on @tangent.to/ds.
+    // import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
 };
 
 export const processors = {
@@ -103,6 +84,7 @@ export const processors = {
 export const analysis = {
     ...analysisModule
 };
+
 
 export const utils = {
     ...Utils

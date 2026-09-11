@@ -139,7 +139,7 @@ test("MusicalIndex scores a flat pitch sequence", () => {
   // tuples — feeding it either of those yields NaN rather than an error.
   const index = new MusicalIndex(SCALE);
 
-  for (const name of ["gini", "balance", "motif", "dissonance", "restProportion"]) {
+  for (const name of ["gini", "spread", "motifStrength", "dissonance", "measureFit", "restProportion"]) {
     const value = index[name]();
     assert.ok(Number.isFinite(value), `MusicalIndex.${name}() returned ${value}`);
   }

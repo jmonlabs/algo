@@ -8,7 +8,10 @@
  * - Crossover (breeding) between selected parents
  * - Mutation to introduce genetic diversity
  * 
- * Each musical phrase is represented as an array of [pitch, duration, offset] tuples
+ * Phrases come in and go out as JMON notes. Inside, a phrase is a genome of
+ * `[pitch, duration, time]` triples laid end to end, rests as `null` pitches;
+ * `toGenome` and `fromGenome` convert, and `getBestGenome()` exposes the raw
+ * form for the operators.
  */
 
 import { MusicalIndex } from '../../analysis/MusicalIndex.js';
@@ -38,7 +41,8 @@ export class Darwin {
       period = null
     } = config;
 
-    this.initialPhrases = initialPhrases;
+    // Accept JMON notes or raw genomes; work on genomes.
+    this.initialPhrases = initialPhrases.map((phrase) => Darwin.toGenome(phrase));
     this.mutationRate = mutationRate;
     this.populationSize = populationSize;
     this.scale = scale;
@@ -103,22 +107,25 @@ export class Darwin {
       }
     };
 
-    // Set default weights and targets
+    // Weights and targets per metric of MusicalAnalysis, as [pitch, duration,
+    // time] triples: the same metric can be scored on each of the three
+    // series. The names are the ones MusicalAnalysis uses, so a target here
+    // and a measurement there are the same number.
     this.weights = weights || {
-      gini: [1.0, 1.0, 0.0],     // [pitch, duration, offset]
-      balance: [1.0, 1.0, 0.0],
-      motif: [10.0, 1.0, 0.0],
+      gini: [1.0, 1.0, 0.0],
+      spread: [1.0, 1.0, 0.0],
+      motifStrength: [10.0, 1.0, 0.0],
       dissonance: [1.0, 0.0, 0.0],
-      rhythmic: [0.0, 10.0, 0.0],
+      measureFit: [0.0, 10.0, 0.0],
       rest: [1.0, 0.0, 0.0]
     };
 
     this.targets = targets || {
       gini: [0.05, 0.5, 0.0],
-      balance: [0.1, 0.1, 0.0],
-      motif: [1.0, 1.0, 0.0],
+      spread: [0.1, 0.1, 0.0],
+      motifStrength: [1.0, 1.0, 0.0],
       dissonance: [0.0, 0.0, 0.0],
-      rhythmic: [0.0, 1.0, 0.0],
+      measureFit: [0.0, 1.0, 0.0],
       rest: [0.0, 0.0, 0.0]
     };
 
@@ -129,6 +136,46 @@ export class Darwin {
     this.bestIndividuals = [];
     this.bestScores = [];
     this.generationCount = 0;
+  }
+
+  /**
+   * JMON notes to a genome: `[pitch, duration, time]` triples in time order,
+   * with a `null`-pitch triple filling every gap so the triples tile. A
+   * genome passed in comes back as is.
+   * @param {Array} phrase - JMON notes, or triples
+   * @returns {Array<Array>}
+   */
+  static toGenome(phrase) {
+    if (!Array.isArray(phrase) || phrase.length === 0) return [];
+    if (Array.isArray(phrase[0])) return phrase.map((t) => [...t]);
+    const notes = phrase.map((n) => ({
+      pitch: Array.isArray(n.pitch) ? n.pitch[0] : (n.pitch ?? null),
+      duration: n.duration,
+      time: typeof n.time === 'number' ? n.time : parseFloat(n.time) || 0,
+    })).sort((a, b) => a.time - b.time);
+    const genome = [];
+    let cursor = notes[0].time;
+    for (const n of notes) {
+      if (n.time > cursor + 1e-9) genome.push([null, n.time - cursor, cursor]);
+      const duration = Math.max(n.duration, 1e-6);
+      genome.push([n.pitch, duration, n.time]);
+      cursor = n.time + duration;
+    }
+    // triples must tile: trim any overlap left by the source notes
+    let t = genome[0][2];
+    return genome.map(([p, d]) => { const triple = [p, d, t]; t += d; return triple; });
+  }
+
+  /**
+   * A genome back to JMON notes. Rests are dropped.
+   * @param {Array<Array>} genome
+   * @param {number} [velocity=0.8]
+   * @returns {Array<Object>}
+   */
+  static fromGenome(genome, velocity = 0.8) {
+    return genome
+      .filter(([pitch]) => pitch !== null && pitch !== undefined)
+      .map(([pitch, duration, time]) => ({ pitch, duration, time, velocity }));
   }
 
   /**
@@ -238,8 +285,8 @@ export class Darwin {
     if (pitches.length > 0) {
       const pitchIndex = new MusicalIndex(pitches);
       fitnessComponents.gini_pitch = pitchIndex.gini();
-      fitnessComponents.balance_pitch = pitchIndex.balance();
-      fitnessComponents.motif_pitch = pitchIndex.motif();
+      fitnessComponents.spread_pitch = pitchIndex.spread();
+      fitnessComponents.motifStrength_pitch = pitchIndex.motifStrength();
       if (this.scale) {
         fitnessComponents.dissonance_pitch = pitchIndex.dissonance(this.scale);
       }
@@ -249,17 +296,17 @@ export class Darwin {
     if (durations.length > 0) {
       const durationIndex = new MusicalIndex(durations);
       fitnessComponents.gini_duration = durationIndex.gini();
-      fitnessComponents.balance_duration = durationIndex.balance();
-      fitnessComponents.motif_duration = durationIndex.motif();
-      fitnessComponents.rhythmic = durationIndex.rhythmic(this.measureLength);
+      fitnessComponents.spread_duration = durationIndex.spread();
+      fitnessComponents.motifStrength_duration = durationIndex.motifStrength();
+      fitnessComponents.measureFit_duration = durationIndex.measureFit(this.measureLength);
     }
 
     // Calculate metrics for offsets if needed
     if (offsets.length > 0) {
       const offsetIndex = new MusicalIndex(offsets);
       fitnessComponents.gini_offset = offsetIndex.gini();
-      fitnessComponents.balance_offset = offsetIndex.balance();
-      fitnessComponents.motif_offset = offsetIndex.motif();
+      fitnessComponents.spread_offset = offsetIndex.spread();
+      fitnessComponents.motifStrength_offset = offsetIndex.motifStrength();
     }
 
     // Calculate rest proportion
@@ -573,12 +620,22 @@ export class Darwin {
   }
 
   /**
-   * Get the current best individual
-   * @returns {Array} Best musical phrase
+   * The best phrase so far, as JMON notes.
+   * @returns {Array<Object>|null}
    */
   getBestIndividual() {
-    return this.bestIndividuals.length > 0 
-      ? [...this.bestIndividuals[this.bestIndividuals.length - 1]]
+    const genome = this.getBestGenome();
+    return genome ? Darwin.fromGenome(genome) : null;
+  }
+
+  /**
+   * The best phrase so far as a raw genome of `[pitch, duration, time]`
+   * triples, rests included — what the operators and the metrics work on.
+   * @returns {Array<Array>|null}
+   */
+  getBestGenome() {
+    return this.bestIndividuals.length > 0
+      ? this.bestIndividuals[this.bestIndividuals.length - 1].map((t) => [...t])
       : null;
   }
 

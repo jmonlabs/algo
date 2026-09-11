@@ -1,4 +1,5 @@
 import { degree, solfege, stability, chordDistance, triadOf, scalePitchClasses } from '../theory/harmony/Solfege.js';
+import { timeToBeats } from '../../utils/jmon-utils.js';
 import { salience as weigh } from './salience.js';
 import { normalizeChords } from './chords.js';
 
@@ -16,7 +17,7 @@ import { normalizeChords } from './chords.js';
  * long notes, repeated notes, first and last notes of a motif.
  */
 
-const numericTime = (t) => (typeof t === 'number' ? t : parseFloat(t) || 0);
+const numericTime = (t) => (typeof t === 'number' ? t : timeToBeats(t));
 const isRest = (n) => n.pitch === null || n.pitch === undefined;
 const topPitch = (n) => (Array.isArray(n.pitch) ? Math.max(...n.pitch) : n.pitch);
 

@@ -193,7 +193,7 @@ export class Ornament {
         const mode = options.mode || (k ? k.mode : undefined);
 
         if (tonic && mode) {
-            this.tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(tonic);
+            this.tonicIndex = MusicTheoryConstants.chromaticScale.indexOf(tonic);
             this.scale = this.generateScale(tonic, mode);
         } else {
             this.scale = null;
@@ -204,8 +204,8 @@ export class Ornament {
      * Generate a scale for pitch-based ornaments
      */
     generateScale(tonic, mode) {
-        const scalePattern = MusicTheoryConstants.scale_intervals[mode];
-        const tonicIndex = MusicTheoryConstants.chromatic_scale.indexOf(tonic);
+        const scalePattern = MusicTheoryConstants.scaleIntervals[mode];
+        const tonicIndex = MusicTheoryConstants.chromaticScale.indexOf(tonic);
         const scaleNotes = scalePattern.map(interval => (tonicIndex + interval) % 12);
         const completeScale = [];
 

@@ -60,7 +60,6 @@ export function createTrack(notes, label = 'Untitled Track', options = {}) {
 }
 
 /** @deprecated Use {@link createTrack}. JMON calls them tracks, not parts. */
-export const createPart = createTrack;
 
 /**
  * Create a complete JMON piece.
@@ -103,7 +102,6 @@ export function createPiece(tracks, metadata = {}) {
 }
 
 /** @deprecated Use {@link createPiece}. JMON calls them pieces. */
-export const createComposition = createPiece;
 
 /**
  * Normalize notes from various formats to JMON format
@@ -231,7 +229,6 @@ export function shiftTime(notes, timeShift) {
 }
 
 // Alias for backwards compatibility
-export const offsetNotes = shiftTime;
 
 /**
  * Repeat a phrase end to end.
@@ -306,10 +303,6 @@ export function concatenateTracks(tracks) {
   return result;
 }
 
-/** @deprecated Use {@link concatenateTracks}. JMON calls them tracks, not sequences. */
-export function concatenateSequences(sequences) {
-  return concatenateTracks(sequences);
-}
 
 /**
  * Chain/concatenate tracks with proper timing adjustment
@@ -351,10 +344,6 @@ export function combineTracks(tracks) {
   return tracks.flat();
 }
 
-/** @deprecated Use {@link combineTracks}. JMON calls them tracks, not sequences. */
-export function combineSequences(sequences) {
-  return combineTracks(sequences);
-}
 
 /**
  * Build a long held tone by re-attacking the same pitch every `step` beats.

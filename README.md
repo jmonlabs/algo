@@ -76,7 +76,7 @@ const track = [
 ## What is here
 
 ### Theory — `jm.theory.*`
-Scales, intervals, chords, voice leading, progressions, ornaments and articulations, rhythm generation.
+Scales, intervals, chords, voice leading, progressions, ornaments and articulations, rhythm generation. `Rhythm.random()` and `Rhythm.darwin()` return JMON notes, with `pitches` cycled across them the way `euclid` does.
 
 `jm.key(tonic, mode)`, or `jm.key({ tonic, mode })` like every class here, sets the key once and builds Scale, Voice, Ornament, Progression and chords without repeating `{ tonic, mode }`. It also answers `k.solfege(pitch)` and `k.stability(pitch)`: the syllable relative to the relative major (a minor tonic is LA) and its rank on the stability order DO SO MI LA RE TI FA.
 
@@ -85,11 +85,11 @@ Scales, intervals, chords, voice leading, progressions, ornaments and articulati
 - `theory.harmony.Solfege` — degree, syllable, stability rank and distance to the nearest chord tone.
 
 ### Generative — `jm.generative.*`
-- Minimalism: additive and subtractive processes, tintinnabuli, phase shifting
-- Walks: Markov chains, Brownian motion, phasors. `Chain.line()` for a single flat walk
+- Minimalism: `MinimalismProcess` (additive and subtractive), `Tintinnabuli`, `phaseShift(pattern, { cycles, shift })`
+- Walks: `Chain` (Markov), `RandomWalk` (Brownian), `Phasor` and `PhasorSystem`. `Chain.line()` for a single flat walk
 - Fractals: Mandelbrot, Julia, Burning Ship and logistic maps
-- Automata: Cellular automata
-- Genetic: Genetic algorithms for evolutionary compositions with `Darwin`
+- Automata: `CellularAutomata`
+- Genetic: `Darwin` breeds variations of a phrase toward targets. Phrases go in and come out as JMON notes; `getBestGenome()` exposes the raw `[pitch, duration, time]` form the operators work on
 - Loops: Euclidean rhythms and polyrhythm
 - Drummer: 19 styles, multi-metre sections, variations and fills. `orientation: '2-3' | '3-2'` reweights the kick by the Rhythm Code over a two-bar cycle; `decorations` adds ghost snares, open hats, phrase crashes, a clave sidestick and several fill shapes.
 
@@ -98,7 +98,7 @@ Scales, intervals, chords, voice leading, progressions, ornaments and articulati
 Gaussian processes live in [`@tangent.to/ds`](https://tangent-to.github.io/ds/) and are used directly. A thin wrapper ships here but is deliberately not reachable from `jm`, so importing this package never pulls that in.
 
 ### Analysis — `jm.analysis.*`
-16 metrics: Gini coefficient, syncopation, contour entropy, and the rest, useful as target in genetic algorithms.
+`MusicalAnalysis` is the one set of metrics: gini, spread, motif, motifStrength, dissonance, measureFit, contour entropy, syncopation, density and the rest. `MusicalIndex` is an instance view over the same functions, and `Darwin`'s weights and targets are keyed by the same names, so a score is the same number wherever it appears.
 
 - `analysis.rhythm` — a track as a binary onset grid, after Bodzsar's *Rhythm Code*: stops, eighth- and quarter-note anticipations, upbeat ratio, fit to a profile in either clave orientation, `detectOrientation`, and `profileFromTracks` to learn a profile from a corpus.
 - `analysis.melody` — Bodzsar's *Emotional Map of Melody*: every note placed by solfège stability and distance from the chord under it, quadrant shares, the four behaviours at a chord change, and `pillars` to pick a non-chord tone per chord to land on.
@@ -113,13 +113,32 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizePiece` (grids in quarter notes; `1/3` for triplets)
 - Builders: `createTrack`, `createPiece`, `chordTrack` (a progression laid out as JMON chord notes: playable, and what the analyses and `Darwin` read as `chords`)
 
+## Conventions
+
+- A class takes one options object: `new Scale({ tonic, mode })`. A function takes its subject first, then one scalar or one options object: `invert(notes, pivot)`, `phaseShift(pattern, { cycles, shift })`. `jm.key()` takes either `(tonic, mode)` or `{ tonic, mode }`.
+- Everything that enters or leaves a generator is a list of JMON notes, `{ pitch, duration, time, velocity }`, with time in quarter notes. A chord is an array of pitches; a chord on a timeline is a JMON note whose `pitch` is that array (`chordTrack`).
+- Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
+- A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
+
+## Changes in 3.0
+
+Breaking, and the compositions written against 2.x stay on the `v2.1.0` tag.
+
+- `generative.automata.CellularAutomata`, `generative.walks.RandomWalk`, `Phasor`, `PhasorSystem`, `generative.minimalism.MinimalismProcess` replace the short keys `Cellular`, `Random`, `Phasor.Vector`, `Phasor.System`, `Process`.
+- `MusicTheoryConstants.scaleIntervals`, `chromaticScale`, `chromaticScaleFlats`, `flatToSharp`; drum map keys `tomLow`, `tomMid`, `tomHigh`.
+- `createPart`, `createComposition`, `offsetNotes`, `concatenateSequences`, `combineSequences`, `setOffsetsAccordingToDurations`, `sequenceToPart` are gone; use `createTrack`, `createPiece`, `shiftTime`, `concatenateTracks`, `combineTracks`, `setTimeAccordingToDurations`, `notesToTrack`.
+- `MusicalIndex` methods are `gini`, `spread`, `motifStrength`, `dissonance`, `measureFit`, `restProportion`, each the same function as in `MusicalAnalysis`; `balance`, `motif`, `rhythmic` on the index are gone. `Darwin` weights and targets use these names.
+- `Darwin` accepts JMON notes in `initialPhrases` and returns notes from `getBestIndividual()`; `getBestGenome()` returns the triples.
+- `Rhythm.random()` and `Rhythm.darwin()` return JMON notes with a `pitch`.
+- `phaseShift(pattern, { cycles, shift })`, `getDegreeFromPitch(pitch, { scale, tonic })`, `getPitchFromDegree(degree, { scale, tonic })`, `scaleList(numbers, { toMin, toMax, from, to })`, `repeatPolyloops(dict, { measures, measureLength })`.
+
 ## Tests
 
 ```bash
 node --test tests/*.test.js
 ```
 
-267 assertion-backed tests, nothing to install. One of them walks the import graph from `src/index.js` and fails if anything outside the package is reached, which is the property the whole layout rests on.
+272 assertion-backed tests, nothing to install. One of them walks the import graph from `src/index.js` and fails if anything outside the package is reached, which is the property the whole layout rests on.
 
 The scripts in `tests/integration/` need a real Tone.js or `@tangent.to/ds` and are observations rather than tests — see the README there.
 

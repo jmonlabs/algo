@@ -1,252 +1,88 @@
-/**
- * Musical analysis utilities for evaluating musical phrases
- * Provides metrics like Gini coefficient, balance, motif analysis, dissonance, etc.
- * Used primarily for genetic algorithm fitness evaluation
- */
+import { MusicalAnalysis } from './MusicalAnalysis.js';
 
 /**
- * MusicalIndex
- * Analyzes a musical sequence for various metrics such as rest analysis, pitch/duration statistics, and more.
+ * An instance view over `MusicalAnalysis` for one sequence of values
+ * (pitches, durations, or offsets). Every method calls the same static
+ * function of `MusicalAnalysis`, so a score here is comparable with a score
+ * there. Rests (null entries) are dropped for every metric except
+ * `restProportion`.
  *
- * @class
- * @param {Array} sequence - Array of musical values (pitches, durations, etc.)
+ * @example
+ * const index = new MusicalIndex([60, 62, 64, 62, 60]);
+ * index.motifStrength();   // same number as MusicalAnalysis.motifStrength([...])
  */
 export class MusicalIndex {
   /**
-   * Create a musical index analyzer for a sequence
-   * @param {Array} sequence - Array of musical values (pitches, durations, etc.)
+   * @param {Array} sequence - Values; null entries are rests
    */
   constructor(sequence) {
-    this.sequence = sequence.filter((val) => val !== null && val !== undefined);
-    this.originalSequence = sequence; // Keep original for rest analysis
+    this.originalSequence = sequence;
+    this.sequence = sequence.filter((v) => v !== null && v !== undefined);
   }
 
-  /**
-   * Calculate Gini coefficient (measure of inequality/diversity)
-   * 0 = perfect equality, 1 = maximum inequality
-   * @returns {number} Gini coefficient
-   */
-  gini() {
-    if (this.sequence.length === 0) return 0;
+  /** Inequality of the values, 0 (all equal) to 1. */
+  gini() { return MusicalAnalysis.gini(this.sequence); }
 
-    // Sort sequence
-    const sorted = [...this.sequence].sort((a, b) => a - b);
-    const n = sorted.length;
+  /** Coefficient of variation around the mean. */
+  spread() { return MusicalAnalysis.spread(this.sequence); }
 
-    // Calculate Gini coefficient
-    let sum = 0;
-    for (let i = 0; i < n; i++) {
-      sum += (2 * (i + 1) - n - 1) * sorted[i];
-    }
+  /** How much the sequence repeats itself (patterns of length 2 to `maxMotifLength`). */
+  motifStrength(maxMotifLength = 4) { return MusicalAnalysis.motifStrength(this.sequence, maxMotifLength); }
 
-    const totalSum = sorted.reduce((acc, val) => acc + val, 0);
-    return totalSum === 0 ? 0 : sum / (n * totalSum);
-  }
-
-  /**
-   * Calculate balance (measure of how evenly distributed values are around the mean)
-   * Lower values indicate better balance around the center
-   * @returns {number} Balance metric
-   */
-  balance() {
-    if (this.sequence.length === 0) return 0;
-
-    const mean = this.sequence.reduce((sum, val) => sum + val, 0) /
-      this.sequence.length;
-    const variance =
-      this.sequence.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
-      this.sequence.length;
-
-    // Normalize by mean to make it scale-independent
-    return mean === 0 ? 0 : Math.sqrt(variance) / Math.abs(mean);
-  }
-
-  /**
-   * Calculate motif strength (measure of repetitive patterns)
-   * Higher values indicate stronger motif presence
-   * @param {number} maxMotifLength - Maximum motif length to consider
-   * @returns {number} Motif strength
-   */
-  motif(maxMotifLength = 4) {
-    if (this.sequence.length < 2) return 0;
-
-    const motifCounts = new Map();
-    let totalMotifs = 0;
-
-    // Check all possible motif lengths
-    for (
-      let length = 2;
-      length <= Math.min(maxMotifLength, this.sequence.length);
-      length++
-    ) {
-      for (let i = 0; i <= this.sequence.length - length; i++) {
-        const motif = this.sequence.slice(i, i + length).join(",");
-        motifCounts.set(motif, (motifCounts.get(motif) || 0) + 1);
-        totalMotifs++;
-      }
-    }
-
-    // Calculate motif strength as sum of squared frequencies
-    let motifStrength = 0;
-    for (const count of motifCounts.values()) {
-      if (count > 1) { // Only count repeated motifs
-        motifStrength += count * count;
-      }
-    }
-
-    return totalMotifs === 0 ? 0 : motifStrength / totalMotifs;
-  }
-
-  /**
-   * Calculate dissonance relative to a musical scale
-   * 0 = all notes in scale, higher values = more dissonance
-   * @param {Array} scale - Array of pitches considered consonant
-   * @returns {number} Dissonance level
-   */
+  /** Share of values whose pitch class is outside `scale`. */
   dissonance(scale) {
-    if (!scale || scale.length === 0 || this.sequence.length === 0) return 0;
-
-    // Convert scale to set of pitch classes (mod 12)
-    const scaleClasses = new Set(scale.map((pitch) => pitch % 12));
-
-    let dissonantNotes = 0;
-    for (const pitch of this.sequence) {
-      if (pitch !== null && pitch !== undefined) {
-        const pitchClass = pitch % 12;
-        if (!scaleClasses.has(pitchClass)) {
-          dissonantNotes++;
-        }
-      }
-    }
-
-    return dissonantNotes / this.sequence.length;
+    if (!scale || scale.length === 0) return 0;
+    return MusicalAnalysis.dissonance(this.sequence, scale.map((p) => ((p % 12) + 12) % 12));
   }
 
-  /**
-   * Calculate rhythmic fitness (how well durations fit within measure boundaries)
-   * 1 = perfect fit, lower values = poor rhythmic alignment
-   * @param {number} measureLength - Length of a measure in beats
-   * @returns {number} Rhythmic fitness
-   */
-  rhythmic(measureLength = 4) {
-    if (this.sequence.length === 0) return 0;
+  /** How well the values, read as durations, tile measures of `measureLength`. */
+  measureFit(measureLength = 4) { return MusicalAnalysis.measureFit(this.sequence, measureLength); }
 
-    let currentBeat = 0;
-    let rhythmicErrors = 0;
-    const totalDuration = this.sequence.reduce(
-      (sum, duration) => sum + duration,
-      0,
-    );
-
-    // Check if durations align well with measure boundaries
-    for (const duration of this.sequence) {
-      // Check if note crosses measure boundary awkwardly
-      const nextBeat = currentBeat + duration;
-      const currentMeasure = Math.floor(currentBeat / measureLength);
-      const nextMeasure = Math.floor(nextBeat / measureLength);
-
-      if (currentMeasure !== nextMeasure) {
-        // Note crosses measure boundary
-        const remainingInMeasure = measureLength -
-          (currentBeat % measureLength);
-        if (remainingInMeasure < duration && remainingInMeasure > 0) {
-          // Note doesn't fill the remaining measure completely
-          rhythmicErrors += Math.min(
-            remainingInMeasure,
-            duration - remainingInMeasure,
-          );
-        }
-      }
-
-      currentBeat = nextBeat;
-    }
-
-    // Calculate rhythmic fitness (1 = perfect, 0 = worst)
-    return totalDuration === 0 ? 0 : 1 - (rhythmicErrors / totalDuration);
-  }
+  /** Share of rests in the original sequence. */
+  restProportion() { return MusicalAnalysis.restProportion(this.originalSequence); }
 
   /**
-   * Calculate proportion of rests in the sequence
-   * @returns {number} Proportion of rests (0-1)
-   */
-  restProportion() {
-    if (this.originalSequence.length === 0) return 0;
-
-    const restCount =
-      this.originalSequence.filter((val) => val === null || val === undefined)
-        .length;
-    return restCount / this.originalSequence.length;
-  }
-
-  /**
-   * Calculate all metrics at once for efficiency
-   * @param {Array} scale - Musical scale for dissonance calculation
-   * @param {number} measureLength - Measure length for rhythmic analysis
-   * @returns {Object} All calculated metrics
+   * Every metric at once.
+   * @param {Array<number>} [scale] - For `dissonance`; omitted gives 0
+   * @param {number} [measureLength=4]
    */
   calculateAll(scale = null, measureLength = 4) {
     return {
       gini: this.gini(),
-      balance: this.balance(),
-      motif: this.motif(),
+      spread: this.spread(),
+      motifStrength: this.motifStrength(),
       dissonance: scale ? this.dissonance(scale) : 0,
-      rhythmic: this.rhythmic(measureLength),
+      measureFit: this.measureFit(measureLength),
       rest: this.restProportion(),
     };
   }
 
-  /**
-   * Calculate statistical properties of the sequence
-   * @returns {Object} Statistical properties
-   */
+  /** Mean, standard deviation, min, max and range of the values. */
   getStats() {
-    if (this.sequence.length === 0) {
-      return { mean: 0, std: 0, min: 0, max: 0, range: 0 };
-    }
-
-    const mean = this.sequence.reduce((sum, val) => sum + val, 0) /
-      this.sequence.length;
-    const variance =
-      this.sequence.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
-      this.sequence.length;
-    const std = Math.sqrt(variance);
+    if (this.sequence.length === 0) return { mean: 0, std: 0, min: 0, max: 0, range: 0 };
+    const mean = this.sequence.reduce((s, v) => s + v, 0) / this.sequence.length;
+    const variance = this.sequence.reduce((s, v) => s + (v - mean) ** 2, 0) / this.sequence.length;
     const min = Math.min(...this.sequence);
     const max = Math.max(...this.sequence);
-
-    return {
-      mean,
-      std,
-      min,
-      max,
-      range: max - min,
-    };
+    return { mean, std: Math.sqrt(variance), min, max, range: max - min };
   }
 
   /**
-   * Compare two sequences and return similarity score
-   * @param {MusicalIndex} other - Another MusicalIndex to compare with
-   * @param {Array} scale - Scale for dissonance comparison
-   * @param {number} measureLength - Measure length for rhythmic comparison
-   * @returns {number} Similarity score (0-1, higher is more similar)
+   * Similarity to another index, 0..1: one minus the mean normalised
+   * difference over every metric of `calculateAll`.
+   * @param {MusicalIndex} other
    */
   similarity(other, scale = null, measureLength = 4) {
-    const metrics1 = this.calculateAll(scale, measureLength);
-    const metrics2 = other.calculateAll(scale, measureLength);
-
-    let totalSimilarity = 0;
+    const a = this.calculateAll(scale, measureLength);
+    const b = other.calculateAll(scale, measureLength);
+    let total = 0;
     let count = 0;
-
-    for (const [key, value1] of Object.entries(metrics1)) {
-      const value2 = metrics2[key];
-      if (typeof value1 === "number" && typeof value2 === "number") {
-        // Calculate similarity as 1 - normalized difference
-        const maxVal = Math.max(Math.abs(value1), Math.abs(value2), 1);
-        const similarity = 1 - Math.abs(value1 - value2) / maxVal;
-        totalSimilarity += similarity;
-        count++;
-      }
+    for (const [key, va] of Object.entries(a)) {
+      const vb = b[key];
+      if (typeof va !== 'number' || typeof vb !== 'number') continue;
+      total += 1 - Math.abs(va - vb) / Math.max(Math.abs(va), Math.abs(vb), 1);
+      count++;
     }
-
-    return count === 0 ? 0 : totalSimilarity / count;
+    return count === 0 ? 0 : total / count;
   }
 }
