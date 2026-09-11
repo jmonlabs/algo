@@ -164,3 +164,17 @@ test("jm.key is wired up on the default export", async () => {
   assert.equal(typeof jm.theory.harmony.Key, "function");
   assert.deepEqual(jm.key("C", "major").chord(60), [60, 64, 67]);
 });
+
+/* --- the factory accepts the package's options-object convention ------- */
+
+test("key() takes an options object as well as positional tonic, mode", () => {
+  const positional = key("D", "minor");
+  const object = key({ tonic: "D", mode: "minor" });
+  assert.equal(object.tonic, positional.tonic);
+  assert.equal(object.mode, positional.mode);
+  assert.equal(object.solfege(60), "SO");   // C in D minor: relative major is F, so C is SO
+  // `key` is accepted as an alias of `tonic`, as in the class
+  assert.equal(key({ key: "F#", mode: "minor" }).tonic, "F#");
+  // the object form used to be swallowed silently: the whole object became the tonic
+  assert.equal(typeof key({ tonic: "D", mode: "minor" }).tonic, "string");
+});

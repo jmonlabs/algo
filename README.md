@@ -78,7 +78,7 @@ const track = [
 ### Theory — `jm.theory.*`
 Scales, intervals, chords, voice leading, progressions, ornaments and articulations, rhythm generation.
 
-`jm.key(tonic, mode)` sets the key once and builds Scale, Voice, Ornament, Progression and chords without repeating `{ tonic, mode }`. It also answers `k.solfege(pitch)` and `k.stability(pitch)`: the syllable relative to the relative major (a minor tonic is LA) and its rank on the stability order DO SO MI LA RE TI FA.
+`jm.key(tonic, mode)`, or `jm.key({ tonic, mode })` like every class here, sets the key once and builds Scale, Voice, Ornament, Progression and chords without repeating `{ tonic, mode }`. It also answers `k.solfege(pitch)` and `k.stability(pitch)`: the syllable relative to the relative major (a minor tonic is LA) and its rank on the stability order DO SO MI LA RE TI FA.
 
 - `theory.rhythm.clave` — son, rumba, bossa, tresillo and afro claves as grids or notes, in 2-3 or 3-2. `metricStrengths` grades the places of any meter into downbeat, half-bar, beat, upbeat.
 - `theory.profile.Profile` — a weight per position over a cycle, with `fit`, `rotate`, `bestRotation` and `fromPositions`. Bodzsar's Rhythm Code (16 eighth-note places), Tonality Code (12 pitch classes) and stability order (7 degrees) ship as presets; a profile folded out of your own tracks is the same object.

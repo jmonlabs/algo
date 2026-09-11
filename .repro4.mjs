@@ -1,0 +1,12 @@
+import puppeteer from "puppeteer";
+const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox", "--autoplay-policy=no-user-gesture-required"] });
+const page = await browser.newPage();
+page.on("console", (m) => console.log(m.text()));
+page.on("pageerror", (e) => console.log("PAGEERROR", e.message));
+page.on("error", (e) => console.log("PAGE CRASHED:", e.message));
+page.on("close", () => console.log("PAGE CLOSED"));
+browser.on("disconnected", () => console.log("BROWSER DISCONNECTED"));
+setInterval(async () => { try { const m = await page.metrics(); console.log("mem MB", Math.round(m.JSHeapUsedSize / 1e6)); } catch {} }, 20000);
+await page.goto("file:///tmp/claude-1000/-home-essi-Documents-git-jmonlabs/b4969797-f027-48de-b110-1a2c43d7b880/scratchpad/repro4.html");
+await page.waitForFunction(() => window.__d, { timeout: 1800000 }).catch(() => {});
+await browser.close();

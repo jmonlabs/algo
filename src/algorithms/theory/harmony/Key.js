@@ -86,14 +86,22 @@ export class Key {
 }
 
 /**
- * Factory for a `Key` context. Prefer this over `new Key(...)` — it keeps
- * the common `tonic, mode` shorthand positional since the two are never
- * ambiguous, while the class itself takes a single options object.
+ * Factory for a `Key` context. Takes the common `tonic, mode` shorthand
+ * positionally, since the two are never ambiguous, or the same options
+ * object the classes take, so both conventions of the package apply:
+ *
+ *     key('C', 'major')
+ *     key({ tonic: 'C', mode: 'major' })
+ *
+ * @param {string|Object} tonic - Tonic note, or `{ tonic, mode }` (also `{ key, mode }`)
+ * @param {string} [mode]
+ * @returns {Key}
  *
  * @example
  * const k = key('C', 'major');
  * k.voice({ measureLength: 4 });
  */
 export function key(tonic, mode) {
+    if (tonic !== null && typeof tonic === 'object') return new Key(tonic);
     return new Key({ tonic, mode });
 }
