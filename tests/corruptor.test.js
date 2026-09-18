@@ -135,6 +135,60 @@ test("microtonal drift can be switched off", () => {
   );
 });
 
+/* --- one intensity per dimension ----------------------------------------- */
+
+test("attrition works over the whole range, not just above 0.7", () => {
+  // It used to be dead below 0.7 and capped at a 15% drop, so two thirds of the
+  // control did nothing. Half the control should now remove some notes.
+  const long = () => ({
+    tempo: 120,
+    tracks: [{ label: "lead", notes: Array.from({ length: 60 }, (_, i) => ({ pitch: 60 + (i % 12), duration: 0.5, time: i * 0.5, velocity: 0.8 })) }],
+  });
+  const kept = (attrition) =>
+    new Corruptor({ seed: 4, attrition, temporalJitter: false, microtonalDrift: false }).process(long()).tracks[0].notes.length;
+
+  assert.equal(kept(0), 60, "attrition 0 should keep every note");
+  assert.ok(kept(0.5) < 60, "attrition 0.5 should remove notes");
+  assert.ok(kept(1) < kept(0.5), "attrition 1 should remove more than 0.5");
+});
+
+test("the first note is never dropped", () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const notes = new Corruptor({ seed, attrition: 1, temporalJitter: false }).process(piece()).tracks[0].notes;
+    assert.equal(notes[0].pitch, 60, `the phrase lost its first note (seed ${seed})`);
+  }
+});
+
+test("a dimension set explicitly stops following entropy", () => {
+  // Entropy at its maximum, but the pitches are told to stay put.
+  const notes = allNotes(run({ seed: 8, entropy: 1, drift: 0 }));
+  assert.equal(notes.filter((n) => n.microtuning).length, 0, "drift 0 should leave the pitches alone");
+
+  // And the reverse: entropy at rest, but the pitches drift.
+  const drifted = allNotes(run({ seed: 8, entropy: 0, drift: 1 }));
+  assert.ok(drifted.some((n) => n.microtuning), "drift 1 should detune despite entropy 0");
+});
+
+test("temporal displacement is linear in the jitter intensity", () => {
+  const spread = (jitter) => {
+    const notes = allNotes(run({ seed: 12, jitter, microtonalDrift: false, noteAttrition: false }));
+    return Math.max(...notes.map((n, i) => Math.abs(n.time - i)));
+  };
+  const half = spread(0.5);
+  const full = spread(1);
+  assert.ok(full > half, "more jitter should displace further");
+  // Linear, not squared: halving the intensity halves the displacement.
+  assert.ok(Math.abs(full / 2 - half) < 0.02, `expected ${full / 2}, got ${half}`);
+});
+
+test("a note without a velocity is left without one", () => {
+  const bare = { tempo: 120, tracks: [{ label: "lead", notes: [{ pitch: 60, duration: 1, time: 0 }, { pitch: 64, duration: 1, time: 1 }] }] };
+  const notes = new Corruptor({ seed: 2, noteAttrition: false }).process(bare).tracks[0].notes;
+  for (const note of notes) {
+    assert.equal(note.velocity, undefined, "the corruptor invented a velocity");
+  }
+});
+
 /* --- the functional form ------------------------------------------------- */
 
 test("corruptJmon corrupts in one call", () => {

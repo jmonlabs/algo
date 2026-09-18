@@ -59,7 +59,7 @@ const jm = {
   },
 
   // Keep in step with package.json; tests/utils-transforms asserts they match.
-  VERSION: "3.0.1",
+  VERSION: "3.1.0",
 };
 
 export { jm };

@@ -118,6 +118,19 @@ export class Corruptor {
       noteAttrition: options.noteAttrition !== undefined ? options.noteAttrition : true,
       velocitySag: options.velocitySag !== undefined ? options.velocitySag : true,
 
+      // Per-dimension intensities, 0 to 1. Leave one undefined and it follows
+      // `entropy`, which is how a single knob drove everything before 3.1. Set
+      // one and that dimension stops listening to entropy — so you can wreck
+      // the timing and leave the pitches alone, or the reverse.
+      drift: options.drift,
+      jitter: options.jitter,
+      attrition: options.attrition,
+      sag: options.sag,
+      // What an intensity of 1 means, in absolute terms.
+      jitterBeats: options.jitterBeats !== undefined ? options.jitterBeats : 0.25,
+      attritionMax: options.attritionMax !== undefined ? options.attritionMax : 0.4,
+      sagMax: options.sagMax !== undefined ? options.sagMax : 0.4,
+
       // Spectral Corruption
       spectralCorruption: options.spectralCorruption !== undefined ? options.spectralCorruption : false,
 
@@ -132,6 +145,18 @@ export class Corruptor {
 
     this.perlin = new PerlinNoise(this.options.seed);
     this.randomSeed = this.options.seed;
+  }
+
+  /**
+   * Intensity of one dimension: its own option when set, `entropy` otherwise.
+   * @param {string} name - 'drift', 'jitter', 'attrition' or 'sag'
+   * @param {Number} entropy - The fallback
+   * @returns {Number} 0 to 1
+   */
+  amount(name, entropy) {
+    const own = this.options[name];
+    const value = own === undefined || own === null ? entropy : own;
+    return Math.max(0, Math.min(1, value));
   }
 
   /**
@@ -200,7 +225,7 @@ export class Corruptor {
     // Generate temporal jitter sequence if enabled
     let jitterSequence = null;
     if (this.options.temporalJitter) {
-      jitterSequence = this.generateJitterSequence(corruptedTrack.notes.length, entropy);
+      jitterSequence = this.generateJitterSequence(corruptedTrack.notes.length, this.amount('jitter', entropy));
     }
 
     // Apply corruption to each note
@@ -222,16 +247,16 @@ export class Corruptor {
    * @param {Number} entropy - Entropy level
    * @returns {Array} Jitter values
    */
-  generateJitterSequence(length, entropy) {
+  generateJitterSequence(length, amount) {
     if (this.options.jitterMethod === 'brownian') {
-      const bridge = new BrownianBridge(0, 0, length, entropy * 0.5);
+      const bridge = new BrownianBridge(0, 0, length, amount * 0.5);
       return bridge.generate();
     } else {
       // Perlin noise
       const jitter = [];
       for (let i = 0; i < length; i++) {
         const noiseValue = this.perlin.noise(i * 0.1);
-        jitter.push(noiseValue * entropy);
+        jitter.push(noiseValue * amount);
       }
       return jitter;
     }
@@ -246,10 +271,13 @@ export class Corruptor {
    * @returns {Object|null} Corrupted note or null if dropped
    */
   corruptNote(note, index, entropy, jitterSequence) {
-    // Note attrition - probabilistic note removal
-    if (this.options.noteAttrition && entropy > 0.7) {
-      const dropProbability = (entropy - 0.7) * 0.5; // 0 at 0.7, 0.15 at 1.0
-      if (this.seededRandom() < dropProbability) {
+    // Note attrition - probabilistic note removal, over the whole range of the
+    // control rather than the top third of it: `attrition` 0.5 drops about a
+    // fifth of the notes. The first note is never dropped, so a phrase that is
+    // corrupted still starts where it started.
+    if (this.options.noteAttrition && index > 0) {
+      const dropProbability = this.amount('attrition', entropy) * this.options.attritionMax;
+      if (dropProbability > 0 && this.seededRandom() < dropProbability) {
         return null; // Drop this note
       }
     }
@@ -258,9 +286,11 @@ export class Corruptor {
 
     // Temporal Instability - Apply jitter to time
     if (this.options.temporalJitter && jitterSequence) {
+      // The sequence already carries the intensity, so the displacement is
+      // linear in it: `jitter` 1 reaches `jitterBeats` at the extremes of the
+      // noise. It used to be squared, which made the control unreadable.
       const jitter = jitterSequence[index] || 0;
-      const maxJitter = 0.25; // Maximum jitter of a quarter note
-      const deltaT = jitter * maxJitter * entropy;
+      const deltaT = jitter * this.options.jitterBeats;
 
       if (typeof corruptedNote.time === 'number') {
         corruptedNote.time = Math.max(0, corruptedNote.time + deltaT);
@@ -268,14 +298,14 @@ export class Corruptor {
 
       // Also add slight duration jitter
       if (typeof corruptedNote.duration === 'number') {
-        const durationJitter = this.gaussianRandom(0, 0.1 * entropy);
+        const durationJitter = this.gaussianRandom(0, 0.1 * this.amount('jitter', entropy));
         corruptedNote.duration = Math.max(0.1, corruptedNote.duration * (1 + durationJitter));
       }
     }
 
     // Harmonic Erosion - Microtonal drift
     if (this.options.microtonalDrift) {
-      const sigma = entropy * 0.5 * this.options.driftAmount; // Standard deviation
+      const sigma = this.amount('drift', entropy) * 0.5 * this.options.driftAmount; // Standard deviation
       const microtuning = this.gaussianRandom(0, sigma);
 
       if (!corruptedNote.microtuning) {
@@ -297,17 +327,19 @@ export class Corruptor {
   applyVelocitySag(notes, entropy) {
     if (notes.length === 0) return notes;
 
+    const sagAmount = this.amount('sag', entropy) * this.options.sagMax;
+
     return notes.map((note, index) => {
-      const sagAmount = entropy * 0.4; // Max 40% reduction at full entropy
+      // A note that carries no velocity is left without one: inventing a 0.8
+      // here used to overwrite "unspecified" with a value the piece never set.
+      if (note.velocity === undefined) return note;
+
       const progress = index / notes.length;
       const sagFactor = 1 - (sagAmount * progress);
 
-      const velocity = note.velocity !== undefined ? note.velocity : 0.8;
-      const saggedVelocity = Math.max(0.1, velocity * sagFactor);
-
       return {
         ...note,
-        velocity: saggedVelocity
+        velocity: Math.max(0.1, note.velocity * sagFactor)
       };
     });
   }

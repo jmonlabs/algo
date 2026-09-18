@@ -120,6 +120,13 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
 - A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
 
+## Changes in 3.1
+
+- `Corruptor` takes one intensity per dimension — `drift`, `jitter`, `attrition`, `sag`, each 0 to 1 — so the timing can be wrecked while the pitches stay put, or the reverse. Leave one undefined and it follows `entropy`, which is how the single knob behaved before.
+- Note attrition works over the whole range of its control instead of the top third: it used to be dead below `entropy` 0.7 and capped at a 15% drop. `attritionMax` sets what an intensity of 1 means (default 0.4). The first note of a track is never dropped.
+- Temporal displacement is linear in `jitter` rather than squared, and `jitterBeats` (default 0.25) says what an intensity of 1 reaches.
+- Velocity sag leaves a note that carries no `velocity` without one, instead of inventing 0.8.
+
 ## Changes in 3.0
 
 Breaking, and the compositions written against 2.x stay on the `v2.1.0` tag.
