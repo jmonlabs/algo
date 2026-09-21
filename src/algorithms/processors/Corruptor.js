@@ -145,6 +145,18 @@ export class Corruptor {
       // turning up the entropy of a piece must never start smashing it.
       // All default to 0, so a Corruptor that does not ask for them behaves
       // exactly as it did before.
+      //
+      // They COMPOUND. Each one draws against every note, so the odds of a note
+      // coming through untouched are the product: seven gestures at 0.3 leave a
+      // note an 8% chance of surviving, and what comes out is no longer the
+      // phrase you fed in — it is new material. Read the intensities as one
+      // budget rather than as seven independent knobs: four or five around 0.15
+      // keep a theme recognisable while still hitting hard. `chop` is the
+      // exception and can be pushed, since it moves neither pitch nor onset.
+      // Two of them are blunter than the rest: `wall` replaces a whole bar, so
+      // it belongs on drums more than on a short melody, and `reverse` turns the
+      // order around, which costs you the head of the phrase — the part that
+      // makes it recognisable.
 
       // Retrigger a note as a burst of fast repeats, velocity climbing.
       stutter: options.stutter || 0,

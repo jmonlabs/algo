@@ -144,6 +144,15 @@ never start smashing it. All default to 0.
 | `detune` | detune by a stated interval, a quarter tone by default (`detuneCents`) |
 | `chop` | cut a note down to a stab (`chopGrid`) |
 
+They compound: each draws against every note, so the odds of a note surviving are
+the product of the misses. Seven gestures at `0.3` leave a note an 8% chance of
+coming through, and the result is new material rather than the phrase you fed in.
+Read the intensities as one budget — four or five around `0.15` keep a theme
+recognisable while still hitting hard. `chop` is the exception and can be pushed,
+since it moves neither pitch nor onset. `wall` replaces a whole bar, so it suits
+drums more than a short melody, and `reverse` costs you the head of the phrase,
+which is the part that makes it recognisable.
+
 ## Changes in 3.1
 
 - `Corruptor` takes one intensity per dimension — `drift`, `jitter`, `attrition`, `sag`, each 0 to 1 — so the timing can be wrecked while the pitches stay put, or the reverse. Leave one undefined and it follows `entropy`, which is how the single knob behaved before.
