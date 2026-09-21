@@ -131,6 +131,47 @@ export class Corruptor {
       attritionMax: options.attritionMax !== undefined ? options.attritionMax : 0.4,
       sagMax: options.sagMax !== undefined ? options.sagMax : 0.4,
 
+      // ── The violence family ──────────────────────────────────────────
+      // The four dimensions above model WEAR: they remove notes, blur the
+      // timing and let the velocities fall away. Together they sound like a
+      // player who is missing notes and losing the tempo, because that is
+      // what wear is. They cannot sound wild, at any setting.
+      //
+      // These sound wild, and they work the opposite way: they ADD and they
+      // DECIDE. Each gesture is exact and lands on the grid — the violence
+      // comes from the precision, not from the disorder. Each is an intensity
+      // from 0 to 1, it is the odds of the gesture being applied, and none of
+      // them follows `entropy`: wear and violence are not the same axis, so
+      // turning up the entropy of a piece must never start smashing it.
+      // All default to 0, so a Corruptor that does not ask for them behaves
+      // exactly as it did before.
+
+      // Retrigger a note as a burst of fast repeats, velocity climbing.
+      stutter: options.stutter || 0,
+      stutterCount: options.stutterCount || 4,
+      stutterSubdivision: options.stutterSubdivision || 0.125,
+      // Replace a whole bar with its lowest pitch, hammered.
+      wall: options.wall || 0,
+      wallBar: options.wallBar || 4,
+      wallSubdivision: options.wallSubdivision || 0.25,
+      // Play a window backwards — a true retrograde, durations kept.
+      reverse: options.reverse || 0,
+      reverseWindow: options.reverseWindow || 4,
+      // Throw a note into another octave.
+      slam: options.slam || 0,
+      slamOctaves: options.slamOctaves || [-2, -1, 1],
+      // Push a note off the scale. `scale` is a list of pitch classes (0 = C);
+      // without one, the note simply moves by a semitone.
+      offScale: options.offScale || 0,
+      scale: options.scale || null,
+      // Detune by a stated interval, not a sprinkle: 50 cents is a quarter
+      // tone, and it is meant to be heard as wrong, unlike `drift`.
+      detune: options.detune || 0,
+      detuneCents: options.detuneCents !== undefined ? options.detuneCents : 50,
+      // Cut a note down to a stab, leaving a hole where it used to ring.
+      chop: options.chop || 0,
+      chopGrid: options.chopGrid || 0.125,
+
       // Spectral Corruption
       spectralCorruption: options.spectralCorruption !== undefined ? options.spectralCorruption : false,
 
@@ -157,6 +198,16 @@ export class Corruptor {
     const own = this.options[name];
     const value = own === undefined || own === null ? entropy : own;
     return Math.max(0, Math.min(1, value));
+  }
+
+  /**
+   * Odds of a violence gesture, 0 to 1. Unlike the wear dimensions these never
+   * fall back to `entropy` — they are off unless asked for.
+   * @param {string} name
+   * @returns {Number}
+   */
+  violence(name) {
+    return Math.max(0, Math.min(1, this.options[name] || 0));
   }
 
   /**
@@ -238,7 +289,204 @@ export class Corruptor {
       corruptedTrack.notes = this.applyVelocitySag(corruptedTrack.notes, entropy);
     }
 
+    // Then the violence, in a fixed order: restructure, then replace, then
+    // multiply, then displace, then shorten. Each is a no-op at intensity 0.
+    corruptedTrack.notes = this.applyViolence(corruptedTrack.notes);
+
     return corruptedTrack;
+  }
+
+  /**
+   * Run the violence family over one track's notes.
+   * @param {Array} notes - JMON notes
+   * @returns {Array} JMON notes, in time order
+   */
+  applyViolence(notes) {
+    if (!Array.isArray(notes) || notes.length === 0) return notes;
+
+    let out = notes;
+    out = this.applyReverse(out);
+    out = this.applyWall(out);
+    out = this.applyStutter(out);
+    out = this.applySlam(out);
+    out = this.applyOffScale(out);
+    out = this.applyDetune(out);
+    out = this.applyChop(out);
+
+    return out === notes ? out : out.sort((a, b) => (a.time || 0) - (b.time || 0));
+  }
+
+  /**
+   * Span of a note list, in beats.
+   * @param {Array} notes
+   * @returns {Number}
+   */
+  span(notes) {
+    return notes.reduce((end, n) => Math.max(end, (n.time || 0) + (n.duration || 0)), 0);
+  }
+
+  /**
+   * Play whole windows backwards. A true retrograde: the onsets mirror inside
+   * the window and the durations are kept, so the material is the same and the
+   * order of events is reversed.
+   */
+  applyReverse(notes) {
+    const amount = this.violence('reverse');
+    if (!(amount > 0)) return notes;
+
+    const width = this.options.reverseWindow;
+    const windows = Math.floor(this.span(notes) / width) + 1;
+    const flipped = [];
+    for (let i = 0; i < windows; i++) flipped.push(this.seededRandom() < amount);
+
+    return notes.map((note) => {
+      const index = Math.floor((note.time || 0) / width);
+      if (!flipped[index]) return note;
+      const start = index * width;
+      const mirrored = start + width - ((note.time || 0) - start) - (note.duration || 0);
+      return { ...note, time: Math.max(start, mirrored) };
+    });
+  }
+
+  /**
+   * Replace a bar with its lowest pitch, hammered in even strokes with the
+   * velocity climbing. The bar stops being music and becomes a hit.
+   */
+  applyWall(notes) {
+    const amount = this.violence('wall');
+    if (!(amount > 0)) return notes;
+
+    const width = this.options.wallBar;
+    const step = this.options.wallSubdivision;
+    const bars = Math.floor(this.span(notes) / width) + 1;
+    const out = [];
+
+    for (let i = 0; i < bars; i++) {
+      const start = i * width;
+      const inside = notes.filter((n) => (n.time || 0) >= start && (n.time || 0) < start + width);
+      if (inside.length === 0) continue;
+
+      const pitches = inside.map((n) => n.pitch).filter((p) => typeof p === 'number');
+      if (pitches.length === 0 || this.seededRandom() >= amount) {
+        out.push(...inside);
+        continue;
+      }
+
+      const pitch = Math.min(...pitches);
+      const peak = Math.max(...inside.map((n) => (n.velocity === undefined ? 0.8 : n.velocity)));
+      const strokes = Math.max(1, Math.round(width / step));
+      for (let k = 0; k < strokes; k++) {
+        const rise = strokes === 1 ? 1 : k / (strokes - 1);
+        out.push({
+          pitch,
+          duration: step * 0.9,
+          time: start + k * step,
+          velocity: Math.min(1, peak * (0.55 + 0.45 * rise)),
+        });
+      }
+    }
+
+    return out;
+  }
+
+  /**
+   * Retrigger a note as a burst of fast repeats, velocity climbing — the
+   * gesture that says machine rather than player.
+   */
+  applyStutter(notes) {
+    const amount = this.violence('stutter');
+    if (!(amount > 0)) return notes;
+
+    const count = Math.max(2, Math.round(this.options.stutterCount));
+    const step = this.options.stutterSubdivision;
+    const out = [];
+
+    for (const note of notes) {
+      if (typeof note.pitch !== 'number' || this.seededRandom() >= amount) {
+        out.push(note);
+        continue;
+      }
+      const base = note.velocity === undefined ? 0.8 : note.velocity;
+      for (let k = 0; k < count; k++) {
+        out.push({
+          ...note,
+          time: (note.time || 0) + k * step,
+          duration: Math.min(note.duration || step, step * 0.9),
+          velocity: Math.min(1, base * (0.5 + 0.5 * (k / (count - 1)))),
+        });
+      }
+    }
+
+    return out;
+  }
+
+  /**
+   * Throw a note into another octave, whole and exact.
+   */
+  applySlam(notes) {
+    const amount = this.violence('slam');
+    if (!(amount > 0)) return notes;
+
+    const octaves = this.options.slamOctaves;
+    return notes.map((note) => {
+      if (typeof note.pitch !== 'number' || this.seededRandom() >= amount) return note;
+      const pick = octaves[Math.floor(this.seededRandom() * octaves.length) % octaves.length];
+      const pitch = note.pitch + pick * 12;
+      return pitch >= 0 && pitch <= 127 ? { ...note, pitch } : note;
+    });
+  }
+
+  /**
+   * Push a note off the scale. With a `scale` given as pitch classes, the note
+   * moves to the nearest pitch that is not in it; without one, by a semitone.
+   */
+  applyOffScale(notes) {
+    const amount = this.violence('offScale');
+    if (!(amount > 0)) return notes;
+
+    const scale = this.options.scale;
+    const inScale = (pitch) => scale.includes(((pitch % 12) + 12) % 12);
+
+    return notes.map((note) => {
+      if (typeof note.pitch !== 'number' || this.seededRandom() >= amount) return note;
+      const order = this.seededRandom() < 0.5 ? [1, -1, 2, -2] : [-1, 1, -2, 2];
+      const candidates = order.map((step) => note.pitch + step).filter((p) => p >= 0 && p <= 127);
+      const pitch = Array.isArray(scale) && scale.length > 0
+        ? candidates.find((p) => !inScale(p))
+        : candidates[0];
+      return pitch === undefined ? note : { ...note, pitch };
+    });
+  }
+
+  /**
+   * Detune by a stated interval — a quarter tone by default. Unlike `drift`,
+   * which sprinkles a few cents everywhere, this is meant to be heard.
+   */
+  applyDetune(notes) {
+    const amount = this.violence('detune');
+    if (!(amount > 0)) return notes;
+
+    const semitones = this.options.detuneCents / 100;
+    return notes.map((note) => {
+      if (typeof note.pitch !== 'number' || this.seededRandom() >= amount) return note;
+      const direction = this.seededRandom() < 0.5 ? -1 : 1;
+      return { ...note, microtuning: (note.microtuning || 0) + direction * semitones };
+    });
+  }
+
+  /**
+   * Cut a note down to a stab, leaving a hole where it used to ring.
+   */
+  applyChop(notes) {
+    const amount = this.violence('chop');
+    if (!(amount > 0)) return notes;
+
+    const grid = this.options.chopGrid;
+    return notes.map((note) => {
+      if (this.seededRandom() >= amount) return note;
+      const duration = Math.min(note.duration || grid, grid);
+      return duration > 0 ? { ...note, duration } : note;
+    });
   }
 
   /**

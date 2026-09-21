@@ -120,6 +120,30 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
 - A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
 
+## Changes in 3.2
+
+`Corruptor` gains a second family of operations. The four it had — `drift`,
+`jitter`, `attrition`, `sag` — model **wear**: they remove notes, blur the timing
+and let the velocities fall away, which together sound like a player missing
+notes and losing the tempo. That is what wear is, and no setting of it sounds
+wild.
+
+The seven new ones are **violence**. They add and they decide, each gesture exact
+and on the grid, because that kind of aggression comes from precision rather than
+from disorder. Each is an intensity from 0 to 1, read as the odds of the gesture
+landing, and none of them follows `entropy` — turning up the wear of a piece must
+never start smashing it. All default to 0.
+
+| | |
+|---|---|
+| `stutter` | retrigger a note as a burst of fast repeats, velocity climbing (`stutterCount`, `stutterSubdivision`) |
+| `wall` | replace a bar with its lowest pitch, hammered (`wallBar`, `wallSubdivision`) |
+| `reverse` | play a window backwards — a true retrograde, durations kept (`reverseWindow`) |
+| `slam` | throw a note into another octave (`slamOctaves`) |
+| `offScale` | push a note off the scale given as pitch classes in `scale` |
+| `detune` | detune by a stated interval, a quarter tone by default (`detuneCents`) |
+| `chop` | cut a note down to a stab (`chopGrid`) |
+
 ## Changes in 3.1
 
 - `Corruptor` takes one intensity per dimension — `drift`, `jitter`, `attrition`, `sag`, each 0 to 1 — so the timing can be wrecked while the pitches stay put, or the reverse. Leave one undefined and it follows `entropy`, which is how the single knob behaved before.

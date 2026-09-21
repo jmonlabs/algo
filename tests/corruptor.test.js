@@ -189,6 +189,91 @@ test("a note without a velocity is left without one", () => {
   }
 });
 
+/* --- the violence family ------------------------------------------------- */
+
+const bar = (notes) => ({ tempo: 120, tracks: [{ label: "lead", notes }] });
+const plain = () => Array.from({ length: 8 }, (_, i) => ({ pitch: 60 + i, duration: 0.5, time: i * 0.5, velocity: 0.6 }));
+const violent = (options) => new Corruptor({ seed: 3, temporalJitter: false, microtonalDrift: false, noteAttrition: false, velocitySag: false, ...options })
+  .process(bar(plain())).tracks[0].notes;
+
+test("violence is off unless asked for, at any entropy", () => {
+  // Wear and violence are different axes: turning up entropy must never start
+  // stuttering or slamming a piece.
+  const worn = new Corruptor({ seed: 3, entropy: 1 }).process(bar(plain())).tracks[0].notes;
+  assert.ok(worn.length <= plain().length, "entropy alone should never add notes");
+});
+
+test("every violence gesture at 0 leaves the notes exactly as they were", () => {
+  const untouched = violent({ stutter: 0, wall: 0, reverse: 0, slam: 0, offScale: 0, detune: 0, chop: 0 });
+  assert.deepEqual(untouched, plain());
+});
+
+test("stutter multiplies a note into a burst with the velocity climbing", () => {
+  const notes = violent({ stutter: 1, stutterCount: 4, stutterSubdivision: 0.125 });
+  assert.equal(notes.length, plain().length * 4, "every note should become four");
+
+  const burst = notes.filter((n) => n.time < 0.5);
+  assert.equal(burst.length, 4);
+  for (let i = 1; i < burst.length; i++) {
+    assert.ok(burst[i].velocity > burst[i - 1].velocity, "the burst should climb");
+    assert.ok(Math.abs((burst[i].time - burst[i - 1].time) - 0.125) < 1e-9, "the burst should be even");
+  }
+});
+
+test("wall replaces a bar with one pitch, hammered", () => {
+  const notes = violent({ wall: 1, wallBar: 4, wallSubdivision: 0.25 });
+  assert.equal(new Set(notes.map((n) => n.pitch)).size, 1, "a wall is one pitch");
+  assert.equal(notes[0].pitch, 60, "and it is the lowest of the bar");
+  assert.equal(notes.length, 16, "four beats of sixteenths");
+});
+
+test("reverse is a true retrograde: same material, opposite order", () => {
+  const notes = violent({ reverse: 1, reverseWindow: 4 }).sort((a, b) => a.time - b.time);
+  assert.deepEqual(notes.map((n) => n.pitch), plain().map((n) => n.pitch).reverse());
+  assert.deepEqual(notes.map((n) => n.duration), plain().map((n) => n.duration));
+});
+
+test("slam moves a note by whole octaves", () => {
+  for (const note of violent({ slam: 1, slamOctaves: [-1] })) {
+    assert.ok(note.pitch < 60, `expected an octave down, got ${note.pitch}`);
+    assert.equal(note.pitch % 12, (note.pitch + 12) % 12, "the pitch class should survive");
+  }
+  const kept = violent({ slam: 1, slamOctaves: [-9] });
+  assert.deepEqual(kept, plain(), "a slam out of MIDI range leaves the note alone");
+});
+
+test("offScale lands the note outside the scale it was given", () => {
+  const aMinor = [9, 11, 0, 2, 4, 5, 7];
+  for (const note of violent({ offScale: 1, scale: aMinor })) {
+    assert.ok(!aMinor.includes(note.pitch % 12), `${note.pitch} is still in the scale`);
+  }
+});
+
+test("detune is a stated interval, not a sprinkle", () => {
+  const notes = violent({ detune: 1, detuneCents: 50 });
+  for (const note of notes) {
+    assert.equal(Math.abs(note.microtuning), 0.5, "expected a quarter tone");
+  }
+});
+
+test("chop shortens a note to a stab without moving it", () => {
+  const notes = violent({ chop: 1, chopGrid: 0.125 });
+  assert.deepEqual(notes.map((n) => n.time), plain().map((n) => n.time));
+  for (const note of notes) assert.equal(note.duration, 0.125);
+});
+
+test("the gestures combine without producing a broken note", () => {
+  const notes = violent({ stutter: 0.5, wall: 0.3, reverse: 0.5, slam: 0.4, offScale: 0.4, detune: 0.5, chop: 0.3 });
+  assert.ok(notes.length > 0);
+  for (const note of notes) {
+    assert.ok(Number.isFinite(note.time) && note.time >= 0, `bad time: ${note.time}`);
+    assert.ok(Number.isFinite(note.duration) && note.duration > 0, `bad duration: ${note.duration}`);
+    assert.ok(note.pitch >= 0 && note.pitch <= 127, `bad pitch: ${note.pitch}`);
+    assert.ok(note.velocity > 0 && note.velocity <= 1, `bad velocity: ${note.velocity}`);
+  }
+  for (let i = 1; i < notes.length; i++) assert.ok(notes[i].time >= notes[i - 1].time, "notes should come out in time order");
+});
+
 /* --- the functional form ------------------------------------------------- */
 
 test("corruptJmon corrupts in one call", () => {
