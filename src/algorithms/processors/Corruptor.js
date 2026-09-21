@@ -184,6 +184,23 @@ export class Corruptor {
       chop: options.chop || 0,
       chopGrid: options.chopGrid || 0.125,
 
+      // Which notes a gesture is allowed to touch: `{ stutter: (note) => …,
+      // slam: (note) => … }`, keyed by gesture name, each a predicate over a
+      // JMON note. A gesture with no entry may touch anything.
+      //
+      // This matters more than it looks. A gesture applies to every note in the
+      // track, and a track is usually several layers at once — a stutter that
+      // lands on a hi-hat already playing eighths returns a buzz rather than a
+      // gesture, and it lands there most of the time because the hats outnumber
+      // everything else. Aim the loud gestures at the accents:
+      //
+      //   where: { stutter: (n) => n.pitch === 38, wall: (n) => n.pitch === 36 }
+      //
+      // The span gestures read it the same way: `reverse` leaves a note it may
+      // not touch where it was, and `wall` takes its pitch from the notes it is
+      // allowed to replace and lets the others through.
+      where: options.where || null,
+
       // Spectral Corruption
       spectralCorruption: options.spectralCorruption !== undefined ? options.spectralCorruption : false,
 
@@ -220,6 +237,17 @@ export class Corruptor {
    */
   violence(name) {
     return Math.max(0, Math.min(1, this.options[name] || 0));
+  }
+
+  /**
+   * Whether a gesture may touch this note. See the `where` option.
+   * @param {string} name - Gesture name
+   * @param {Object} note - JMON note
+   * @returns {boolean}
+   */
+  allows(name, note) {
+    const test = this.options.where && this.options.where[name];
+    return typeof test === 'function' ? Boolean(test(note)) : true;
   }
 
   /**
@@ -353,7 +381,7 @@ export class Corruptor {
 
     return notes.map((note) => {
       const index = Math.floor((note.time || 0) / width);
-      if (!flipped[index]) return note;
+      if (!flipped[index] || !this.allows('reverse', note)) return note;
       const start = index * width;
       const mirrored = start + width - ((note.time || 0) - start) - (note.duration || 0);
       return { ...note, time: Math.max(start, mirrored) };
@@ -378,14 +406,17 @@ export class Corruptor {
       const inside = notes.filter((n) => (n.time || 0) >= start && (n.time || 0) < start + width);
       if (inside.length === 0) continue;
 
-      const pitches = inside.map((n) => n.pitch).filter((p) => typeof p === 'number');
+      const mine = inside.filter((n) => this.allows('wall', n));
+      const spared = inside.filter((n) => !this.allows('wall', n));
+      const pitches = mine.map((n) => n.pitch).filter((p) => typeof p === 'number');
       if (pitches.length === 0 || this.seededRandom() >= amount) {
         out.push(...inside);
         continue;
       }
 
+      out.push(...spared);
       const pitch = Math.min(...pitches);
-      const peak = Math.max(...inside.map((n) => (n.velocity === undefined ? 0.8 : n.velocity)));
+      const peak = Math.max(...mine.map((n) => (n.velocity === undefined ? 0.8 : n.velocity)));
       const strokes = Math.max(1, Math.round(width / step));
       for (let k = 0; k < strokes; k++) {
         const rise = strokes === 1 ? 1 : k / (strokes - 1);
@@ -414,7 +445,7 @@ export class Corruptor {
     const out = [];
 
     for (const note of notes) {
-      if (typeof note.pitch !== 'number' || this.seededRandom() >= amount) {
+      if (typeof note.pitch !== 'number' || !this.allows('stutter', note) || this.seededRandom() >= amount) {
         out.push(note);
         continue;
       }
@@ -441,7 +472,7 @@ export class Corruptor {
 
     const octaves = this.options.slamOctaves;
     return notes.map((note) => {
-      if (typeof note.pitch !== 'number' || this.seededRandom() >= amount) return note;
+      if (typeof note.pitch !== 'number' || !this.allows('slam', note) || this.seededRandom() >= amount) return note;
       const pick = octaves[Math.floor(this.seededRandom() * octaves.length) % octaves.length];
       const pitch = note.pitch + pick * 12;
       return pitch >= 0 && pitch <= 127 ? { ...note, pitch } : note;
@@ -460,7 +491,7 @@ export class Corruptor {
     const inScale = (pitch) => scale.includes(((pitch % 12) + 12) % 12);
 
     return notes.map((note) => {
-      if (typeof note.pitch !== 'number' || this.seededRandom() >= amount) return note;
+      if (typeof note.pitch !== 'number' || !this.allows('offScale', note) || this.seededRandom() >= amount) return note;
       const order = this.seededRandom() < 0.5 ? [1, -1, 2, -2] : [-1, 1, -2, 2];
       const candidates = order.map((step) => note.pitch + step).filter((p) => p >= 0 && p <= 127);
       const pitch = Array.isArray(scale) && scale.length > 0
@@ -480,7 +511,7 @@ export class Corruptor {
 
     const semitones = this.options.detuneCents / 100;
     return notes.map((note) => {
-      if (typeof note.pitch !== 'number' || this.seededRandom() >= amount) return note;
+      if (typeof note.pitch !== 'number' || !this.allows('detune', note) || this.seededRandom() >= amount) return note;
       const direction = this.seededRandom() < 0.5 ? -1 : 1;
       return { ...note, microtuning: (note.microtuning || 0) + direction * semitones };
     });
@@ -495,7 +526,7 @@ export class Corruptor {
 
     const grid = this.options.chopGrid;
     return notes.map((note) => {
-      if (this.seededRandom() >= amount) return note;
+      if (!this.allows('chop', note) || this.seededRandom() >= amount) return note;
       const duration = Math.min(note.duration || grid, grid);
       return duration > 0 ? { ...note, duration } : note;
     });

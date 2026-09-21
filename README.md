@@ -120,6 +120,26 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
 - A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
 
+## Changes in 3.3
+
+`Corruptor` takes a `where` option: `{ stutter: (note) => …, slam: (note) => … }`,
+keyed by gesture name, each a predicate saying which notes that gesture may
+touch. A gesture with no entry may touch anything.
+
+It matters more than it looks. A gesture applies to every note in the track, and
+a track is usually several layers at once — a stutter that lands on a hi-hat
+already playing eighths returns a buzz rather than a gesture, and it lands there
+most of the time because the hats outnumber everything else. Aim the loud
+gestures at the accents:
+
+```js
+where: { stutter: (n) => n.pitch === 38, wall: (n) => n.pitch === 36 }
+```
+
+The span gestures read it the same way: `reverse` leaves a note it may not touch
+where it was, and `wall` takes its pitch from the notes it is allowed to replace
+and lets the others through.
+
 ## Changes in 3.2
 
 `Corruptor` gains a second family of operations. The four it had — `drift`,

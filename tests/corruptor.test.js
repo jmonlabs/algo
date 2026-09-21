@@ -274,6 +274,44 @@ test("the gestures combine without producing a broken note", () => {
   for (let i = 1; i < notes.length; i++) assert.ok(notes[i].time >= notes[i - 1].time, "notes should come out in time order");
 });
 
+test("`where` aims a gesture at chosen notes and spares the rest", () => {
+  // A track is layers at once. A stutter that lands on the hi-hats, which
+  // outnumber everything, returns a buzz instead of a gesture.
+  const kit = () => [
+    { pitch: 38, duration: 0.25, time: 0, velocity: 0.8 },
+    { pitch: 42, duration: 0.25, time: 0.5, velocity: 0.3 },
+    { pitch: 38, duration: 0.25, time: 1, velocity: 0.8 },
+    { pitch: 42, duration: 0.25, time: 1.5, velocity: 0.3 },
+  ];
+  const notes = new Corruptor({
+    seed: 5, temporalJitter: false, microtonalDrift: false, noteAttrition: false, velocitySag: false,
+    stutter: 1, stutterCount: 3, stutterSubdivision: 0.0625,
+    where: { stutter: (n) => n.pitch === 38 },
+  }).process({ tempo: 120, tracks: [{ label: "kit", notes: kit() }] }).tracks[0].notes;
+
+  assert.equal(notes.filter((n) => n.pitch === 38).length, 6, "both snares should burst into three");
+  assert.equal(notes.filter((n) => n.pitch === 42).length, 2, "the hats should be untouched");
+  assert.deepEqual(notes.filter((n) => n.pitch === 42).map((n) => n.time), [0.5, 1.5]);
+});
+
+test("`where` also governs the span gestures", () => {
+  const notes = [
+    { pitch: 36, duration: 0.5, time: 0, velocity: 0.8 },
+    { pitch: 42, duration: 0.5, time: 1, velocity: 0.3 },
+    { pitch: 36, duration: 0.5, time: 2, velocity: 0.8 },
+  ];
+  const walled = new Corruptor({
+    seed: 5, temporalJitter: false, microtonalDrift: false, noteAttrition: false, velocitySag: false,
+    wall: 1, wallBar: 4, wallSubdivision: 1,
+    where: { wall: (n) => n.pitch === 36 },
+  }).process({ tempo: 120, tracks: [{ label: "kit", notes }] }).tracks[0].notes;
+
+  const hats = walled.filter((n) => n.pitch === 42);
+  assert.equal(hats.length, 1, "the hat should survive the wall");
+  assert.equal(hats[0].time, 1, "and stay where it was");
+  assert.equal(walled.filter((n) => n.pitch === 36).length, 4, "the wall is built from the kicks");
+});
+
 /* --- the functional form ------------------------------------------------- */
 
 test("corruptJmon corrupts in one call", () => {
