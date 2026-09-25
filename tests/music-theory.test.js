@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { Scale } from "../src/algorithms/theory/harmony/Scale.js";
+import { Key } from "../src/algorithms/theory/harmony/Key.js";
 import { Progression } from "../src/algorithms/theory/harmony/Progression.js";
 import { Voice } from "../src/algorithms/theory/harmony/Voice.js";
 import { Ornament } from "../src/algorithms/theory/harmony/Ornament.js";
@@ -490,4 +491,79 @@ test("euclid handles the degenerate densities", () => {
   assert.throws(() => euclid({ steps: 4, pulses: 5 }), /cannot exceed/);
   assert.throws(() => euclid({ steps: 0, pulses: 0 }), /positive integer/);
   assert.throws(() => euclid({ steps: 8, pulses: 3, subdivision: 0 }), /subdivision/);
+});
+
+// ─── nrtWalk and inKey ──────────────────────────────────────────────────
+
+const pc = (triad) => new Set(triad.map((p) => ((p % 12) + 12) % 12));
+const spelled = (triad) => [...pc(triad)].sort((a, b) => a - b).join(" ");
+
+test("nrtWalk takes its seed positionally, like generate", () => {
+  const pg = new Progression({ tonic: "C", mode: "minor" });
+  assert.deepEqual(pg.nrtWalk(4, 42), pg.nrtWalk(4, 42, {}), "the bag is optional");
+  assert.deepEqual(pg.nrtWalk(4, { seed: 42 }), pg.nrtWalk(4, 42), "the old shape still works");
+  assert.deepEqual(pg.nrtWalk(4, 42), pg.nrtWalk(4, 42), "a seed is reproducible");
+  assert.notDeepEqual(pg.nrtWalk(4, 42), pg.nrtWalk(4, 43), "different seeds differ");
+});
+
+test("nrtWalk and smooth agree with their own old call shapes", () => {
+  const pg = new Progression({ tonic: "C", mode: "minor" });
+  assert.deepEqual(pg.smooth(4, 7), pg.smooth(4, { seed: 7 }));
+  assert.deepEqual(pg.smooth(4, 7, { maxVoiceLeading: 2 }), pg.smooth(4, { seed: 7, maxVoiceLeading: 2 }));
+});
+
+test("every nrtWalk step is a real NRT move, whatever the length", () => {
+  // P, L and R each keep two of three notes, so a walk built from them only
+  // ever shares two. This is the property that makes it a walk and not a
+  // second `generate`.
+  const pg = new Progression({ tonic: "D", mode: "minor" });
+  const prog = pg.nrtWalk(10, 3);
+  for (let i = 1; i < prog.length; i++) {
+    const shared = [...pc(prog[i - 1])].filter((p) => pc(prog[i]).has(p)).length;
+    assert.ok(shared >= 2, `chord ${i} (${spelled(prog[i])}) shares only ${shared} note(s)`);
+  }
+});
+
+test("pitchClasses is the key, tonic first, from either door", () => {
+  const pg = new Progression({ tonic: "D", mode: "minor" });
+  assert.deepEqual(pg.pitchClasses(), [2, 4, 5, 7, 9, 10, 0]);
+  assert.deepEqual(new Key({ tonic: "C", mode: "major" }).pitchClasses(), [0, 2, 4, 5, 7, 9, 11]);
+  assert.deepEqual(
+    new Key({ tonic: "D", mode: "minor" }).pitchClasses(),
+    pg.pitchClasses(),
+    "Key and Progression must not disagree about the same key",
+  );
+});
+
+test("inKey keeps a walk in the key it is given, and stays reproducible", () => {
+  const pg = new Progression({ tonic: "D", mode: "minor" });
+  const inKey = pg.pitchClasses();
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const prog = pg.nrtWalk(8, seed, { inKey: true });
+    assert.equal(prog.length, 8, "a constrained walk is still the length asked for");
+    for (const chord of prog) {
+      for (const p of pc(chord)) {
+        assert.ok(inKey.includes(p), `${spelled(chord)} leaves D minor`);
+      }
+    }
+  }
+  assert.deepEqual(pg.nrtWalk(8, 3, { inKey: true }), pg.nrtWalk(8, 3, { inKey: true }));
+});
+
+test("inKey takes an explicit set as well as true", () => {
+  const pg = new Progression({ tonic: "D", mode: "minor" });
+  // D dorian, borrowed on purpose: the tonic triad is in it, so the walk can run.
+  const dorian = [2, 4, 5, 7, 9, 11, 0];
+  for (const chord of pg.nrtWalk(6, 1, { inKey: dorian })) {
+    for (const p of pc(chord)) assert.ok(dorian.includes(p), `${spelled(chord)} leaves D dorian`);
+  }
+  // A set that excludes the starting chord is a contradiction, not a shrug.
+  assert.throws(() => pg.nrtWalk(4, 1, { inKey: [0, 2, 4, 7, 9] }), /excludes the starting chord/);
+});
+
+test("without inKey, a long walk does leave the key", () => {
+  // The reason inKey exists: nothing else stops this.
+  const pg = new Progression({ tonic: "D", mode: "minor" });
+  const outside = pg.nrtWalk(8, 1).filter((c) => [...pc(c)].some((p) => !pg.pitchClasses().includes(p)));
+  assert.ok(outside.length > 0, "the unconstrained walk is expected to drift; update the seed if not");
 });

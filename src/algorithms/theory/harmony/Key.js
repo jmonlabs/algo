@@ -56,6 +56,21 @@ export class Key {
     progression(options = {}) { return new Progression(this._opts(options)); }
 
     /**
+     * The pitch classes of this key, tonic first — the same answer
+     * `Progression.pitchClasses()` gives, from the same source.
+     *
+     * Use it to test or constrain without building a harmony object: an
+     * `inKey` set, a filter, a membership check.
+     *
+     * @returns {Array<number>} Pitch classes 0-11, in scale order.
+     *
+     * @example
+     * k.pitchClasses();  // C major -> [0, 2, 4, 5, 7, 9, 11]
+     * k.progression().nrtWalk(6, 3, { inKey: k.pitchClasses() });
+     */
+    pitchClasses() { return new Progression(this._opts()).pitchClasses(); }
+
+    /**
      * Build a chord on a single pitch — wraps `chordify`.
      * @returns {Array<number>}
      */

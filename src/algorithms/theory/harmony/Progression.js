@@ -55,6 +55,28 @@ export class Progression extends MusicTheoryConstants {
     }
 
     /**
+     * The pitch classes of this progression's own key, tonic first.
+     *
+     * One place that answers "what notes belong to this key", so callers that
+     * want to test or constrain against it do not each rebuild it from
+     * `tonicMidi` and `mode`.
+     *
+     * @returns {Array<number>} Pitch classes 0-11, in scale order.
+     *
+     * @example
+     * new Progression({ tonic: 'D', mode: 'minor' }).pitchClasses();
+     * // [2, 4, 5, 7, 9, 10, 0] — D E F G A Bb C
+     */
+    pitchClasses() {
+        const { scaleIntervals } = MusicTheoryConstants;
+        const intervals = scaleIntervals[this.mode];
+        if (!intervals) {
+            throw new Error(`Progression: unknown mode "${this.mode}"`);
+        }
+        return intervals.map(i => ((this.tonicMidi + i) % 12 + 12) % 12);
+    }
+
+    /**
      * Compute chords based on the circle of fifths, thirds, etc., within the specified radius
      * @returns {Object} Object containing major, minor, and diminished chord roots
      */
@@ -291,8 +313,10 @@ export class Progression extends MusicTheoryConstants {
      * `tonic` is just the starting root.
      *
      * @param {number} length - Number of chords
+     * @param {number|null} [seed=null] - RNG seed (deterministic). Positional,
+     *   like `generate(length, seed)` and `nrtWalk(length, seed)`.
+     *   `options.seed` is still read, and wins when both are given.
      * @param {Object} [options]
-     * @param {number} [options.seed=0] - RNG seed (deterministic)
      * @param {number} [options.maxVoiceLeading=4] - Max sum of |voice
      *   movements| in semitones between consecutive chords. Smaller = smoother
      *   / less harmonic motion.
@@ -315,7 +339,7 @@ export class Progression extends MusicTheoryConstants {
      * prog.smooth(4, { seed: 42, maxVoiceLeading: 4, bassRange: 3 });
      * // Severance-flavoured walk; identical output for identical seed.
      */
-    smooth(length, options = {}) {
+    smooth(length, seed = null, options = {}) {
         const QUALITY_INTERVALS = {
             major: [0, 4, 7],
             minor: [0, 3, 7],
@@ -324,13 +348,18 @@ export class Progression extends MusicTheoryConstants {
         };
         const MINOR_FAMILY = new Set(['minor', 'phrygian', 'aeolian', 'locrian', 'dorian']);
 
+        if (typeof seed === 'object' && seed !== null) {
+            // smooth(4, { ... }) — the pre-3.5 call shape.
+            options = seed;
+            seed = options.seed ?? null;
+        }
         const {
-            seed = 0,
             maxVoiceLeading = 4,
             qualities = ['major', 'minor'],
             startQuality = MINOR_FAMILY.has(this.mode) ? 'minor' : 'major',
             bassRange = null,
         } = options;
+        const usedSeed = options.seed ?? seed ?? 0;
 
         if (!QUALITY_INTERVALS[startQuality]) {
             throw new Error(`Unknown startQuality: ${startQuality}`);
@@ -338,7 +367,7 @@ export class Progression extends MusicTheoryConstants {
 
         const startTriad = QUALITY_INTERVALS[startQuality].map(i => this.tonicMidi + i);
         const startBass = Math.min(...startTriad);
-        const rng = Progression._mulberry32(seed);
+        const rng = Progression._mulberry32(usedSeed);
 
         const progression = [startTriad];
         let prev = startTriad;
@@ -441,6 +470,10 @@ export class Progression extends MusicTheoryConstants {
     // H=LPL are commonly-used compounds, hardcoded here for clarity.
 
     static _MINOR_FAMILY = new Set(['minor', 'phrygian', 'aeolian', 'locrian', 'dorian']);
+    // How many redraws `nrtWalk` takes per chord when `inKey` rejects a move
+    // before letting the chord repeat. Any vocabulary reaches any key in a
+    // handful of tries; the budget only bounds the pathological case.
+    static _INKEY_TRIES = 24;
     static _QUALITY_INTERVALS = {
         major: [0, 4, 7],
         minor: [0, 3, 7],
@@ -624,12 +657,22 @@ export class Progression extends MusicTheoryConstants {
      * the walk leave it.
      *
      * @param {number} length - Number of chords (including start)
+     * @param {number|null} [seed=null] - RNG seed (deterministic). Positional,
+     *   like `generate(length, seed)`. `options.seed` is still read, and wins
+     *   when both are given.
      * @param {Object} [options]
-     * @param {number} [options.seed=0] - RNG seed (deterministic)
      * @param {Array<string>} [options.vocabulary=['P','L','R']] - Allowed
      *   operators. Each entry may be a primitive ('P') or a chain ('RPR').
      * @param {Object<string, number>} [options.weights] - Map of op → weight.
      *   Ops not in the map get weight 1.
+     * @param {boolean|Array<number>} [options.inKey=false] - Keep every chord
+     *   inside a set of pitch classes: `true` for this progression's own key
+     *   (see `pitchClasses()`), or an array for a mode, a borrowed scale or any
+     *   other set. A move that would land outside is redrawn, so the walk keeps
+     *   its voice leading and its key at the same time — the one thing
+     *   `generate` and `smooth` cannot do between them. Throws if the starting
+     *   chord is already outside the set; mid-walk, a chord with no way out
+     *   repeats rather than throwing, since a pause still honours the key.
      * @param {'closest'|'root'|'random'} [options.shape='closest']
      * @param {{center:number, range:number}} [options.octaveBounds]
      * @param {string} [options.startQuality]
@@ -637,25 +680,56 @@ export class Progression extends MusicTheoryConstants {
      *
      * @example
      * // Severance-flavoured walk in a vocabulary rich in P, L, R:
-     * new Progression({ tonic: 'C', mode: 'minor' }).nrtWalk(4, {
-     *   seed: 42,
+     * new Progression({ tonic: 'C', mode: 'minor' }).nrtWalk(4, 42, {
      *   vocabulary: ['P', 'L', 'R', 'PL', 'LR'],
      *   octaveBounds: { center: 62, range: 12 },
      * });
+     *
+     * @example
+     * // A walk that flows by thirds and sixths but never leaves D minor:
+     * new Progression({ tonic: 'D', mode: 'minor' }).nrtWalk(8, 3, {
+     *   inKey: true,
+     * });
      */
-    nrtWalk(length, options = {}) {
+    nrtWalk(length, seed = null, options = {}) {
+        if (typeof seed === 'object' && seed !== null) {
+            // nrtWalk(4, { ... }) — the pre-3.5 call shape.
+            options = seed;
+            seed = options.seed ?? null;
+        }
         const {
-            seed = 0,
             vocabulary = ['P', 'L', 'R'],
             weights = null,
             shape = 'closest',
             octaveBounds = null,
             startQuality = Progression._MINOR_FAMILY.has(this.mode) ? 'minor' : 'major',
+            inKey = false,
         } = options;
+        const usedSeed = options.seed ?? seed ?? 0;
 
-        const rng = Progression._mulberry32(seed);
+        const rng = Progression._mulberry32(usedSeed);
         const w = vocabulary.map(v => (weights && weights[v] !== undefined ? weights[v] : 1));
         const totalW = w.reduce((s, x) => s + x, 0);
+
+        /** Draw one vocabulary entry, by weight. */
+        const drawOp = () => {
+            let r = rng() * totalW;
+            for (let i = 0; i < w.length - 1; i++) {
+                r -= w[i];
+                if (r <= 0) return vocabulary[i];
+            }
+            return vocabulary[vocabulary.length - 1];
+        };
+
+        const allowed = inKey === true
+            ? this.pitchClasses()
+            : (Array.isArray(inKey) ? inKey.map(p => ((p % 12) + 12) % 12) : null);
+        const fits = (candidate) => {
+            if (!allowed) return true;
+            const pcs = Progression._QUALITY_INTERVALS[candidate.quality]
+                .map(i => (candidate.root + i) % 12);
+            return pcs.every(p => allowed.includes(p));
+        };
 
         const startIntervals = Progression._QUALITY_INTERVALS[startQuality];
         const startPc = ((this.tonicMidi % 12) + 12) % 12;
@@ -663,16 +737,27 @@ export class Progression extends MusicTheoryConstants {
         let prev = startIntervals.map(i => this.tonicMidi + i);
         const progression = [prev];
 
+        if (allowed && !fits(state)) {
+            throw new Error(
+                `nrtWalk: inKey excludes the starting chord (${prev.join(', ')}). ` +
+                `Pass a set the tonic triad belongs to, or drop inKey.`
+            );
+        }
+
         for (let n = 1; n < length; n++) {
-            let r = rng() * totalW;
-            let pick = 0;
-            for (; pick < w.length - 1; pick++) {
-                r -= w[pick];
-                if (r <= 0) break;
+            // With inKey, a move that leaves the set is redrawn rather than
+            // taken. The budget bounds the retries; running out repeats the
+            // chord, which keeps the walk in the key and lets the phrase breathe.
+            let candidate = null;
+            for (let tries = 0; tries < Progression._INKEY_TRIES; tries++) {
+                candidate = Progression._composeNrt(state, Progression._parseCompound(drawOp()));
+                if (fits(candidate)) break;
             }
-            const opSpec = vocabulary[pick];
-            const primitives = Progression._parseCompound(opSpec);
-            state = Progression._composeNrt(state, primitives);
+            if (!fits(candidate)) {
+                progression.push(prev);
+                continue;
+            }
+            state = candidate;
             let realization = Progression._realizeState(prev, state, shape, rng);
             realization = Progression._constrainOctave(realization, octaveBounds);
             progression.push(realization);
