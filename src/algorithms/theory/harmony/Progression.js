@@ -578,7 +578,7 @@ export class Progression extends MusicTheoryConstants {
         } = options;
 
         if (shape === 'random') {
-            throw new Error(`shape: 'random' is only available in transformWalk() (needs a seed)`);
+            throw new Error(`shape: 'random' is only available in nrtWalk() (needs a seed)`);
         }
 
         const startIntervals = Progression._QUALITY_INTERVALS[startQuality];
@@ -600,15 +600,34 @@ export class Progression extends MusicTheoryConstants {
     }
 
     /**
-     * Random walk through a vocabulary of neo-Riemannian transformations.
+     * Random walk over a vocabulary of neo-Riemannian transformations.
      * Like `smooth()` but constrained to a specific NRT vocabulary instead of
-     * "any chord within VL distance N".
+     * "any chord within VL distance N". One entry of `vocabulary` is drawn per
+     * chord, so the seed only chooses among the results the vocabulary allows.
+     *
+     * A vocabulary entry is one move, written as a string of operator letters.
+     * `P`, `L` and `R` are the primitives (Parallel, Leading-tone exchange,
+     * Relative); each keeps two of the chord's three notes, so the voice
+     * leading stays smooth. `N`, `S` and `H` are the standard compounds, and a
+     * longer string chains them: `'RPR'` is R then P then R, and lands on a
+     * chord sharing no note with the one it started from. From C major:
+     *
+     *     P    C E G → C Eb G     2 notes kept
+     *     L    C E G → E G B     2
+     *     R    C E G → C E A     2
+     *     N    C E G → C F Ab    1
+     *     S    C E G → C# E Ab   1
+     *     H    C E G → Eb Ab B   0
+     *
+     * The default `['P', 'L', 'R']` is the tame walk, which tends to stay near
+     * the key. Widen it with `N`, `S`, `H` or the note-free compounds to hear
+     * the walk leave it.
      *
      * @param {number} length - Number of chords (including start)
      * @param {Object} [options]
      * @param {number} [options.seed=0] - RNG seed (deterministic)
      * @param {Array<string>} [options.vocabulary=['P','L','R']] - Allowed
-     *   operators. Each entry may be a primitive ('P') or compound ('PL').
+     *   operators. Each entry may be a primitive ('P') or a chain ('RPR').
      * @param {Object<string, number>} [options.weights] - Map of op → weight.
      *   Ops not in the map get weight 1.
      * @param {'closest'|'root'|'random'} [options.shape='closest']
@@ -618,13 +637,13 @@ export class Progression extends MusicTheoryConstants {
      *
      * @example
      * // Severance-flavoured walk in a vocabulary rich in P, L, R:
-     * new Progression({ tonic: 'C', mode: 'minor' }).transformWalk(4, {
+     * new Progression({ tonic: 'C', mode: 'minor' }).nrtWalk(4, {
      *   seed: 42,
      *   vocabulary: ['P', 'L', 'R', 'PL', 'LR'],
      *   octaveBounds: { center: 62, range: 12 },
      * });
      */
-    transformWalk(length, options = {}) {
+    nrtWalk(length, options = {}) {
         const {
             seed = 0,
             vocabulary = ['P', 'L', 'R'],
