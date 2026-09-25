@@ -10,6 +10,10 @@ import assert from "node:assert/strict";
 
 import { Profile, presets, RHYTHM_CODE_23 } from "../src/algorithms/theory/profile/index.js";
 import { clave, clavePattern, metricStrengths } from "../src/algorithms/theory/rhythm/clave.js";
+import { euclid, euclidPattern } from "../src/algorithms/theory/rhythm/euclid.js";
+import { onsets, fromOnsets, draw } from "../src/algorithms/theory/rhythm/pattern.js";
+import { isorhythm } from "../src/algorithms/theory/rhythm/isorhythm.js";
+import { at, lcm, gcd } from "../src/utils/jmon-utils.js";
 import * as R from "../src/algorithms/analysis/RhythmCode.js";
 import * as S from "../src/algorithms/analysis/salience.js";
 import { groove, anticipate, applySteps } from "../src/algorithms/processors/Groove.js";
@@ -211,4 +215,76 @@ test("rhythm tools are reachable from jm", () => {
   assert.equal(typeof jm.theory.rhythm.clave, "function");
   assert.equal(typeof jm.analysis.rhythm.analyzeRhythm, "function");
   assert.equal(typeof jm.processors.groove, "function");
+});
+
+// ─── pattern ↔ notes ────────────────────────────────────────────────────
+
+test("onsets reads a grid back off notes", () => {
+  const notes = euclid({ steps: 8, pulses: 3, subdivision: 0.5, pitches: 36 });
+  assert.deepEqual(onsets(notes, { subdivision: 0.5, beats: 4 }), [true, false, false, true, false, false, true, false]);
+});
+
+test("fromOnsets is the inverse of onsets", () => {
+  const pattern = [true, false, true, false, false, true, false, false];
+  const notes = fromOnsets(pattern, { pitches: 60, subdivision: 0.5 });
+  assert.deepEqual(onsets(notes, { subdivision: 0.5, beats: 4 }), pattern.map(Boolean));
+});
+
+test("draw reads a rhythm faster than reading the notes", () => {
+  const notes = euclid({ steps: 8, pulses: 5, subdivision: 0.5 });
+  assert.equal(draw(notes, { subdivision: 0.5, beats: 4 }), "x.x.xx.x");
+  assert.equal(draw("x..x..x."), "x..x..x.");
+  assert.equal(draw([1, 0, 0, 1], { on: "X", off: "-" }), "X--X");
+});
+
+test("fromOnsets takes a typed pattern, so a rhythm can be written as text", () => {
+  const typed = fromOnsets("x..x..x.", { pitches: 36, subdivision: 0.5 });
+  const generated = euclid({ steps: 8, pulses: 3, subdivision: 0.5, pitches: 36 });
+  assert.deepEqual(typed, generated, "a typed tresillo is the tresillo");
+});
+
+test("a chord counts once, and a rest shows where it sits", () => {
+  const chord = [{ pitch: [60, 64, 67], duration: 1, time: 0 }, { pitch: [62, 65], duration: 1, time: 2 }];
+  assert.deepEqual(onsets(chord, { subdivision: 0.5, beats: 4 }), [true, false, false, false, true, false, false, false]);
+  const withRest = [{ pitch: 60, duration: 1, time: 0 }, { pitch: null, duration: 1, time: 2 }];
+  assert.deepEqual(
+    onsets(withRest, { subdivision: 0.5, beats: 4 }),
+    [true, false, false, false, true, false, false, false],
+    "a rest is an event in the timeline, so it is drawn where it sits",
+  );
+});
+
+test("a cyclic window is what makes two lengths comparable", () => {
+  // A 3-step pattern and an 8-step pattern, in one grid of 24.
+  const three = fromOnsets(euclidPattern(3, 2), { pitches: 60, subdivision: 0.5, repeat: 8 });
+  const eight = fromOnsets(euclidPattern(8, 5), { pitches: 60, subdivision: 0.5, repeat: 3 });
+  assert.equal(onsets(three, { subdivision: 0.5, beats: 12, cyclic: true }).length, 24);
+  assert.equal(onsets(eight, { subdivision: 0.5, beats: 12, cyclic: true }).length, 24);
+});
+
+test("lcm is when two cycles line up again", () => {
+  assert.equal(lcm(7, 8), 56);
+  assert.equal(lcm(4, 6), 12);
+  assert.equal(lcm(5, 5), 5);
+  assert.equal(gcd(7, 8), 1);
+  // isorhythm returns exactly this many notes before its series realign
+  assert.equal(isorhythm({ pitches: [1, 2, 3, 4, 5], durations: [1, 2, 3, 4] }).length, lcm(5, 4));
+});
+
+test("at places a phrase without touching what it does not say", () => {
+  const notes = [{ pitch: 60, duration: 1, time: 0, velocity: 0.9 }];
+  assert.deepEqual(at(notes, 16, {}), [{ pitch: 60, duration: 1, time: 16, velocity: 0.9 }]);
+  assert.deepEqual(at(notes, 16, { velocity: 0.3 })[0].velocity, 0.3);
+  assert.deepEqual(at(notes, 0, { octave: 1 })[0].pitch, 72);
+  assert.deepEqual(at(notes, 0, { octave: -1 })[0].pitch, 48);
+  // a chord moves as a chord
+  assert.deepEqual(at([{ pitch: [60, 64], duration: 1, time: 0 }], 0, { octave: 1 })[0].pitch, [72, 76]);
+  // a rest stays a rest
+  assert.equal(at([{ pitch: null, duration: 1, time: 0 }], 4, { octave: 2 })[0].pitch, null);
+});
+
+test("at and draw refuse nonsense loudly", () => {
+  assert.throws(() => onsets([], { subdivision: 0 }), /subdivision/);
+  assert.throws(() => fromOnsets("x", { subdivision: -1 }), /subdivision/);
+  assert.throws(() => fromOnsets("x", { pitches: [] }), /empty array/);
 });

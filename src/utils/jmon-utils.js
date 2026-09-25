@@ -211,6 +211,85 @@ export function chordTrack(progression, { duration = 4, start = 0, velocity = 0.
 }
 
 /**
+ * Greatest common divisor of two whole numbers.
+ *
+ * Exported because it is half of a question that comes up whenever two
+ * repeating patterns are stacked: the pair realigns after their least common
+ * multiple, and `lcm` is built on this.
+ *
+ * @param {number} a
+ * @param {number} b
+ * @returns {number}
+ *
+ * @example
+ * gcd(7, 8); // 1
+ */
+export function gcd(a, b) {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+/**
+ * Least common multiple of two whole numbers: when two cycles line up again.
+ *
+ * Two patterns of 7 and 8 steps repeat together every 56. This is the number
+ * a polymeter is measured in, and `isorhythm` returns exactly this many notes
+ * before its two series realign.
+ *
+ * @param {number} a
+ * @param {number} b
+ * @returns {number}
+ *
+ * @example
+ * lcm(7, 8); // 56
+ */
+export function lcm(a, b) {
+  if (a === 0 || b === 0) return 0;
+  return Math.abs(a * b) / gcd(a, b);
+}
+
+/**
+ * Place a phrase on the timeline.
+ *
+ * Times are absolute in JMON, so material from separate cells has to be moved
+ * before it can be assembled into a piece. This is that move, plus the two
+ * changes that almost always accompany it: an octave and a velocity. Doing all
+ * three in one call keeps a call site from reading `shiftTime(notes, 48)`.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {number} start - Time of the phrase's first note, in beats
+ * @param {Object} [options]
+ * @param {number} [options.octave=0] - Shift by octaves, positive or negative
+ * @param {number} [options.velocity] - Set the velocity of every note; omit to
+ *   leave each note's own alone
+ * @returns {Array} The notes, moved
+ *
+ * @example
+ * at(MELODY, 16, { velocity: 0.85 });
+ * at(TEXTURE, 76, { octave: 1 });
+ */
+export function at(notes, start, { octave = 0, velocity } = {}) {
+  const shift = octave * 12;
+  return notes.map(note => {
+    const current = typeof note.time === 'number' ? note.time : timeToBeats(note.time);
+    const moved = {
+      ...note,
+      time: typeof note.time === 'number' ? current + start : beatsToTime(current + start),
+    };
+    if (shift) {
+      moved.pitch = Array.isArray(moved.pitch)
+        ? moved.pitch.map(p => p + shift)
+        : typeof moved.pitch === 'number'
+        ? moved.pitch + shift
+        : moved.pitch;
+    }
+    if (velocity !== undefined) moved.velocity = velocity;
+    return moved;
+  });
+}
+
+/**
  * Shift all notes in a sequence by a given time
  * @param {Array} notes - JMON notes
  * @param {number} timeShift - Time shift in beats

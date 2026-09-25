@@ -1,4 +1,4 @@
-import { beatsToTime } from '../../../utils/jmon-utils.js';
+import { fromOnsets } from './pattern.js';
 
 /**
  * Distribute `pulses` onsets as evenly as possible over `steps` slots —
@@ -92,28 +92,11 @@ export function euclid({
         throw new Error('euclid: subdivision must be a positive number of quarter notes');
     }
 
-    const pattern = euclidPattern(steps, pulses, rotation);
-    const pitchList = Array.isArray(pitches) ? pitches : [pitches];
-    const velocityList = Array.isArray(velocities) ? velocities : [velocities];
-    if (pitchList.length === 0) throw new Error('euclid: pitches cannot be an empty array');
-    if (velocityList.length === 0) throw new Error('euclid: velocities cannot be an empty array');
-
-    const noteDuration = typeof duration === 'number' && duration > 0
-        ? duration
-        : subdivision * 0.8;
-
-    const notes = [];
-    let onset = 0;
-    pattern.forEach((active, step) => {
-        if (!active) return;
-        const time = step * subdivision;
-        notes.push({
-            pitch: pitchList[onset % pitchList.length],
-            duration: noteDuration,
-            time: useStringTime ? beatsToTime(time) : time,
-            velocity: velocityList[onset % velocityList.length],
-        });
-        onset++;
+    return fromOnsets(euclidPattern(steps, pulses, rotation), {
+        pitches,
+        velocities,
+        duration,
+        subdivision,
+        useStringTime,
     });
-    return notes;
 }

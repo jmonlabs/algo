@@ -1,4 +1,4 @@
-import { beatsToTime } from '../../../utils/jmon-utils.js';
+import { fromOnsets } from './pattern.js';
 
 /**
  * Clave patterns as onset grids, one boolean per eighth-note place. Two-bar
@@ -67,27 +67,14 @@ export function clave({
     if (typeof subdivision !== 'number' || subdivision <= 0) {
         throw new Error('clave: subdivision must be a positive number of quarter notes');
     }
-    const pattern = clavePattern(name, orientation);
-    const pitchList = Array.isArray(pitches) ? pitches : [pitches];
-    const velocityList = Array.isArray(velocities) ? velocities : [velocities];
-    const noteDuration = typeof duration === 'number' && duration > 0 ? duration : subdivision * 0.8;
-
-    const notes = [];
-    let onset = 0;
-    for (let r = 0; r < repeat; r++) {
-        pattern.forEach((active, step) => {
-            if (!active) return;
-            const time = (r * pattern.length + step) * subdivision;
-            notes.push({
-                pitch: pitchList[onset % pitchList.length],
-                duration: noteDuration,
-                time: useStringTime ? beatsToTime(time) : time,
-                velocity: velocityList[onset % velocityList.length],
-            });
-            onset++;
-        });
-    }
-    return notes;
+    return fromOnsets(clavePattern(name, orientation), {
+        pitches,
+        velocities,
+        duration,
+        subdivision,
+        repeat,
+        useStringTime,
+    });
 }
 
 /**
