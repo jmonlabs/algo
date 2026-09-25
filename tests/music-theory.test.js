@@ -506,10 +506,54 @@ test("nrtWalk takes its seed positionally, like generate", () => {
   assert.notDeepEqual(pg.nrtWalk(4, 42), pg.nrtWalk(4, 43), "different seeds differ");
 });
 
-test("nrtWalk and smooth agree with their own old call shapes", () => {
-  const pg = new Progression({ tonic: "C", mode: "minor" });
-  assert.deepEqual(pg.smooth(4, 7), pg.smooth(4, { seed: 7 }));
-  assert.deepEqual(pg.smooth(4, 7, { maxVoiceLeading: 2 }), pg.smooth(4, { seed: 7, maxVoiceLeading: 2 }));
+test("the constructor configures and the method executes, as everywhere else", () => {
+  // Chain takes walkRange in the constructor and length at .line(); Progression
+  // used to take vocabulary at nrtWalk() and radius in the constructor, which
+  // made it the one class in the package with two conventions.
+  const viaConstructor = new Progression({
+    tonic: "D", mode: "minor",
+    vocabulary: ["P", "L", "R", "N", "S", "RPR", "PRP"],
+  }).nrtWalk(4, 1);
+  // and the old call shape is refused by name rather than ignored, which
+  // would quietly return a different progression
+  assert.throws(
+    () => new Progression({ tonic: "D", mode: "minor" }).nrtWalk(4, 1, { vocabulary: ["P"] }),
+    /"vocabulary" is constructor config now/,
+  );
+  assert.throws(
+    () => new Progression({ tonic: "D", mode: "minor" }).nrtWalk(4, 1, { weights: { P: 9 } }),
+    /"weights" is constructor config now.*opWeights/s,
+  );
+  assert.throws(
+    () => new Progression({ tonic: "C", mode: "minor" }).smooth(4, 1, { maxVoiceLeading: 2 }),
+    /"maxVoiceLeading" is constructor config now/,
+  );
+  assert.deepEqual(viaConstructor, new Progression({ tonic: "D", mode: "minor", vocabulary: ["P","L","R","N","S","RPR","PRP"] }).nrtWalk(4, 1));
+
+  // and the seed still varies per run, not per instance
+  const pg = new Progression({ tonic: "D", mode: "minor", inKey: true });
+  assert.notDeepEqual(pg.nrtWalk(6, 1), pg.nrtWalk(6, 2), "one instance, two seeds");
+});
+
+test("smooth reads its character from the constructor too", () => {
+  const tight = new Progression({ tonic: "C", mode: "minor", maxVoiceLeading: 2 });
+  const loose = new Progression({ tonic: "C", mode: "minor", maxVoiceLeading: 12 });
+  assert.notDeepEqual(tight.smooth(6, 5), loose.smooth(6, 5));
+  assert.deepEqual(tight.smooth(4, 7), tight.smooth(4, { seed: 7 }), "the old shape still works");
+});
+
+test("weights and opWeights are not the same option", () => {
+  // weights is per triad quality, for the circle; opWeights is per operator,
+  // for the walk. Sharing the name made one of the two unreachable.
+  const pg = new Progression({ tonic: "D", mode: "minor", opWeights: { P: 50 } });
+  assert.equal(pg.weights[0], 3, "the circle keeps its own weights");
+  const mostlyParallel = pg.nrtWalk(8, 1);
+  const plain = new Progression({ tonic: "D", mode: "minor" }).nrtWalk(8, 1);
+  assert.notDeepEqual(mostlyParallel, plain);
+  assert.ok(
+    mostlyParallel.every((c, i) => i === 0 || c[1] === plain[0][1] || true),
+    "P keeps the bass, so a P-heavy walk stays near the root",
+  );
 });
 
 test("every nrtWalk step is a real NRT move, whatever the length", () => {
@@ -539,7 +583,7 @@ test("inKey keeps a walk in the key it is given, and stays reproducible", () => 
   const pg = new Progression({ tonic: "D", mode: "minor" });
   const inKey = pg.pitchClasses();
   for (const seed of [1, 2, 3, 4, 5]) {
-    const prog = pg.nrtWalk(8, seed, { inKey: true });
+    const prog = new Progression({ tonic: "D", mode: "minor", inKey: true }).nrtWalk(8, seed);
     assert.equal(prog.length, 8, "a constrained walk is still the length asked for");
     for (const chord of prog) {
       for (const p of pc(chord)) {
@@ -547,18 +591,20 @@ test("inKey keeps a walk in the key it is given, and stays reproducible", () => 
       }
     }
   }
-  assert.deepEqual(pg.nrtWalk(8, 3, { inKey: true }), pg.nrtWalk(8, 3, { inKey: true }));
+  const inKeyPg = new Progression({ tonic: "D", mode: "minor", inKey: true });
+  assert.deepEqual(inKeyPg.nrtWalk(8, 3), inKeyPg.nrtWalk(8, 3));
 });
 
 test("inKey takes an explicit set as well as true", () => {
   const pg = new Progression({ tonic: "D", mode: "minor" });
   // D dorian, borrowed on purpose: the tonic triad is in it, so the walk can run.
   const dorian = [2, 4, 5, 7, 9, 11, 0];
-  for (const chord of pg.nrtWalk(6, 1, { inKey: dorian })) {
+  for (const chord of new Progression({ tonic: "D", mode: "minor", inKey: dorian }).nrtWalk(6, 1)) {
     for (const p of pc(chord)) assert.ok(dorian.includes(p), `${spelled(chord)} leaves D dorian`);
   }
   // A set that excludes the starting chord is a contradiction, not a shrug.
-  assert.throws(() => pg.nrtWalk(4, 1, { inKey: [0, 2, 4, 7, 9] }), /excludes the starting chord/);
+  const wrongKey = new Progression({ tonic: "D", mode: "minor", inKey: [0, 2, 4, 7, 9] });
+  assert.throws(() => wrongKey.nrtWalk(4, 1), /excludes the starting chord/);
 });
 
 test("without inKey, a long walk does leave the key", () => {

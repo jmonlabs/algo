@@ -66,7 +66,7 @@ export class Key {
      *
      * @example
      * k.pitchClasses();  // C major -> [0, 2, 4, 5, 7, 9, 11]
-     * k.progression().nrtWalk(6, 3, { inKey: k.pitchClasses() });
+     * k.progression({ inKey: k.pitchClasses() }).nrtWalk(6, 3);
      */
     pitchClasses() { return new Progression(this._opts()).pitchClasses(); }
 

@@ -25,15 +25,73 @@ export class Progression extends MusicTheoryConstants {
      * @param {Array} [options.radius=[3, 3, 1]] - Range for major, minor, and diminished chords
      * @param {Array} [options.weights] - Weights for selecting chord types (defaults to radius)
      */
+    /**
+     * A key, and the character of the three ways it can produce progressions.
+     *
+     * The constructor configures; the method executes. That is the split the
+     * rest of the package keeps — `Chain` takes `walkRange` here and `length`
+     * at `.line()`, `Darwin` takes `populationSize` here and `generations` at
+     * `.evolveGenerations()` — and `Progression` was the one class that broke
+     * it, by taking `vocabulary` and `maxVoiceLeading` at the call while
+     * `generate` read `this.radius` from here. So everything that decides *what
+     * kind* of progression comes out lives here, and the methods take only what
+     * varies per run: how many chords, and which seed.
+     *
+     * @param {Object} [options]
+     * @param {string} [options.tonic='C4'] - Tonic, with or without an octave
+     * @param {string} [options.mode='major']
+     *
+     * @param {string} [options.circleOf='P5'] - Which interval `radius` walks
+     *   the circle by: 'P5' fifths, 'P4' fourths, 'M3' thirds.
+     * @param {Array<number>} [options.radius=[3,3,1]] - How many circle roots
+     *   each quality may use: `[major, minor, diminished]`.
+     * @param {Array<number>|Object} [options.weights] - How likely each quality
+     *   is to be drawn by `generate`. Defaults to `radius`.
+     *
+     * @param {Array<string>} [options.vocabulary=['P','L','R']] - Moves
+     *   `nrtWalk` may make. See `nrtWalk`.
+     * @param {Object<string, number>} [options.opWeights] - How likely each move
+     *   is, keyed by operator letter. Moves absent from the map weigh 1.
+     * @param {boolean|Array<number>} [options.inKey=false] - Keep `nrtWalk`
+     *   inside a set of pitch classes. See `nrtWalk`.
+     *
+     * @param {number} [options.maxVoiceLeading=4] - Cap on `smooth`'s voice
+     *   movement, in semitones summed over the three voices.
+     * @param {Array<string>} [options.qualities=['major','minor']] - Triad
+     *   qualities `smooth` may draw.
+     * @param {number} [options.bassRange=null] - Keep `smooth`'s lowest voice
+     *   within this many semitones of the starting bass.
+     *
+     * @example
+     * // The circle, drawing ordinary tonal progressions
+     * new Progression({ tonic: 'D', mode: 'minor' }).generate(4, 1);
+     *
+     * @example
+     * // A walk that keeps its voice leading and stays in the key
+     * new Progression({
+     *   tonic: 'D', mode: 'minor',
+     *   vocabulary: ['P', 'L', 'R', 'N', 'S', 'RPR', 'PRP'],
+     *   inKey: true,
+     * }).nrtWalk(4, 1);
+     */
     constructor(options = {}) {
         super();
-        
+
         const {
             tonic = 'C4',
             mode = 'major',
+            // generate — the circle
             circleOf = 'P5',
             radius = [3, 3, 1],
-            weights
+            weights,
+            // nrtWalk — the moves
+            vocabulary = ['P', 'L', 'R'],
+            opWeights = null,
+            inKey = false,
+            // smooth — the least movement
+            maxVoiceLeading = 4,
+            qualities = ['major', 'minor'],
+            bassRange = null,
         } = options;
 
         // Parse tonic — accepts a bare note name ('C', 'F#') or an
@@ -49,9 +107,18 @@ export class Progression extends MusicTheoryConstants {
 
         this.scale = mode;
         this.mode = mode;
+
         this.circleOf = circleOf;
         this.radius = radius;
-        this.weights = weights || radius;
+        this.weights = weights ?? radius;   // TODO: a count of roots doubling as a probability
+
+        this.vocabulary = vocabulary;
+        this.opWeights = opWeights;
+        this.inKey = inKey;
+
+        this.maxVoiceLeading = maxVoiceLeading;
+        this.qualities = qualities;
+        this.bassRange = bassRange;
     }
 
     /**
@@ -316,28 +383,19 @@ export class Progression extends MusicTheoryConstants {
      * @param {number|null} [seed=null] - RNG seed (deterministic). Positional,
      *   like `generate(length, seed)` and `nrtWalk(length, seed)`.
      *   `options.seed` is still read, and wins when both are given.
-     * @param {Object} [options]
-     * @param {number} [options.maxVoiceLeading=4] - Max sum of |voice
-     *   movements| in semitones between consecutive chords. Smaller = smoother
-     *   / less harmonic motion.
-     * @param {string[]} [options.qualities=['major','minor']] - Allowed
-     *   triad qualities: 'major', 'minor', 'diminished', 'augmented'.
+     * @param {Object} [options] - PerPer run only. The characterrun only. The character of the walk —the walk —
+     *   `maxVoiceLeading`,`maxVoiceLeading`, ``qualities``, `bassRange``bassRange` —— is constructor configis constructor config.
      * @param {string} [options.startQuality] - Override start triad quality
      *   (defaults to 'minor' if constructor `mode` is a minor-family mode,
      *   else 'major').
-     * @param {number|null} [options.bassRange=null] - If set, keep the lowest
-     *   voice of each chord within ±N semitones of the starting bass. ~3 gives
-     *   tight chromatic walks (the *Severance* bass aesthetic). `null` to
-     *   disable.
      * @returns {Array<Array<number>>} Array of triads, each a 3-element MIDI
      *   array in voice-leading order. Voice i of chord k corresponds to voice
      *   i of chord k+1 under the parsimonious assignment — sort each chord
      *   ascending if you want a "low-to-high" layout instead.
      *
      * @example
-     * const prog = new Progression({ tonic: 'C', mode: 'minor' });
-     * prog.smooth(4, { seed: 42, maxVoiceLeading: 4, bassRange: 3 });
      * // Severance-flavoured walk; identical output for identical seed.
+     * new Progression({ tonic: 'C', mode: 'minor', bassRange: 3 }).smooth(4, 42);
      */
     smooth(length, seed = null, options = {}) {
         const QUALITY_INTERVALS = {
@@ -353,13 +411,10 @@ export class Progression extends MusicTheoryConstants {
             options = seed;
             seed = options.seed ?? null;
         }
-        const {
-            maxVoiceLeading = 4,
-            qualities = ['major', 'minor'],
-            startQuality = MINOR_FAMILY.has(this.mode) ? 'minor' : 'major',
-            bassRange = null,
-        } = options;
+        Progression._refuseMovedOptions("smooth", options);
+        const { startQuality = MINOR_FAMILY.has(this.mode) ? 'minor' : 'major' } = options;
         const usedSeed = options.seed ?? seed ?? 0;
+        const { maxVoiceLeading, qualities, bassRange } = this;
 
         if (!QUALITY_INTERVALS[startQuality]) {
             throw new Error(`Unknown startQuality: ${startQuality}`);
@@ -632,6 +687,31 @@ export class Progression extends MusicTheoryConstants {
         return progression;
     }
 
+    // Options that used to be read at the call and now belong to the
+    // constructor, mapped to the name to use instead. Silently ignoring them
+    // would hand back a different progression and no clue why, so they are
+    // refused by name.
+    static _MOVED_TO_CONSTRUCTOR = {
+        vocabulary: 'vocabulary',
+        weights: 'opWeights',
+        inKey: 'inKey',
+        maxVoiceLeading: 'maxVoiceLeading',
+        qualities: 'qualities',
+        bassRange: 'bassRange',
+    };
+
+    /** @private */
+    static _refuseMovedOptions(where, options) {
+        for (const [was, now] of Object.entries(Progression._MOVED_TO_CONSTRUCTOR)) {
+            if (was in options) {
+                throw new Error(
+                    `${where}: "${was}" is constructor config now. ` +
+                    `Pass it to new Progression({ ${now}: ... }) instead.`
+                );
+            }
+        }
+    }
+
     /**
      * Random walk over a vocabulary of neo-Riemannian transformations.
      * Like `smooth()` but constrained to a specific NRT vocabulary instead of
@@ -660,19 +740,8 @@ export class Progression extends MusicTheoryConstants {
      * @param {number|null} [seed=null] - RNG seed (deterministic). Positional,
      *   like `generate(length, seed)`. `options.seed` is still read, and wins
      *   when both are given.
-     * @param {Object} [options]
-     * @param {Array<string>} [options.vocabulary=['P','L','R']] - Allowed
-     *   operators. Each entry may be a primitive ('P') or a chain ('RPR').
-     * @param {Object<string, number>} [options.weights] - Map of op → weight.
-     *   Ops not in the map get weight 1.
-     * @param {boolean|Array<number>} [options.inKey=false] - Keep every chord
-     *   inside a set of pitch classes: `true` for this progression's own key
-     *   (see `pitchClasses()`), or an array for a mode, a borrowed scale or any
-     *   other set. A move that would land outside is redrawn, so the walk keeps
-     *   its voice leading and its key at the same time — the one thing
-     *   `generate` and `smooth` cannot do between them. Throws if the starting
-     *   chord is already outside the set; mid-walk, a chord with no way out
-     *   repeats rather than throwing, since a pause still honours the key.
+     * @param {Object} [options] - Per run only. The character of the walk —
+     *   `vocabulary`, `opWeights`, `inKey` — is constructor config.
      * @param {'closest'|'root'|'random'} [options.shape='closest']
      * @param {{center:number, range:number}} [options.octaveBounds]
      * @param {string} [options.startQuality]
@@ -680,16 +749,14 @@ export class Progression extends MusicTheoryConstants {
      *
      * @example
      * // Severance-flavoured walk in a vocabulary rich in P, L, R:
-     * new Progression({ tonic: 'C', mode: 'minor' }).nrtWalk(4, 42, {
+     * new Progression({
+     *   tonic: 'C', mode: 'minor',
      *   vocabulary: ['P', 'L', 'R', 'PL', 'LR'],
-     *   octaveBounds: { center: 62, range: 12 },
-     * });
+     * }).nrtWalk(4, 42, { octaveBounds: { center: 62, range: 12 } });
      *
      * @example
-     * // A walk that flows by thirds and sixths but never leaves D minor:
-     * new Progression({ tonic: 'D', mode: 'minor' }).nrtWalk(8, 3, {
-     *   inKey: true,
-     * });
+     * // A walk that keeps its voice leading and never leaves D minor:
+     * new Progression({ tonic: 'D', mode: 'minor', inKey: true }).nrtWalk(8, 3);
      */
     nrtWalk(length, seed = null, options = {}) {
         if (typeof seed === 'object' && seed !== null) {
@@ -697,18 +764,17 @@ export class Progression extends MusicTheoryConstants {
             options = seed;
             seed = options.seed ?? null;
         }
+        Progression._refuseMovedOptions("nrtWalk", options);
         const {
-            vocabulary = ['P', 'L', 'R'],
-            weights = null,
             shape = 'closest',
             octaveBounds = null,
             startQuality = Progression._MINOR_FAMILY.has(this.mode) ? 'minor' : 'major',
-            inKey = false,
         } = options;
         const usedSeed = options.seed ?? seed ?? 0;
+        const { vocabulary, opWeights, inKey } = this;
 
         const rng = Progression._mulberry32(usedSeed);
-        const w = vocabulary.map(v => (weights && weights[v] !== undefined ? weights[v] : 1));
+        const w = vocabulary.map(v => (opWeights && opWeights[v] !== undefined ? opWeights[v] : 1));
         const totalW = w.reduce((s, x) => s + x, 0);
 
         /** Draw one vocabulary entry, by weight. */
