@@ -8,6 +8,7 @@ import { Arpeggiate, arpeggiate } from "./Arpeggiate.js";
 import { Strum, strum } from "./Strum.js";
 import { Key, key } from "./Key.js";
 import Solfege from "./Solfege.js";
+import { chordName, toRegister } from './chord-shape.js';
 
 // Export both as namespace and individual exports
 export {
@@ -25,6 +26,8 @@ export {
   key,
   strum,
   Solfege,
+  chordName,
+  toRegister,
 };
 
 // Export harmony namespace
@@ -39,6 +42,8 @@ export default {
   Key,
   key,
   arpeggiate,
+  chordName,
+  toRegister,
   chordify,
   chordifyMany,
   strum,
