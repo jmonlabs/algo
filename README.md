@@ -120,22 +120,6 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
 - A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
 
-## Changes in 3.4
-
-`theory.harmony.chordName(chord)` names a chord from its pitches — `[50, 53, 57]`
-is `"Dm"` — taking the notes in any order and any octave, naming an inversion by
-the chord it inverts rather than by its bass, and saying `"C?"` rather than
-guessing when the intervals match nothing it knows.
-
-`theory.harmony.toRegister(chord, { low, high })` transposes a chord by whole
-octaves until its lowest note sits in a window, so progressions from different
-generators can be compared by ear. The voicing, the spacing and the inversion
-survive; `low` and `high` bound the lowest note, not the whole chord.
-
-Both get hand-rolled in every notebook that compares progressions, because a
-progression is an array of arrays of MIDI numbers and neither the eye nor the
-ear reads that.
-
 ## Changes in 3.3
 
 `Corruptor` takes a `where` option: `{ stutter: (note) => …, slam: (note) => … }`,
