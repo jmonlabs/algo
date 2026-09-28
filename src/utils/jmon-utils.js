@@ -603,6 +603,76 @@ export function expressivize(notes, options = {}) {
 }
 
 /**
+ * Shape each note like a bow stroke: its loudness enters softly, swells to a
+ * peak, and eases off before the note ends.
+ *
+ * A sampled string held for several seconds otherwise sits at one level from
+ * its attack to its release, which is the sound of a tape loop rather than a
+ * bow. This writes an `amplitudeEnvelope` on every note — anchors in beats
+ * from the note's start, values as multiples of its velocity — which jmon/io
+ * compiles, the player applies to sampled instruments, and a MIDI export
+ * writes as CC 11. The note's `velocity` becomes the peak of the stroke.
+ *
+ * Returns new notes. Rests, and notes that already have an envelope, are
+ * copied as they are. A note shorter than `minDuration` gets a soft attack
+ * only: a swell on a short note is not heard as one.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {Object} [options]
+ * @param {number} [options.attack=0.25] - Beats to reach the stroke's first
+ *   level, at most a third of the note
+ * @param {number} [options.swell=0.35] - How much the stroke grows: it starts
+ *   at `1 - swell` of the peak
+ * @param {number} [options.peak=0.6] - Where the peak falls, as a fraction of
+ *   the note's duration
+ * @param {number} [options.fade=0.25] - How much it eases off by the end: it
+ *   ends at `1 - fade` of the peak
+ * @param {number} [options.minDuration=1] - Beats below which a note is only
+ *   given a soft attack
+ * @returns {Array} New notes with `amplitudeEnvelope`
+ *
+ * @example
+ * // A long note: 0 → 0.65 in a quarter beat, 1 at 60 %, 0.75 at the end.
+ * bow([{ pitch: 69, duration: 4, time: 0, velocity: 0.6 }]);
+ */
+export function bow(notes, options = {}) {
+  const {
+    attack = 0.25,
+    swell = 0.35,
+    peak = 0.6,
+    fade = 0.25,
+    minDuration = 1,
+  } = options;
+
+  return notes.map((note) => {
+    const duration = note.duration || 0;
+    if (note.pitch === null || note.pitch === undefined || note.amplitudeEnvelope || !(duration > 0)) {
+      return { ...note };
+    }
+    const rise = Math.min(attack, duration / 3);
+    if (duration < minDuration) {
+      return {
+        ...note,
+        amplitudeEnvelope: [
+          { time: 0, value: 0 },
+          { time: rise, value: 1 },
+          { time: duration, value: 1 },
+        ],
+      };
+    }
+    return {
+      ...note,
+      amplitudeEnvelope: [
+        { time: 0, value: 0 },
+        { time: rise, value: 1 - swell },
+        { time: Math.max(rise, duration * peak), value: 1 },
+        { time: duration, value: 1 - fade },
+      ],
+    };
+  });
+}
+
+/**
  * Clip a note sequence to a maximum time. Notes starting after `maxTime`
  * are dropped; notes overlapping the boundary have their duration trimmed.
  * @param {Array} notes - JMON notes (numeric `time` field)

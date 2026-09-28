@@ -26,7 +26,7 @@ import {
   quantizeTrack,
   quantizePiece,
 } from "../src/algorithms/utils.js";
-import { sustained, tile } from "../src/utils/jmon-utils.js";
+import { bow, sustained, tile } from "../src/utils/jmon-utils.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
 
@@ -447,4 +447,41 @@ test("tile keeps bars:beats:ticks times in their own notation", () => {
 test("tile returns nothing when there is nothing to repeat", () => {
   assert.deepEqual(tile([], 4), []);
   assert.deepEqual(tile([{ pitch: 60, duration: 1, time: 0 }], 0), []);
+});
+
+/* --- bow ------------------------------------------------------------------ */
+
+test("bow gives a long note a stroke: soft entry, swell, easing off", () => {
+  const [shaped] = bow([{ pitch: 69, duration: 4, time: 8, velocity: 0.6 }]);
+  assert.deepEqual(shaped.amplitudeEnvelope, [
+    { time: 0, value: 0 },
+    { time: 0.25, value: 0.65 },
+    { time: 2.4, value: 1 },
+    { time: 4, value: 0.75 },
+  ]);
+  assert.equal(shaped.velocity, 0.6, "the velocity stays, as the stroke's peak");
+  assert.equal(shaped.time, 8, "and the anchors are relative to the note, not the piece");
+});
+
+test("bow gives a short note a soft attack only, and never an attack longer than a third", () => {
+  const [short] = bow([{ pitch: 60, duration: 0.5, time: 0 }]);
+  assert.deepEqual(short.amplitudeEnvelope, [
+    { time: 0, value: 0 },
+    { time: 0.5 / 3, value: 1 },
+    { time: 0.5, value: 1 },
+  ]);
+});
+
+test("bow leaves rests and existing envelopes alone, and does not mutate", () => {
+  const own = [{ time: 0, value: 1 }];
+  const input = [
+    { pitch: null, duration: 2, time: 0 },
+    { pitch: 60, duration: 2, time: 2, amplitudeEnvelope: own },
+    { pitch: 62, duration: 2, time: 4 },
+  ];
+  const out = bow(input, { swell: 0.5, peak: 0.5, fade: 0 });
+  assert.equal(out[0].amplitudeEnvelope, undefined);
+  assert.equal(out[1].amplitudeEnvelope, own);
+  assert.deepEqual(out[2].amplitudeEnvelope.map((a) => a.value), [0, 0.5, 1, 1]);
+  assert.equal(input[2].amplitudeEnvelope, undefined, "the input notes are untouched");
 });
