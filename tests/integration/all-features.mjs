@@ -30,7 +30,7 @@ function test(name, fn) {
 console.log('\n=== GENERATIVE ALGORITHMS ===\n');
 
 // Cellular Automata
-import { CellularAutomata } from '../src/algorithms/generative/cellular-automata/CellularAutomata.js';
+import { CellularAutomata } from '../../src/algorithms/generative/cellular-automata/CellularAutomata.js';
 test('Cellular Automata: Generate Rule 30', () => {
   const ca = new CellularAutomata({ rule: 30, width: 10, iterations: 5 });
   const sequence = ca.generate();
@@ -38,7 +38,7 @@ test('Cellular Automata: Generate Rule 30', () => {
 });
 
 // Fractals
-import { Mandelbrot } from '../src/algorithms/generative/fractals/Mandelbrot.js';
+import { Mandelbrot } from '../../src/algorithms/generative/fractals/Mandelbrot.js';
 test('Mandelbrot: Generate fractal data', () => {
   const mandelbrot = new Mandelbrot({ width: 20, height: 20, maxIterations: 50 });
   const data = mandelbrot.generate();
@@ -52,7 +52,7 @@ test('Mandelbrot: Extract spiral sequence', () => {
   if (!Array.isArray(sequence) || sequence.length === 0) throw new Error('Invalid sequence');
 });
 
-import { LogisticMap } from '../src/algorithms/generative/fractals/LogisticMap.js';
+import { LogisticMap } from '../../src/algorithms/generative/fractals/LogisticMap.js';
 test('Logistic Map: Generate chaotic sequence', () => {
   const logistic = new LogisticMap({ r: 3.8, x0: 0.5, iterations: 50 });
   const sequence = logistic.generate();
@@ -61,7 +61,7 @@ test('Logistic Map: Generate chaotic sequence', () => {
 });
 
 // Minimalism
-import { MinimalismProcess, Tintinnabuli } from '../src/algorithms/generative/minimalism/MinimalismProcess.js';
+import { MinimalismProcess, Tintinnabuli } from '../../src/algorithms/generative/minimalism/MinimalismProcess.js';
 test('Minimalism: Additive forward process', () => {
   const process = new MinimalismProcess({ operation: 'additive', direction: 'forward', repetition: 1 });
   const input = [
@@ -97,7 +97,7 @@ test('Tintinnabuli: Generate T-voice', () => {
 });
 
 // Random Walks
-import { RandomWalk } from '../src/algorithms/generative/walks/RandomWalk.js';
+import { RandomWalk } from '../../src/algorithms/generative/walks/RandomWalk.js';
 test('Random Walk: Generate walk', () => {
   const walk = new RandomWalk({ length: 20, dimensions: 1, stepSize: 2, bounds: [0, 100] });
   const data = walk.generate([50]);
@@ -111,7 +111,7 @@ test('Random Walk: Map to scale', () => {
   if (!Array.isArray(pitches) || pitches.length !== 20) throw new Error('Invalid mapping');
 });
 
-import { Chain } from '../src/algorithms/generative/walks/Chain.js';
+import { Chain } from '../../src/algorithms/generative/walks/Chain.js';
 test('Chain: Generate sequences', () => {
   const chain = new Chain({
     walkRange: [40, 80],
@@ -124,7 +124,7 @@ test('Chain: Generate sequences', () => {
   if (!Array.isArray(sequences) || sequences.length === 0) throw new Error('Invalid sequences');
 });
 
-import { Phasor, PhasorSystem } from '../src/algorithms/generative/walks/PhasorWalk.js';
+import { Phasor, PhasorSystem } from '../../src/algorithms/generative/walks/PhasorWalk.js';
 test('Phasor: Simulate rotation', () => {
   const phasor = new Phasor(10, 1, 0);
   const timeArray = Array.from({ length: 20 }, (_, i) => i * 0.1);
@@ -144,7 +144,7 @@ test('Phasor System: Simulate multiple phasors', () => {
 // ===== MUSIC THEORY =====
 console.log('\n=== MUSIC THEORY ===\n');
 
-import { Scale } from '../src/algorithms/theory/harmony/Scale.js';
+import { Scale } from '../../src/algorithms/theory/harmony/Scale.js';
 test('Scale: Generate C major', () => {
   const scale = new Scale({ tonic: 'C', mode: 'major' });
   const notes = scale.generate({ octave: 4 });
@@ -157,7 +157,7 @@ test('Scale: Generate D dorian', () => {
   if (!Array.isArray(notes) || notes.length < 7) throw new Error('Invalid scale');
 });
 
-import { Progression } from '../src/algorithms/theory/harmony/Progression.js';
+import { Progression } from '../../src/algorithms/theory/harmony/Progression.js';
 test('Progression: Generate I-IV-V-I', () => {
   const progression = new Progression('C', 'major');
   const chords = progression.generate(['I', 'IV', 'V', 'I']);
@@ -170,7 +170,7 @@ test('Progression: Circle of fifths', () => {
   if (!Array.isArray(circle) || circle.length !== 4) throw new Error('Invalid circle');
 });
 
-import { Voice } from '../src/algorithms/theory/harmony/Voice.js';
+import { Voice } from '../../src/algorithms/theory/harmony/Voice.js';
 test('Voice: Lead between chords', () => {
   const voice = new Voice({ key: 'C', mode: 'major', voices: 4 });
   const chord1 = [60, 64, 67, 72];
@@ -179,7 +179,7 @@ test('Voice: Lead between chords', () => {
   if (!Array.isArray(led) || led.length !== chord2.length) throw new Error('Invalid voice leading');
 });
 
-import { Ornament } from '../src/algorithms/theory/harmony/Ornament.js';
+import { Ornament } from '../../src/algorithms/theory/harmony/Ornament.js';
 test('Ornament: Parse duration (4n)', () => {
   const duration = Ornament.parseDuration('4n');
   if (duration !== 1) throw new Error('Invalid duration');
@@ -219,7 +219,7 @@ test('Ornament: Apply trill', () => {
   if (!Array.isArray(result) || result.length <= 1) throw new Error('Trill not applied');
 });
 
-import { Articulation } from '../src/algorithms/theory/harmony/Articulation.js';
+import { Articulation } from '../../src/algorithms/theory/harmony/Articulation.js';
 test('Articulation: Apply staccato', () => {
   const note = { pitch: 60, duration: 1, time: 0 };
   const result = Articulation.apply(note, 'staccato');
@@ -232,44 +232,39 @@ test('Articulation: Apply accent', () => {
   if (!result.success || note.velocity <= 0.8) throw new Error('Accent not applied');
 });
 
-import { isorhythm } from '../src/algorithms/theory/rhythm/isorhythm.js';
+import { isorhythm } from '../../src/algorithms/theory/rhythm/isorhythm.js';
 test('Isorhythm: Generate pattern', () => {
   const pitches = [60, 62, 64, 65, 67];
   const durations = [1, 0.5, 0.5, 1];
-  const result = isorhythm(pitches, durations);
+  const result = isorhythm({ pitches, durations });
   if (!Array.isArray(result) || result.length !== 20) throw new Error('Invalid isorhythm');
 });
 
-import { beatcycle } from '../src/algorithms/theory/rhythm/beatcycle.js';
+import { beatcycle } from '../../src/algorithms/theory/rhythm/beatcycle.js';
 test('Beatcycle: Generate pattern', () => {
   const pitches = [60, 62, 64, 65];
   const durations = [1, 0.5, 0.5];
-  const result = beatcycle(pitches, durations);
+  const result = beatcycle({ pitches, durations });
   if (!Array.isArray(result) || result.length !== 4) throw new Error('Invalid beatcycle');
   if (!result.every(n => typeof n.pitch === 'number' && typeof n.duration === 'number' && typeof n.time === 'number')) {
     throw new Error('Beatcycle should return JMON note objects');
   }
-  const legacy = beatcycle(pitches, durations, { legacy: true });
-  if (!Array.isArray(legacy) || !Array.isArray(legacy[0]) || legacy[0].length !== 3) {
-    throw new Error('Legacy beatcycle output malformed');
-  }
 });
 
-import { Rhythm } from '../src/algorithms/theory/rhythm/Rhythm.js';
+
+import { Rhythm } from '../../src/algorithms/theory/rhythm/Rhythm.js';
 test('Rhythm: Generate random rhythm', () => {
-  const rhythm = new Rhythm(4, [0.25, 0.5, 1, 2]);
-  const result = rhythm.random({ restProbability: 0.2 });
+  const rhythm = new Rhythm({ measureLength: 4, durations: [0.25, 0.5, 1, 2] });
+  const result = rhythm.random({ restProbability: 0.2, seed: 7 });
   if (!Array.isArray(result) || result.length === 0) throw new Error('Invalid rhythm');
   const total = result.reduce((sum, r) => sum + r.duration, 0);
   if (total > 4) throw new Error('Rhythm exceeds measure length');
-  const legacy = rhythm.random(null, 0, 100, { legacy: true });
-  if (!Array.isArray(legacy) || !Array.isArray(legacy[0])) throw new Error('Legacy rhythm output malformed');
 });
 
 // ===== ANALYSIS =====
 console.log('\n=== ANALYSIS FUNCTIONS ===\n');
 
-import { MusicalAnalysis } from '../src/algorithms/analysis/MusicalAnalysis.js';
+import { MusicalAnalysis } from '../../src/algorithms/analysis/MusicalAnalysis.js';
 
 test('Analysis: Gini coefficient', () => {
   const result = MusicalAnalysis.gini([1, 2, 3, 4, 5]);
@@ -352,7 +347,7 @@ test('Analysis: Comprehensive analyze', () => {
 // ===== GAUSSIAN PROCESSES =====
 console.log('\n=== GAUSSIAN PROCESSES ===\n');
 
-import { GaussianProcessRegressor } from '../src/algorithms/generative/gaussian-processes/GaussianProcessRegressor.js';
+import { GaussianProcessRegressor } from '../../src/algorithms/generative/gaussian-processes/GaussianProcessRegressor.js';
 
 test('GP: Fit with RBF kernel', () => {
   const gp = new GaussianProcessRegressor({ kernel: 'rbf', lengthScale: 1.0, variance: 1.0 });
@@ -392,38 +387,11 @@ test('GP: Different kernels work', () => {
   }
 });
 
-// ===== CONVERTERS =====
-console.log('\n=== CONVERTERS ===\n');
-
-import { MidiToJmon } from '../src/converters/midi-to-jmon.js';
-
-test('MIDI Converter: Key signature conversion (C major)', () => {
-  const converter = new MidiToJmon();
-  const result = converter.midiKeySignatureToString(0, 0);
-  if (result !== 'C') throw new Error('Invalid key signature');
-});
-
-test('MIDI Converter: Key signature conversion (G major)', () => {
-  const converter = new MidiToJmon();
-  const result = converter.midiKeySignatureToString(1, 'major');
-  if (result !== 'G') throw new Error('Invalid key signature');
-});
-
-test('MIDI Converter: Key signature conversion (D minor)', () => {
-  const converter = new MidiToJmon();
-  const result = converter.midiKeySignatureToString(-1, 1);
-  if (result !== 'Dm') throw new Error('Invalid key signature');
-});
-
-test('MIDI Converter: Extract key signature from header', () => {
-  const converter = new MidiToJmon();
-  const mockParsed = {
-    header: { keySignatures: [{ key: 2, scale: 0 }] },
-    tracks: []
-  };
-  const result = converter.extractKeySignature(mockParsed);
-  if (result !== 'D') throw new Error('Invalid key extraction');
-});
+// The MIDI converter is not here any more: reading and writing MIDI is
+// jmon/io, and its own suite is converters.test.js over there. These four
+// checks used to live in this script and went with the module.
+console.log("\n=== CONVERTERS ===\n")
+console.log("  skipped: MIDI converters moved to jmon/io\n");
 
 // ===== SUMMARY =====
 console.log('\n==========================================================');

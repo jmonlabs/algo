@@ -2,46 +2,15 @@
  * Test microtuning support for Corruptor's Harmonic Erosion feature
  */
 
-import { Corruptor } from '../src/algorithms/processors/Corruptor.js';
-import { tonejs } from '../src/converters/tonejs.js';
+
+// The Tone.js converter moved to jmon/io, so the two round-trip checks this
+// script was really about are not here any more: microtuning through the
+// converter, and Corruptor -> converter end to end. What is left is what the
+// Corruptor itself does with a microtuning field.
+import { Corruptor } from '../../src/algorithms/processors/Corruptor.js';
 
 console.log('=== Testing Corruptor Microtuning Support ===\n');
-
-// Test 1: Basic microtuning pass-through
-console.log('1. Testing microtuning pass-through in tonejs converter');
-try {
-  const simplePiece = {
-    tempo: 120,
-    tracks: [{
-      label: 'Test Track',
-      notes: [
-        { pitch: 60, time: 0, duration: 1, velocity: 0.8, microtuning: 0.25 },
-        { pitch: 64, time: 1, duration: 1, velocity: 0.8, microtuning: -0.15 },
-        { pitch: 67, time: 2, duration: 1, velocity: 0.8 } // No microtuning
-      ]
-    }]
-  };
-
-  const converted = tonejs(simplePiece);
-  const firstTrack = converted.tracks[0];
-
-  console.log('  ✓ Converted track:', firstTrack.trackInfo.label);
-  console.log('  ✓ Note 1 microtuning:', firstTrack.partEvents[0].microtuning, '(expected: 0.25)');
-  console.log('  ✓ Note 2 microtuning:', firstTrack.partEvents[1].microtuning, '(expected: -0.15)');
-  console.log('  ✓ Note 3 microtuning:', firstTrack.partEvents[2].microtuning, '(expected: undefined)');
-
-  if (firstTrack.partEvents[0].microtuning !== 0.25) {
-    throw new Error('First note microtuning not preserved!');
-  }
-  if (firstTrack.partEvents[1].microtuning !== -0.15) {
-    throw new Error('Second note microtuning not preserved!');
-  }
-
-  console.log('  ✓ PASS: Microtuning values preserved correctly\n');
-} catch (error) {
-  console.error('  ✗ FAIL:', error.message, '\n');
-  process.exit(1);
-}
+console.log('  skipped: the Tone.js converter and its round trip are jmon/io');
 
 // Test 2: Corruptor integration
 console.log('2. Testing Corruptor microtuning generation');
@@ -89,54 +58,6 @@ try {
   }
 
   console.log(`  ✓ PASS: ${microtuningCount}/${corrupted.tracks[0].notes.length} notes have microtuning\n`);
-} catch (error) {
-  console.error('  ✗ FAIL:', error.message, '\n');
-  process.exit(1);
-}
-
-// Test 3: End-to-end Corruptor → tonejs conversion
-console.log('3. Testing end-to-end Corruptor → tonejs pipeline');
-try {
-  const piece = {
-    tempo: 140,
-    tracks: [{
-      label: 'Corrupted Melody',
-      notes: [
-        { pitch: 48, time: 0, duration: 2, velocity: 0.9 },
-        { pitch: 52, time: 2, duration: 2, velocity: 0.85 },
-        { pitch: 55, time: 4, duration: 2, velocity: 0.8 }
-      ]
-    }]
-  };
-
-  const corruptor = new Corruptor({
-    entropy: 0.6,
-    seed: 42,
-    microtonalDrift: true,
-    driftAmount: 2.0 // Higher drift amount
-  });
-
-  const corrupted = corruptor.corrupt(piece);
-  const converted = tonejs(corrupted);
-
-  const track = converted.tracks[0];
-  console.log('  ✓ Track label:', track.trackInfo.label);
-  console.log('  ✓ Events:', track.partEvents.length);
-
-  let hasValidMicrotuning = false;
-  track.partEvents.forEach((event, i) => {
-    if (event.microtuning !== undefined) {
-      hasValidMicrotuning = true;
-      const cents = event.microtuning * 100;
-      console.log(`  ✓ Event ${i}: pitch=${event.pitch}, microtuning=${event.microtuning.toFixed(4)}st (${cents.toFixed(1)} cents)`);
-    }
-  });
-
-  if (!hasValidMicrotuning) {
-    throw new Error('Microtuning lost in conversion pipeline!');
-  }
-
-  console.log('  ✓ PASS: Microtuning preserved through full pipeline\n');
 } catch (error) {
   console.error('  ✗ FAIL:', error.message, '\n');
   process.exit(1);
@@ -198,5 +119,5 @@ console.log('=== All Tests Passed ✓ ===');
 console.log('\nMicrotuning support is working correctly!');
 console.log('- Schema field: ✓ Defined');
 console.log('- Corruptor: ✓ Generates microtuning');
-console.log('- tonejs converter: ✓ Passes through microtuning');
-console.log('- Ready for music-player.js to apply via synth.detune');
+console.log('- tonejs converter: moved to jmon/io, not checked here');
+console.log('- Ready for jmon/sound to apply via synth.detune');
