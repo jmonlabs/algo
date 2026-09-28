@@ -61,6 +61,9 @@ export class Progression extends MusicTheoryConstants {
      *   qualities `smooth` may draw.
      * @param {number} [options.bassRange=null] - Keep `smooth`'s lowest voice
      *   within this many semitones of the starting bass.
+     * @param {{center:number, range:number}} [options.octaveBounds=null] -
+     *   Keep `smooth`'s chords around a register, since voice leading alone
+     *   lets a long walk drift by octaves. `nrtWalk` reads the same option.
      *
      * @example
      * // The circle, drawing ordinary tonal progressions
@@ -92,6 +95,7 @@ export class Progression extends MusicTheoryConstants {
             maxVoiceLeading = 4,
             qualities = ['major', 'minor'],
             bassRange = null,
+            octaveBounds = null,
         } = options;
 
         // Parse tonic — accepts a bare note name ('C', 'F#') or an
@@ -119,6 +123,7 @@ export class Progression extends MusicTheoryConstants {
         this.maxVoiceLeading = maxVoiceLeading;
         this.qualities = qualities;
         this.bassRange = bassRange;
+        this.octaveBounds = octaveBounds;
     }
 
     /**
@@ -383,11 +388,19 @@ export class Progression extends MusicTheoryConstants {
      * @param {number|null} [seed=null] - RNG seed (deterministic). Positional,
      *   like `generate(length, seed)` and `nrtWalk(length, seed)`.
      *   `options.seed` is still read, and wins when both are given.
-     * @param {Object} [options] - PerPer run only. The characterrun only. The character of the walk —the walk —
-     *   `maxVoiceLeading`,`maxVoiceLeading`, ``qualities``, `bassRange``bassRange` —— is constructor configis constructor config.
+     * @param {Object} [options] - PerPer runcharacterruncharacterruncharacterruncharacter of 
+      
+      
+      
+     *        ``qualities``, `bassRange` —— is constructor config.
      * @param {string} [options.startQuality] - Override start triad quality
      *   (defaults to 'minor' if constructor `mode` is a minor-family mode,
      *   else 'major').
+     * @param {{center:number, range:number}} [options.octaveBounds] - Keep the
+     *   centroid of each chord within ±range/2 of `center`. Without it a long
+     *   walk can drift up or down by octaves, since every chord is only
+     *   voice-led from the one before. Defaults to the constructor's
+     *   `octaveBounds`; with neither, use `bassRange` to hold the register.
      * @returns {Array<Array<number>>} Array of triads, each a 3-element MIDI
      *   array in voice-leading order. Voice i of chord k corresponds to voice
      *   i of chord k+1 under the parsimonious assignment — sort each chord
@@ -396,6 +409,13 @@ export class Progression extends MusicTheoryConstants {
      * @example
      * // Severance-flavoured walk; identical output for identical seed.
      * new Progression({ tonic: 'C', mode: 'minor', bassRange: 3 }).smooth(4, 42);
+     *
+     * @example
+     * // A walk that stays around A3 instead of wandering octaves
+     * new Progression({
+     *   tonic: 'C', mode: 'minor',
+     *   octaveBounds: { center: 57, range: 12 },
+     * }).smooth(16, 1);
      */
     smooth(length, seed = null, options = {}) {
         const QUALITY_INTERVALS = {
@@ -412,7 +432,10 @@ export class Progression extends MusicTheoryConstants {
             seed = options.seed ?? null;
         }
         Progression._refuseMovedOptions("smooth", options);
-        const { startQuality = MINOR_FAMILY.has(this.mode) ? 'minor' : 'major' } = options;
+        const {
+            startQuality = MINOR_FAMILY.has(this.mode) ? 'minor' : 'major',
+            octaveBounds = this.octaveBounds,
+        } = options;
         const usedSeed = options.seed ?? seed ?? 0;
         const { maxVoiceLeading, qualities, bassRange } = this;
 
@@ -420,7 +443,17 @@ export class Progression extends MusicTheoryConstants {
             throw new Error(`Unknown startQuality: ${startQuality}`);
         }
 
-        const startTriad = QUALITY_INTERVALS[startQuality].map(i => this.tonicMidi + i);
+        // The start chord is moved into the register before anything else, so
+        // `bassRange` is measured from where the walk actually begins. Without
+        // that order the two options can contradict each other: a tonic given
+        // without an octave lands at `tonicMidi` (A4 = 69 for 'A'), while
+        // `octaveBounds: { center: 57 }` asks for A3, and every candidate would
+        // be rejected for having a bass an octave too high — leaving a
+        // one-chord "walk" and no error.
+        const rawStart = QUALITY_INTERVALS[startQuality].map(i => this.tonicMidi + i);
+        const startTriad = octaveBounds
+            ? Progression._constrainOctave(rawStart, octaveBounds)
+            : rawStart;
         const startBass = Math.min(...startTriad);
         const rng = Progression._mulberry32(usedSeed);
 
@@ -437,11 +470,18 @@ export class Progression extends MusicTheoryConstants {
                     const { realization, distance } = Progression._bestRealization(prev, pcs);
                     if (distance > maxVoiceLeading) continue;
                     if (distance === 0) continue; // skip identical chord repeat
+                    // The candidate is voice-led from the previous chord, which
+                    // can land an octave away from where the caller asked. Pull
+                    // it back into the register before the bass check, so both
+                    // options read the same notes.
+                    const placed = octaveBounds
+                        ? Progression._constrainOctave(realization, octaveBounds)
+                        : realization;
                     if (bassRange !== null) {
-                        const bass = Math.min(...realization);
+                        const bass = Math.min(...placed);
                         if (Math.abs(bass - startBass) > bassRange) continue;
                     }
-                    candidates.push({ realization, distance });
+                    candidates.push({ realization: placed, distance });
                 }
             }
 

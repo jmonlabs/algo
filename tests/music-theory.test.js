@@ -613,3 +613,54 @@ test("without inKey, a long walk does leave the key", () => {
   const outside = pg.nrtWalk(8, 1).filter((c) => [...pc(c)].some((p) => !pg.pitchClasses().includes(p)));
   assert.ok(outside.length > 0, "the unconstrained walk is expected to drift; update the seed if not");
 });
+
+// ─── smooth keeps its register ──────────────────────────────────────────
+
+const centroid = (triad) => triad.reduce((s, n) => s + n, 0) / triad.length;
+
+test("smooth honours octaveBounds, which it used to ignore", () => {
+  // `octaveBounds` was documented and passed by callers, but never read by
+  // `smooth` — only `nrtWalk` had it. A walk was placed by voice leading alone,
+  // so it could sit anywhere.
+  const bounds = { center: 57, range: 12 };
+  const bounded = new Progression({ tonic: "A", mode: "minor", octaveBounds: bounds }).smooth(12, 3);
+  for (const chord of bounded) {
+    assert.ok(
+      Math.abs(centroid(chord) - 57) <= 6.01,
+      `centroid ${centroid(chord).toFixed(1)} is outside ${bounds.center} ±${bounds.range / 2}`,
+    );
+  }
+  const free = new Progression({ tonic: "A", mode: "minor" }).smooth(12, 3);
+  assert.notDeepEqual(bounded, free, "the option must actually change the result");
+});
+
+test("octaveBounds and bassRange agree instead of cancelling", () => {
+  // A bare tonic lands an octave up ('A' -> A4 = 69) while bounds ask for A3,
+  // so measuring the bass from the un-moved start chord rejected every
+  // candidate and returned one chord with only a console warning.
+  const pg = new Progression({
+    tonic: "A", mode: "minor",
+    maxVoiceLeading: 4, qualities: ["major", "minor"], bassRange: 4,
+    octaveBounds: { center: 57, range: 12 },
+  });
+  const walk = pg.smooth(12, 3);
+  assert.equal(walk.length, 12, "a full walk, not a single chord");
+  const startBass = Math.min(...walk[0]);
+  for (const chord of walk) {
+    assert.ok(Math.min(...chord) - startBass <= 4, "the bass still respects bassRange");
+  }
+  assert.ok(Math.abs(centroid(walk[0]) - 57) <= 6.01, "and the start chord is in the register");
+});
+
+test("octaveBounds may still be given per run", () => {
+  const pg = new Progression({ tonic: "C", mode: "major" });
+  const perRun = pg.smooth(8, 2, { octaveBounds: { center: 60, range: 12 } });
+  for (const chord of perRun) {
+    assert.ok(Math.abs(centroid(chord) - 60) <= 6.01);
+  }
+  assert.deepEqual(
+    perRun,
+    new Progression({ tonic: "C", mode: "major", octaveBounds: { center: 60, range: 12 } }).smooth(8, 2),
+    "the call and the constructor give the same walk",
+  );
+});

@@ -167,3 +167,72 @@ test("melody operators accept a JMON chord track as context.chords", () => {
   assert.ok(moved.some((n, i) => n[0] !== phrase[i][0]), "an anchor moved onto a non-chord tone");
   assert.ok(metrics.sweetness(phrase, ctx) >= 0, "fitness terms read the track");
 });
+
+// ─── the two fitness systems ────────────────────────────────────────────
+
+const KEY = { tonic: "D", mode: "minor" };
+
+test("metrics alone score only what the caller asked for", () => {
+  // The legacy weights defaulted to six MusicalAnalysis terms and were added on
+  // top of any `metrics` given, so a weight of 10 scored 16.25 — 38% of the
+  // fitness coming from terms nobody asked for, and the weights unreadable as
+  // a relative ranking.
+  const phrase = [{ pitch: 62, duration: 0.5, time: 0, velocity: 0.8 }];
+  const genome = Darwin.toGenome(phrase);
+  const only = new Darwin({
+    initialPhrases: [phrase],
+    context: { key: KEY }, // tonalityFit needs a key to read
+    metrics: [metric("tonalityFit", { target: 1, weight: 10 })],
+  });
+  assert.equal(only.fitness(genome), 10, "a perfect metric of weight 10 scores exactly 10");
+
+  const alsoLegacy = new Darwin({ initialPhrases: [phrase] });
+  assert.ok(alsoLegacy.fitness(genome) > 10, "the defaults still apply when nothing is asked for");
+});
+
+test("asking for no legacy terms is possible", () => {
+  // `weights: {}` was the obvious way to silence them, and it threw on
+  // `this.weights.rest[0]`.
+  const phrase = [{ pitch: 62, duration: 0.5, time: 0, velocity: 0.8 }];
+  const genome = Darwin.toGenome(phrase);
+  const quiet = new Darwin({ initialPhrases: [phrase], weights: {}, targets: {} });
+  assert.equal(quiet.fitness(genome), 0);
+  const partial = new Darwin({ initialPhrases: [phrase], weights: {}, targets: { rest: [0.3, 0, 0] } });
+  assert.doesNotThrow(() => partial.fitness(genome), "a targets key with no matching weight is not a crash");
+});
+
+test("both systems run when both are asked for", () => {
+  const phrase = [{ pitch: 62, duration: 0.5, time: 0, velocity: 0.8 }];
+  const genome = Darwin.toGenome(phrase);
+  const both = new Darwin({
+    initialPhrases: [phrase],
+    context: { key: KEY },
+    metrics: [metric("tonalityFit", { target: 1, weight: 10 })],
+    weights: { motifStrength: [2, 0, 0] },
+    targets: { motifStrength: 0.6 },
+  });
+  const one = new Darwin({
+    initialPhrases: [phrase],
+    context: { key: KEY },
+    metrics: [metric("tonalityFit", { target: 1, weight: 10 })],
+  });
+  const legacy = both.fitness(genome) - one.fitness(genome);
+  assert.ok(legacy > 0 && legacy < 3, `the legacy term adds a little, not the whole default set (added ${legacy})`);
+});
+
+test("a weight may be a bare number instead of a triple", () => {
+  // One note, so motifStrength is the only term with anything to measure.
+  const phrase = [{ pitch: 62, duration: 0.5, time: 0, velocity: 0.8 }];
+  const genome = Darwin.toGenome(phrase);
+  const bare = new Darwin({
+    initialPhrases: [phrase],
+    weights: { motifStrength: 6 },
+    targets: { motifStrength: 0.6 },
+  });
+  const triple = new Darwin({
+    initialPhrases: [phrase],
+    weights: { motifStrength: [6, 6, 6] },
+    targets: { motifStrength: [0.6, 0.6, 0.6] },
+  });
+  assert.equal(bare.fitness(genome), triple.fitness(genome), "a number means all three series");
+});

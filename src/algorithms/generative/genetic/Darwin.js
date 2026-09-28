@@ -111,23 +111,32 @@ export class Darwin {
     // time] triples: the same metric can be scored on each of the three
     // series. The names are the ones MusicalAnalysis uses, so a target here
     // and a measurement there are the same number.
-    this.weights = weights || {
+    //
+    // These defaults apply only when the caller gave neither system. Passing
+    // `metrics` means "I said what I want scored", and silently adding six
+    // legacy terms on top of them made a weight of 10 score 16.25 — 38% of the
+    // fitness coming from terms nobody asked for, which also made the weights
+    // unreadable as a relative ranking.
+    const legacyGiven = weights != null || targets != null;
+    this.legacyFitness = !metrics.length || legacyGiven;
+
+    this.weights = this.legacyFitness ? (weights || {
       gini: [1.0, 1.0, 0.0],
       spread: [1.0, 1.0, 0.0],
       motifStrength: [10.0, 1.0, 0.0],
       dissonance: [1.0, 0.0, 0.0],
       measureFit: [0.0, 10.0, 0.0],
       rest: [1.0, 0.0, 0.0]
-    };
+    }) : (weights || {});
 
-    this.targets = targets || {
+    this.targets = this.legacyFitness ? (targets || {
       gini: [0.05, 0.5, 0.0],
       spread: [0.1, 0.1, 0.0],
       motifStrength: [1.0, 1.0, 0.0],
       dissonance: [0.0, 0.0, 0.0],
       measureFit: [0.0, 1.0, 0.0],
       rest: [0.0, 0.0, 0.0]
-    };
+    }) : (targets || {});
 
     // Initialize population
     this.population = this.initializePopulation();
@@ -324,6 +333,14 @@ export class Darwin {
 
   /**
    * Calculate fitness score for a musical phrase
+   *
+   * Two systems, added together. The legacy one scores a `MusicalAnalysis`
+   * metric on the pitches, the durations or the offsets, from the
+   * `weights`/`targets` triples. The modern one scores a named term from
+   * `metrics`, which sees the whole phrase and the context. They do not
+   * overlap: the legacy terms apply only when the caller gave no `metrics`, or
+   * gave `weights`/`targets` explicitly.
+   *
    * @param {Array} phrase - Musical phrase
    * @returns {number} Fitness score
    */
@@ -333,12 +350,18 @@ export class Darwin {
 
     // Calculate weighted fitness based on similarity to targets
     for (const [metric, targets] of Object.entries(this.targets)) {
-      const weights = this.weights[metric];
-      
+      // A weights entry may be a full triple, a single number, or absent for
+      // one of the three series. `weights: { motifStrength: 6 }` means all three.
+      const raw = this.weights[metric];
+      if (raw === undefined) continue;
+      const weights = Array.isArray(raw) ? raw : [raw, raw, raw];
+      // A bare target is one number for all three series, like a bare weight.
+      const target = Array.isArray(targets) ? targets : [targets, targets, targets];
+
       for (let i = 0; i < 3; i++) { // pitch, duration, offset
         const componentKey = i === 0 ? `${metric}_pitch` : i === 1 ? `${metric}_duration` : `${metric}_offset`;
         const actualValue = components[componentKey] || 0;
-        const targetValue = targets[i];
+        const targetValue = target[i];
         const weight = weights[i];
 
         if (weight > 0 && targetValue !== undefined) {
@@ -350,12 +373,17 @@ export class Darwin {
       }
     }
 
-    // Handle special case for rest metric
-    if (this.weights.rest[0] > 0) {
+    // `rest` is scored once, not per series, so it is handled apart. Guarded
+    // because `rest` is the one key a caller may leave out, and reaching into
+    // it unguarded threw on `weights: {}` — the obvious way to ask for no
+    // legacy terms at all.
+    const rawRest = this.weights.rest;
+    const restWeight = rawRest === undefined ? 0 : (Array.isArray(rawRest) ? rawRest[0] : rawRest);
+    if (restWeight > 0 && this.targets.rest !== undefined) {
       const actualRest = components.rest || 0;
-      const targetRest = this.targets.rest[0];
+      const targetRest = Array.isArray(this.targets.rest) ? this.targets.rest[0] : this.targets.rest;
       const similarity = 1 - Math.abs(actualRest - targetRest) / Math.max(targetRest, 1);
-      fitnessScore += Math.max(0, similarity) * this.weights.rest[0];
+      fitnessScore += Math.max(0, similarity) * restWeight;
     }
 
     // Custom metrics: same similarity-to-target rule as the built-ins
