@@ -83,6 +83,7 @@ Scales, intervals, chords, voice leading, progressions, ornaments and articulati
 - `theory.rhythm.clave` — son, rumba, bossa, tresillo and afro claves as grids or notes, in 2-3 or 3-2. `metricStrengths` grades the places of any meter into downbeat, half-bar, beat, upbeat.
 - `theory.profile.Profile` — a weight per position over a cycle, with `fit`, `rotate`, `bestRotation` and `fromPositions`. Bodzsar's Rhythm Code (16 eighth-note places), Tonality Code (12 pitch classes) and stability order (7 degrees) ship as presets; a profile folded out of your own tracks is the same object.
 - `theory.harmony.Solfege` — degree, syllable, stability rank and distance to the nearest chord tone.
+- `theory.harmony.voiceChorale(chords, { ranges })` — writes chords given as `{ bass, pitchClasses }` for any number of voices: every voicing in the ranges is tried, and the sequence kept is the one where the voices move least, uncrossed and without parallel fifths or octaves, the way back to the first chord included. `theory.harmony.counterpoint(voices)` reads voices already written and reports those parallels, and the harshest clashes, as data (`{ kind, time, bar, beat, voices, pitches }`).
 
 ### Generative — `jm.generative.*`
 - Minimalism: `MinimalismProcess` (additive and subtractive), `Tintinnabuli`, `phaseShift(pattern, { cycles, shift })`
@@ -108,6 +109,8 @@ The books' tables are data, not rules: every score is a measurement, and every t
 
 ### Utils — `jm.utils.*`
 - Transformations: `invert`, `retrograde`, `augment`, `transpose`, `applySwing`, `splitLongNotes`, `removeDuplicates`, `normalizeVelocities`
+- In the key: `diatonic(pitch, steps, scale)` and `transposeDiatonic(notes, steps, scale)` move by steps of a scale (pitch classes, or a `jm.key`), and `canon(notes, { delay, steps, scale, octave })` is the following voice of a canon.
+- Performance: `bow` shapes each note like a bow stroke; `humanize(notes, { seed, timing, velocity, lag })` moves each note a little in time and velocity, the same way for the same seed.
 - `jm.processors.groove` slides stops to heavier places on a rhythm profile; `anticipate` moves chosen onsets earlier when the target is free; `applySteps` runs Bodzsar's four-step procedure.
 - Queries: `getPitchRange`, `getTotalDuration`, `extractRhythm`
 - Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizePiece` (grids in quarter notes; `1/3` for triplets)
@@ -198,7 +201,7 @@ Breaking, and the compositions written against 2.x stay on the `v2.1.0` tag.
 node --test tests/*.test.js
 ```
 
-272 assertion-backed tests, nothing to install. One of them walks the import graph from `src/index.js` and fails if anything outside the package is reached, which is the property the whole layout rests on.
+338 assertion-backed tests, nothing to install. One of them walks the import graph from `src/index.js` and fails if anything outside the package is reached, which is the property the whole layout rests on.
 
 The scripts in `tests/integration/` need a real Tone.js or `@tangent.to/ds` and are observations rather than tests — see the README there.
 

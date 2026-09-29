@@ -499,6 +499,152 @@ export function transpose(notes, semitones) {
 }
 
 /**
+ * The pitch classes of a scale, in ascending order from C: what the diatonic
+ * helpers count their steps on.
+ *
+ * @param {Array<number>|Object} scale - Pitch classes or MIDI pitches, or a
+ *   key context (`jm.key("D", "minor")`), anything with `pitchClasses()`
+ * @returns {Array<number>}
+ */
+function scalePitchClasses(scale) {
+  const given = typeof scale?.pitchClasses === "function" ? scale.pitchClasses() : scale;
+  if (!Array.isArray(given) || given.length === 0) {
+    throw new Error("a scale is needed: pitch classes such as [0, 2, 4, 5, 7, 9, 11], or a key");
+  }
+  return [...new Set(given.map((p) => ((p % 12) + 12) % 12))].sort((a, b) => a - b);
+}
+
+/**
+ * Move a pitch by steps of a scale rather than by semitones: up a third is
+ * two steps, whatever the third turns out to be. In D minor, F down three
+ * steps is C (a perfect fourth) and E down three steps is B flat (an
+ * augmented fourth); the same number of semitones would leave the key.
+ *
+ * A pitch outside the scale keeps its distance above the scale note below
+ * it: in D minor, C sharp moves as C does, and stays a semitone above where
+ * C lands.
+ *
+ * @param {number} pitch - MIDI pitch
+ * @param {number} steps - Scale steps, negative to go down
+ * @param {Array<number>|Object} scale - Pitch classes of the scale, or a key
+ *   context (`jm.key("D", "minor")`)
+ * @returns {number} MIDI pitch
+ *
+ * @example
+ * diatonic(77, -3, [0, 2, 4, 5, 7, 9, 10]);  // F5 -> C5, 72
+ * diatonic(77, -3, jm.key("D", "minor"));    // the same
+ */
+export function diatonic(pitch, steps, scale) {
+  const classes = scalePitchClasses(scale);
+  const size = classes.length;
+  const pc = (p) => ((p % 12) + 12) % 12;
+  let below = Math.floor(pitch);
+  while (!classes.includes(pc(below))) below--;
+  const index = Math.floor(below / 12) * size + classes.indexOf(pc(below)) + steps;
+  const octave = Math.floor(index / size);
+  return octave * 12 + classes[index - octave * size] + (pitch - below);
+}
+
+/**
+ * Transpose notes by steps of a scale (see `diatonic`). Chords are moved note
+ * by note; rests are copied as they are.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {number} steps - Scale steps, negative to go down
+ * @param {Array<number>|Object} scale - Pitch classes of the scale, or a key
+ * @returns {Array} New notes
+ */
+export function transposeDiatonic(notes, steps, scale) {
+  const classes = scalePitchClasses(scale);
+  const move = (p) => (typeof p === "number" ? diatonic(p, steps, classes) : p);
+  return notes.map((n) => ({
+    ...n,
+    pitch: Array.isArray(n.pitch) ? n.pitch.map(move) : move(n.pitch),
+  }));
+}
+
+/**
+ * The following voice of a canon: the same line, later, at another pitch.
+ *
+ * The interval is given in steps of a scale (`steps`, with `scale`), so the
+ * follower stays in the key, and in octaves or semitones on top of that. The
+ * leader is the line as it is; play both.
+ *
+ * @param {Array} notes - The leader, as JMON notes
+ * @param {Object} [options]
+ * @param {number} [options.delay=0] - Beats between the leader and the follower
+ * @param {number} [options.steps=0] - Scale steps, negative for below; needs `scale`
+ * @param {Array<number>|Object} [options.scale] - Pitch classes of the scale, or a key
+ * @param {number} [options.octave=0] - Octaves added to the interval
+ * @param {number} [options.semitones=0] - Semitones added to the interval
+ * @returns {Array} The follower, as new notes
+ *
+ * @example
+ * // A bar later, an eleventh below: three steps and an octave down.
+ * canon(theme, { delay: 4, steps: -3, octave: -1, scale: jm.key("D", "minor") });
+ */
+export function canon(notes, options = {}) {
+  const { delay = 0, steps = 0, scale, octave = 0, semitones = 0 } = options;
+  const classes = steps === 0 ? null : scalePitchClasses(scale);
+  const shift = 12 * octave + semitones;
+  const move = (p) => (typeof p === "number" ? (classes ? diatonic(p, steps, classes) : p) + shift : p);
+  return shiftTime(notes, delay).map((n) => ({
+    ...n,
+    pitch: Array.isArray(n.pitch) ? n.pitch.map(move) : move(n.pitch),
+  }));
+}
+
+/**
+ * Play notes the way a person does: never exactly in place, never exactly at
+ * the same strength. Each note moves a little in time and in velocity, from a
+ * seeded generator, so the same seed gives the same performance every time.
+ *
+ * Every note draws twice, in order (time, then velocity), whether or not it
+ * is moved: adding a rest to a line does not change how the notes after it
+ * are played.
+ *
+ * @param {Array} notes - JMON notes, times in beats
+ * @param {Object} [options]
+ * @param {number} [options.seed=0] - Seed of the generator
+ * @param {number} [options.timing=0.03] - Spread of the onsets, in beats: a
+ *   note lands within ± half of it
+ * @param {number} [options.velocity=0.1] - Spread of the velocities, as a
+ *   proportion: 0.1 is ± 5 %
+ * @param {number} [options.lag=0] - Leans the onsets late, as a share of
+ *   `timing`: 0.05 plays a little behind the beat more often than ahead
+ * @param {number} [options.minVelocity=0.03] - Floor of a sounding note's velocity
+ * @returns {Array} New notes. No note starts before 0; silent notes
+ *   (velocity 0) stay silent.
+ *
+ * @example
+ * humanize(strings, { seed: 1729, timing: 0.06, velocity: 0.12 });
+ */
+export function humanize(notes, options = {}) {
+  const { seed = 0, timing = 0.03, velocity = 0.1, lag = 0, minVelocity = 0.03 } = options;
+  // mulberry32
+  let state = seed >>> 0;
+  const random = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const early = 0.5 - lag;
+
+  return notes.map((note) => {
+    const push = (random() - early) * timing;
+    const press = 1 + (random() - 0.5) * velocity;
+    const played = { ...note };
+    if (typeof note.time === "number") played.time = Math.max(0, note.time + push);
+    if (typeof note.velocity === "number" && note.velocity > 0) {
+      played.velocity = Math.max(minVelocity, Math.min(1, note.velocity * press));
+    }
+    return played;
+  });
+}
+
+/**
  * Sprinkle expressive bend and vibrato articulations onto "long unique" notes
  * in a track. A note qualifies when:
  *   - its `pitch` is a single MIDI number (chords are skipped);
