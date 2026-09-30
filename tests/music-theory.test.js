@@ -353,8 +353,8 @@ test("the static Articulation.apply form still works", () => {
 
 for (const [name, fn] of [["strum", strum], ["arpeggiate", arpeggiate]]) {
   test(`${name} spreads a chord into separate, time-offset notes`, () => {
-    const chordTrack = [{ pitch: [60, 64, 67], duration: 1, time: 0, velocity: 0.8 }];
-    const out = fn(chordTrack, {});
+    const chordNotes = [{ pitch: [60, 64, 67], duration: 1, time: 0, velocity: 0.8 }];
+    const out = fn(chordNotes, {});
 
     assert.equal(out.length, 3, `${name} should emit one note per chord tone`);
     assert.deepEqual(out.map((n) => n.pitch), [60, 64, 67]);
@@ -365,18 +365,18 @@ for (const [name, fn] of [["strum", strum], ["arpeggiate", arpeggiate]]) {
 }
 
 test("strum 'up' sounds the chord high string first, guitar-style", () => {
-  const chordTrack = [{ pitch: [60, 64, 67], duration: 1, time: 0, velocity: 0.8 }];
+  const chordNotes = [{ pitch: [60, 64, 67], duration: 1, time: 0, velocity: 0.8 }];
   // An up-stroke crosses the strings from high to low, so the pitch order
   // reverses while the timing still runs forward.
-  const out = strum(chordTrack, { direction: "up" });
+  const out = strum(chordNotes, { direction: "up" });
   assert.deepEqual(out.map((n) => n.pitch), [67, 64, 60]);
   assert.ok(out[2].time > out[0].time);
 });
 
 test("arpeggiate 'up' runs low to high", () => {
-  const chordTrack = [{ pitch: [60, 64, 67], duration: 1, time: 0, velocity: 0.8 }];
+  const chordNotes = [{ pitch: [60, 64, 67], duration: 1, time: 0, velocity: 0.8 }];
   assert.deepEqual(
-    arpeggiate(chordTrack, { direction: "up" }).map((n) => n.pitch),
+    arpeggiate(chordNotes, { direction: "up" }).map((n) => n.pitch),
     [60, 64, 67],
   );
 });

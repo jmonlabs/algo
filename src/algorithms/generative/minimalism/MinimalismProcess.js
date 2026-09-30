@@ -55,14 +55,15 @@ export class MinimalismProcess {
   }
 
   /**
-   * Generate processed sequence based on operation and direction
+   * The notes, put through the process (operation and direction).
    * Accepts either:
    * - JMON note objects: { pitch, duration, time }
    * - Legacy objects: { pitch, duration, offset }
    * - Legacy tuples: [pitch, duration, offset]
    * Returns: JMON note objects with numeric time (quarter notes)
    */
-  generate(sequence) {
+  generate(notes) {
+    const sequence = notes;
     // Normalize input to objects with numeric 'offset' in beats for internal processing
     this.sequence = this.normalizeInput(sequence);
 
@@ -307,13 +308,13 @@ export class MinimalismProcess {
   
   /**
    * Generate and convert to JMON track format
-   * @param {Array} sequence - Input sequence
+   * @param {Array} notes - JMON notes
    * @param {Object} trackOptions - Track configuration options
    * @param {boolean} trackOptions.useStringTime - Use bars:beats:ticks strings for display (default: numeric)
    * @returns {Object} JMON track object
    */
-  generateTrack(sequence, trackOptions = {}) {
-    const processedNotes = this.generate(sequence);
+  generateTrack(notes, trackOptions = {}) {
+    const processedNotes = this.generate(notes);
     return notesToTrack(processedNotes, {
       timingConfig: this.timingConfig,
       useStringTime: false,
@@ -417,15 +418,15 @@ export class Tintinnabuli {
   }
 
   /**
-   * Generate t-voice from m-voice sequence
+   * The t-voice for an m-voice
    * Accepts: JMON notes, legacy objects, or tuples
    * Returns: JMON notes with numeric time (quarter notes)
-   * @param {Array} sequence - Input sequence
+   * @param {Array} notes - The m-voice, as JMON notes
    * @param {Object} [options]
    * @param {boolean} [options.useStringTime=false] - Whether to use bars:beats:ticks strings for display
    */
-  generate(sequence, { useStringTime = false } = {}) {
-    const normalizedSequence = this.normalizeInput(sequence);
+  generate(notes, { useStringTime = false } = {}) {
+    const normalizedSequence = this.normalizeInput(notes);
     const tVoice = [];
     
     // Reset direction for alternate mode at the start of each generate call

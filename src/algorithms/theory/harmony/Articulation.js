@@ -337,12 +337,12 @@ export class Articulation {
   }
 
   /**
-   * Validate articulation consistency in a sequence
+   * Validate articulation consistency across notes
    */
-  static validateSequence(sequence) {
+  static validateNotes(notes) {
     const issues = [];
 
-    sequence.forEach((note, index) => {
+    notes.forEach((note, index) => {
       const arr = Array.isArray(note.articulations) ? note.articulations : [];
       for (const a of arr) {
         const type = typeof a === "string" ? a : a?.type;

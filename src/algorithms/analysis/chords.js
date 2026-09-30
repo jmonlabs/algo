@@ -7,7 +7,7 @@ import { timeToBeats } from '../../utils/jmon-utils.js';
  * by time with numeric times:
  *
  *   - JMON chord notes, `{ time, duration, pitch: [60, 64, 67] }` — the same
- *     notes a track plays, as `jm.utils.chordTrack(progression)` builds them.
+ *     notes a track plays, as `jm.utils.chordNotes(progression)` builds them.
  *     A note with a single pitch counts as a one-note chord.
  *   - the bare form `{ time, pitches: [60, 64, 67] }`.
  *

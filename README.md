@@ -114,7 +114,7 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - `jm.processors.groove` slides stops to heavier places on a rhythm profile; `anticipate` moves chosen onsets earlier when the target is free; `applySteps` runs Bodzsar's four-step procedure.
 - Queries: `getPitchRange`, `getTotalDuration`, `extractRhythm`
 - Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizePiece` (grids in quarter notes; `1/3` for triplets)
-- Builders: `createTrack`, `createPiece`, `chordTrack` (a progression laid out as JMON chord notes: playable, and what the analyses and `Darwin` read as `chords`)
+- Builders: `createTrack`, `createPiece`, `chordNotes` (a progression laid out as JMON chord notes: playable, and what the analyses and `Darwin` read as `chords`)
 
 ## Conventions
 
@@ -144,6 +144,15 @@ had stated but not kept. The signatures that changed, old to new:
 | `Progression.smooth(length, seed, options)` | `smooth(length, { seed, … })` |
 | `MinimalismProcess.generate(sequence, useStringTime)` | `generate(sequence, { useStringTime })` |
 | `parallelPerfects(a1, b1, a2, b2)` | `parallelPerfects([a1, b1], [a2, b2])` |
+
+And two words for two things. A **track** is the object, `{ label, synth, notes }`;
+**notes** is a list of notes, which is what the functions here take and return.
+"Sequence" is gone: the schema used it for a track and some functions for a
+list of notes. So `chordTrack` is `chordNotes`, `concatenateTracks` is
+`concatenateNotes`, `combineTracks` is `combineNotes`, and
+`MinimalismProcess.generate(notes)`, `Articulation.validateNotes(notes)`. In
+the schema, an automation's `level` is `"track"` (was `"sequence"`) and it
+names its track with `trackId` (was `sequenceId`; io still reads it).
 
 `Progression.circleOfFifths(length)` is gone: it hard-coded the fifth and
 the major triad, and walked in a straight line, while the constructor's

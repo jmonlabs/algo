@@ -174,9 +174,9 @@ test("melody analysis is reachable from jm", () => {
 
 /* --- chord timelines: JMON chord notes are accepted everywhere ----------- */
 
-test("chordTrack lays a progression out as JMON chord notes", () => {
+test("chordNotes lays a progression out as JMON chord notes", () => {
   const prog = jm.key("D", "minor").progression().generate(["i", "VI", "III", "VII"]);
-  const track = jm.utils.chordTrack(prog, { duration: 4, start: 8 });
+  const track = jm.utils.chordNotes(prog, { duration: 4, start: 8 });
   assert.equal(track.length, 4);
   assert.deepEqual(track[0].pitch, prog[0]);
   assert.equal(track[1].time, 12);
@@ -186,7 +186,7 @@ test("chordTrack lays a progression out as JMON chord notes", () => {
 
 test("the analyses read JMON chord notes and bare { time, pitches } alike", () => {
   const prog = [[62, 65, 69], [58, 62, 65], [65, 69, 72], [60, 64, 67]];
-  const track = jm.utils.chordTrack(prog, { duration: 4 });
+  const track = jm.utils.chordNotes(prog, { duration: 4 });
   const bare = prog.map((pitches, i) => ({ time: i * 4, pitches }));
   const melody = [note(62, 0, 2), note(65, 3.5, 2), note(69, 8, 4), note(67, 12, 4)];
   const D = { tonic: "D", mode: "minor" };

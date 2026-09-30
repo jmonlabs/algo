@@ -187,13 +187,13 @@ export function createScale(pitches, { duration = 1, time = 0 } = {}) {
  * Lay a progression on a timeline as JMON chord notes.
  *
  * A `Progression` returns chords as arrays of pitches. This gives each one a
- * time and a duration, so the result is a track you can play, export, or hand
- * to the analyses and to Darwin as `chords`. It is `createScale` with names
- * that say what it is for.
+ * time and a duration, so the result is notes you can put in a track and play,
+ * export, or hand to the analyses and to Darwin as `chords`. It is
+ * `createScale` with names that say what it is for.
  *
  * @example
  * const prog = jm.key("D", "minor").progression().generate(["i", "VI", "III", "VII"]);
- * const chords = jm.utils.chordTrack(prog, { duration: 4 });
+ * const chords = jm.utils.chordNotes(prog, { duration: 4 });
  * // [{ pitch: [50, 53, 57], duration: 4, time: 0 }, { pitch: [...], duration: 4, time: 4 }, ...]
  *
  * @param {Array<Array<number>|number>} progression - Chords as pitch arrays (a bare number is a one-note chord)
@@ -203,7 +203,7 @@ export function createScale(pitches, { duration = 1, time = 0 } = {}) {
  * @param {number} [options.velocity=0.8]
  * @returns {Array<Object>} JMON notes with array pitches and numeric times
  */
-export function chordTrack(progression, { duration = 4, start = 0, velocity = 0.8 } = {}) {
+export function chordNotes(progression, { duration = 4, start = 0, velocity = 0.8 } = {}) {
   if (!Array.isArray(progression)) return [];
   return progression.map((chord, i) => ({
     pitch: Array.isArray(chord) ? chord.slice() : chord,
@@ -356,12 +356,13 @@ export function tile(notes, { times, cycle } = {}) {
 }
 
 /**
- * Concatenate multiple tracks with proper timing
- * Each track's timing is adjusted to start after the previous one ends
- * @param {Array} tracks - Array of tracks (note arrays)
- * @returns {Array} Concatenated notes with adjusted timing
+ * Concatenate several lists of notes end to end: each list starts when the
+ * previous one ends.
+ * @param {Array<Array>} lists - Lists of JMON notes
+ * @returns {Array} One list of notes, times adjusted
  */
-export function concatenateTracks(tracks) {
+export function concatenateNotes(lists) {
+  const tracks = lists;
   if (tracks.length === 0) return [];
 
   const result = [];
@@ -388,13 +389,12 @@ export function concatenateTracks(tracks) {
 
 
 /**
- * Chain/concatenate tracks with proper timing adjustment
- * Variadic wrapper around concatenateTracks for clarity
- * @param {...Array} tracks - Tracks (note arrays) to chain
- * @returns {Array} Chained notes with sequential timing
+ * The same as `concatenateNotes`, taking the lists as separate arguments.
+ * @param {...Array} lists - Lists of JMON notes to chain
+ * @returns {Array} One list of notes, times adjusted
  */
-export function chain(...tracks) {
-  return concatenateTracks(tracks);
+export function chain(...lists) {
+  return concatenateNotes(lists);
 }
 
 /**
@@ -419,12 +419,13 @@ export function recalculateTiming(notes, startTime = 0) {
 }
 
 /**
- * Combine multiple tracks to play simultaneously
- * @param {Array} tracks - Array of tracks (note arrays)
- * @returns {Array} Combined notes
+ * Combine several lists of notes into one, to sound together: the times are
+ * kept as they are.
+ * @param {Array<Array>} lists - Lists of JMON notes
+ * @returns {Array} One list of notes
  */
-export function combineTracks(tracks) {
-  return tracks.flat();
+export function combineNotes(lists) {
+  return lists.flat();
 }
 
 

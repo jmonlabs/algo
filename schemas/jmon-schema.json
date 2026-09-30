@@ -799,7 +799,7 @@
     },
     "tracks": {
       "type": "array",
-      "description": "Musical tracks (sequences or parts).",
+      "description": "Musical tracks.",
       "items": {
         "type": "object",
         "required": [
@@ -809,13 +809,13 @@
         "properties": {
           "label": {
             "type": "string",
-            "description": "Label for this sequence (e.g., 'lead', 'bass', etc.)."
+            "description": "Label for this track (e.g., 'lead', 'bass', etc.)."
           },
           "midiChannel": {
             "type": "integer",
             "minimum": 0,
             "maximum": 15,
-            "description": "Default MIDI channel for this sequence (0-15)."
+            "description": "Default MIDI channel for this track (0-15)."
           },
           "midiProgram": {
             "type": "integer",
@@ -1242,7 +1242,7 @@
                   "type": "integer",
                   "minimum": 0,
                   "maximum": 15,
-                  "description": "Override sequence MIDI channel for this note (0-15)."
+                  "description": "Override the track's MIDI channel for this note (0-15)."
                 },
                 "modulations": {
                   "type": "array",
@@ -1303,7 +1303,7 @@
                 "type": "string"
               }
             ],
-            "description": "Whether this sequence loops, or string for musical duration."
+            "description": "Whether this track loops, or string for musical duration."
           },
           "loopEnd": {
             "type": "string",
@@ -1312,7 +1312,7 @@
           },
           "effects": {
             "type": "array",
-            "description": "Sequence-level effects.",
+            "description": "Track-level effects.",
             "items": {
               "type": "object",
               "required": [
@@ -1337,7 +1337,7 @@
           },
           "automation": {
             "type": "array",
-            "description": "Sequence-level automation channels affecting only this sequence.",
+            "description": "Track-level automation channels affecting only this track.",
             "items": {
               "$ref": "#/definitions/automationChannel"
             }
@@ -1364,11 +1364,11 @@
         },
         "tracks": {
           "type": "object",
-          "description": "Sequence-level automation channels organized by sequence ID.",
+          "description": "Track-level automation channels organized by track ID.",
           "patternProperties": {
             ".*": {
               "type": "array",
-              "description": "Automation channels for this sequence.",
+              "description": "Automation channels for this track.",
               "items": {
                 "$ref": "#/definitions/automationChannel"
               }
@@ -1664,15 +1664,15 @@
           "type": "string",
           "enum": [
             "global",
-            "sequence",
+            "track",
             "note"
           ],
           "default": "global",
-          "description": "Automation level: global (entire composition), sequence (per track), or note (per note velocity)."
+          "description": "Automation level: global (the whole piece), track, or note (per note velocity)."
         },
-        "sequenceId": {
+        "trackId": {
           "type": "string",
-          "description": "Target sequence ID for sequence-level automation."
+          "description": "The track a track-level automation applies to, by its id or label."
         },
         "range": {
           "type": "array",
