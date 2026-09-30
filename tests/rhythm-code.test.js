@@ -8,11 +8,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Profile, presets, RHYTHM_CODE_23 } from "../src/algorithms/theory/profile/index.js";
-import { clave, clavePattern, metricStrengths } from "../src/algorithms/theory/rhythm/clave.js";
-import { euclid, euclidPattern } from "../src/algorithms/theory/rhythm/euclid.js";
-import { onsets, fromOnsets, draw } from "../src/algorithms/theory/rhythm/pattern.js";
-import { isorhythm } from "../src/algorithms/theory/rhythm/isorhythm.js";
+import { Profile, presets, RHYTHM_CODE_23 } from "../src/rhythm/profile/index.js";
+import { clave, clavePattern, metricStrengths } from "../src/rhythm/clave.js";
+import { euclid, euclidPattern } from "../src/rhythm/euclid.js";
+import { grid, fromGrid, draw } from "../src/rhythm/pattern.js";
+import { isorhythm } from "../src/rhythm/isorhythm.js";
 import { lcm, gcd } from "../src/algorithms/utils.js";
 import { place } from "../src/notes/index.js";
 import * as R from "../src/algorithms/analysis/RhythmCode.js";
@@ -82,18 +82,18 @@ test("Profile validates its input", () => {
 /* --- claves and metric strengths ---------------------------------------- */
 
 test("clave patterns match the standard grids", () => {
-  assert.equal(clavePattern("son", "2-3").map(Number).join(""), "0010100010010010");
-  assert.equal(clavePattern("son", "3-2").map(Number).join(""), "1001001000101000");
+  assert.equal(clavePattern("son", { orientation: "2-3" }).map(Number).join(""), "0010100010010010");
+  assert.equal(clavePattern("son", { orientation: "3-2" }).map(Number).join(""), "1001001000101000");
   assert.equal(clavePattern("tresillo").map(Number).join(""), "10010010");
   assert.equal(clavePattern("afro").length, 12);
   assert.throws(() => clavePattern("samba"), /unknown pattern/);
 });
 
 test("clave() lays the pattern out as JMON notes", () => {
-  const notes = clave({ name: "son", orientation: "3-2", pitches: 75 });
+  const notes = clave("son", { orientation: "3-2", pitches: 75 });
   assert.deepEqual(notes.map((n) => n.time), [0, 1.5, 3, 5, 6]);
   assert.ok(notes.every((n) => n.pitch === 75));
-  assert.equal(clave({ name: "tresillo", repeat: 2 }).length, 6);
+  assert.equal(clave("tresillo", { repeat: 2 }).length, 6);
 });
 
 test("metricStrengths grades 4/4 into downbeat, half-bar, beat, upbeat", () => {
@@ -220,15 +220,15 @@ test("rhythm tools are reachable from jm", () => {
 
 // ─── pattern ↔ notes ────────────────────────────────────────────────────
 
-test("onsets reads a grid back off notes", () => {
+test("grid reads a grid back off notes", () => {
   const notes = euclid({ steps: 8, pulses: 3, subdivision: 0.5, pitches: 36 });
-  assert.deepEqual(onsets(notes, { subdivision: 0.5, beats: 4 }), [true, false, false, true, false, false, true, false]);
+  assert.deepEqual(grid(notes, { subdivision: 0.5, beats: 4 }), [true, false, false, true, false, false, true, false]);
 });
 
-test("fromOnsets is the inverse of onsets", () => {
+test("fromGrid is the inverse of grid", () => {
   const pattern = [true, false, true, false, false, true, false, false];
-  const notes = fromOnsets(pattern, { pitches: 60, subdivision: 0.5 });
-  assert.deepEqual(onsets(notes, { subdivision: 0.5, beats: 4 }), pattern.map(Boolean));
+  const notes = fromGrid(pattern, { pitches: 60, subdivision: 0.5 });
+  assert.deepEqual(grid(notes, { subdivision: 0.5, beats: 4 }), pattern.map(Boolean));
 });
 
 test("draw reads a rhythm faster than reading the notes", () => {
@@ -238,18 +238,18 @@ test("draw reads a rhythm faster than reading the notes", () => {
   assert.equal(draw([1, 0, 0, 1], { on: "X", off: "-" }), "X--X");
 });
 
-test("fromOnsets takes a typed pattern, so a rhythm can be written as text", () => {
-  const typed = fromOnsets("x..x..x.", { pitches: 36, subdivision: 0.5 });
+test("fromGrid takes a typed pattern, so a rhythm can be written as text", () => {
+  const typed = fromGrid("x..x..x.", { pitches: 36, subdivision: 0.5 });
   const generated = euclid({ steps: 8, pulses: 3, subdivision: 0.5, pitches: 36 });
   assert.deepEqual(typed, generated, "a typed tresillo is the tresillo");
 });
 
 test("a chord counts once, and a rest shows where it sits", () => {
   const chord = [{ pitch: [60, 64, 67], duration: 1, time: 0 }, { pitch: [62, 65], duration: 1, time: 2 }];
-  assert.deepEqual(onsets(chord, { subdivision: 0.5, beats: 4 }), [true, false, false, false, true, false, false, false]);
+  assert.deepEqual(grid(chord, { subdivision: 0.5, beats: 4 }), [true, false, false, false, true, false, false, false]);
   const withRest = [{ pitch: 60, duration: 1, time: 0 }, { pitch: null, duration: 1, time: 2 }];
   assert.deepEqual(
-    onsets(withRest, { subdivision: 0.5, beats: 4 }),
+    grid(withRest, { subdivision: 0.5, beats: 4 }),
     [true, false, false, false, true, false, false, false],
     "a rest is an event in the timeline, so it is drawn where it sits",
   );
@@ -257,10 +257,10 @@ test("a chord counts once, and a rest shows where it sits", () => {
 
 test("a cyclic window is what makes two lengths comparable", () => {
   // A 3-step pattern and an 8-step pattern, in one grid of 24.
-  const three = fromOnsets(euclidPattern(3, 2), { pitches: 60, subdivision: 0.5, repeat: 8 });
-  const eight = fromOnsets(euclidPattern(8, 5), { pitches: 60, subdivision: 0.5, repeat: 3 });
-  assert.equal(onsets(three, { subdivision: 0.5, beats: 12, cyclic: true }).length, 24);
-  assert.equal(onsets(eight, { subdivision: 0.5, beats: 12, cyclic: true }).length, 24);
+  const three = fromGrid(euclidPattern({ steps: 3, pulses: 2 }), { pitches: 60, subdivision: 0.5, repeat: 8 });
+  const eight = fromGrid(euclidPattern({ steps: 8, pulses: 5 }), { pitches: 60, subdivision: 0.5, repeat: 3 });
+  assert.equal(grid(three, { subdivision: 0.5, beats: 12, cyclic: true }).length, 24);
+  assert.equal(grid(eight, { subdivision: 0.5, beats: 12, cyclic: true }).length, 24);
 });
 
 test("lcm is when two cycles line up again", () => {
@@ -285,7 +285,7 @@ test("place moves a phrase without touching what it does not say", () => {
 });
 
 test("at and draw refuse nonsense loudly", () => {
-  assert.throws(() => onsets([], { subdivision: 0 }), /subdivision/);
-  assert.throws(() => fromOnsets("x", { subdivision: -1 }), /subdivision/);
-  assert.throws(() => fromOnsets("x", { pitches: [] }), /empty array/);
+  assert.throws(() => grid([], { subdivision: 0 }), /subdivision/);
+  assert.throws(() => fromGrid("x", { subdivision: -1 }), /subdivision/);
+  assert.throws(() => fromGrid("x", { pitches: [] }), /empty array/);
 });

@@ -1,4 +1,4 @@
-import { fromOnsets } from './pattern.js';
+import { fromGrid } from './pattern.js';
 
 /**
  * Distribute `pulses` onsets as evenly as possible over `steps` slots —
@@ -6,18 +6,19 @@ import { fromOnsets } from './pattern.js';
  * across world music: E(3,8) is the tresillo, E(5,8) the cinquillo, E(2,5)
  * the khafif-e-ramal.
  *
- * @param {number} steps - Slots in the cycle
- * @param {number} pulses - Onsets to distribute
- * @param {number} [rotation=0] - Rotate the pattern left by this many steps.
+ * @param {Object} options
+ * @param {number} options.steps - Slots in the cycle
+ * @param {number} options.pulses - Onsets to distribute
+ * @param {number} [options.rotation=0] - Rotate the pattern left by this many steps.
  *   Rotation is half the musical point: E(3,8) rotated gives every one of the
  *   family's canonical faces.
  * @returns {Array<boolean>} One entry per step: true where an onset lands
  *
  * @example
- * euclidPattern(8, 3);    // [T,F,F,T,F,F,T,F] — tresillo
- * euclidPattern(8, 3, 3); // rotated
+ * euclidPattern({ steps: 8, pulses: 3 });               // [T,F,F,T,F,F,T,F] — tresillo
+ * euclidPattern({ steps: 8, pulses: 3, rotation: 3 }); // rotated
  */
-export function euclidPattern(steps, pulses, rotation = 0) {
+export function euclidPattern({ steps, pulses, rotation = 0 } = {}) {
     if (!Number.isInteger(steps) || steps <= 0) {
         throw new Error('euclid: steps must be a positive integer');
     }
@@ -92,7 +93,7 @@ export function euclid({
         throw new Error('euclid: subdivision must be a positive number of quarter notes');
     }
 
-    return fromOnsets(euclidPattern(steps, pulses, rotation), {
+    return fromGrid(euclidPattern({ steps, pulses, rotation }), {
         pitches,
         velocities,
         duration,

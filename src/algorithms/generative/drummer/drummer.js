@@ -1,7 +1,7 @@
 import { DEFAULT_DRUM_MAP } from "./drum-map.js";
 import { presets, getPreset } from "./presets.js";
-import { presets as profilePresets } from "../../theory/profile/presets.js";
-import { clavePattern } from "../../theory/rhythm/clave.js";
+import { presets as profilePresets } from "../../../rhythm/profile/presets.js";
+import { clavePattern } from "../../../rhythm/clave.js";
 
 /**
  * Mulberry32 PRNG, seeded.
@@ -265,7 +265,7 @@ function compose(plan, ctx) {
 
   const claveProfile = orientation ? profilePresets.rhythmCode(orientation) : null;
   const claveGrid = decorations && decorations.clave > 0
-    ? clavePattern("son", orientation || "2-3")
+    ? clavePattern("son", { orientation: orientation || "2-3" })
     : null;
 
   const makeNote = (pitch, time, velocity, stepDur) => ({

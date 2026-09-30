@@ -18,6 +18,7 @@ Colonnes : la sorte d'entrée (183 fonctions, 27 classes, 91 données), qui l'ap
 - `jm.notes` : fait (5.0.0, `jm.utils` reste une façade des anciens noms pour une version).
 - `jm.performance` : fait. Les pièces appellent `jm.notes` et `jm.performance` ; studio expose désormais tous les espaces d'algo.
 - `jm.harmony` et `jm.voices` : fait. `Progression` ne garde que la tonalité et le cercle ; ses marches sont `voices.smoothWalk`, `voices.neoRiemannianWalk` et `voices.neoRiemannian`, fonctions d'un accord de départ. `voiceChorale` est `voices.lead`. `chordify`/`chordifyMany`/`Voice` sont `harmony.chord`/`chords`/`harmonize` ; le solfège est à plat dans `harmony`. `k.scale(options)` rend les hauteurs. `jm.theory.harmony` reste une façade des anciens noms pour une version. huxoxoc, oooaaa, naiu et recipe appellent les nouveaux noms ; notes identiques.
+- `jm.rhythm` : fait. `theory.rhythm` et `theory.profile` réunis ; `onsets`/`fromOnsets` (le grillage binaire) sont `grid`/`fromGrid`, `notes.onsets` gardant le mot pour les temps d'attaque ; `euclidPattern({ steps, pulses, rotation })`, `clavePattern(name, { orientation })`, `clave(name, options)` suivent la règle d'appel. `jm.theory.rhythm`/`profile` restent une façade. siuraa appelle `jm.rhythm` ; notes identiques.
 
 ## La cible
 

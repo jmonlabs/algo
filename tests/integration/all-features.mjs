@@ -232,7 +232,7 @@ test('Articulation: Apply accent', () => {
   if (!result.success || note.velocity <= 0.8) throw new Error('Accent not applied');
 });
 
-import { isorhythm } from '../../src/algorithms/theory/rhythm/isorhythm.js';
+import { isorhythm } from '../../src/rhythm/isorhythm.js';
 test('Isorhythm: Generate pattern', () => {
   const pitches = [60, 62, 64, 65, 67];
   const durations = [1, 0.5, 0.5, 1];
@@ -240,7 +240,7 @@ test('Isorhythm: Generate pattern', () => {
   if (!Array.isArray(result) || result.length !== 20) throw new Error('Invalid isorhythm');
 });
 
-import { beatcycle } from '../../src/algorithms/theory/rhythm/beatcycle.js';
+import { beatcycle } from '../../src/rhythm/beatcycle.js';
 test('Beatcycle: Generate pattern', () => {
   const pitches = [60, 62, 64, 65];
   const durations = [1, 0.5, 0.5];
@@ -252,7 +252,7 @@ test('Beatcycle: Generate pattern', () => {
 });
 
 
-import { Rhythm } from '../../src/algorithms/theory/rhythm/Rhythm.js';
+import { Rhythm } from '../../src/rhythm/Rhythm.js';
 test('Rhythm: Generate random rhythm', () => {
   const rhythm = new Rhythm({ measureLength: 4, durations: [0.25, 0.5, 1, 2] });
   const result = rhythm.random({ restProbability: 0.2, seed: 7 });

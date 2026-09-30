@@ -1,4 +1,4 @@
-import { fromOnsets } from './pattern.js';
+import { fromGrid } from './pattern.js';
 
 /**
  * Clave patterns as onset grids, one boolean per eighth-note place. Two-bar
@@ -20,10 +20,11 @@ export const CLAVES = Object.freeze({
 /**
  * Onset grid of a clave.
  * @param {string} name - One of `CLAVES`
- * @param {string} [orientation='2-3'] - '2-3' or '3-2'; ignored for one-bar patterns
+ * @param {Object} [options]
+ * @param {string} [options.orientation='2-3'] - '2-3' or '3-2'; ignored for one-bar patterns
  * @returns {Array<boolean>}
  */
-export function clavePattern(name, orientation = '2-3') {
+export function clavePattern(name, { orientation = '2-3' } = {}) {
     const def = CLAVES[name];
     if (!def) throw new Error(`clave: unknown pattern "${name}" (${Object.keys(CLAVES).join(', ')})`);
     let grid = def.grid.map(Boolean);
@@ -40,8 +41,8 @@ export function clavePattern(name, orientation = '2-3') {
  * A clave as JMON notes. Mirrors `euclid()`: `subdivision` is what one grid
  * place is worth in quarter notes (0.5, an eighth, by default).
  *
- * @param {Object} options
- * @param {string} [options.name='son']
+ * @param {string} [name='son'] - One of `CLAVES`
+ * @param {Object} [options]
  * @param {string} [options.orientation='2-3']
  * @param {number} [options.subdivision=0.5]
  * @param {number|Array<number>} [options.pitches=60]
@@ -52,10 +53,9 @@ export function clavePattern(name, orientation = '2-3') {
  * @returns {Array<Object>}
  *
  * @example
- * clave({ name: 'son', orientation: '3-2', pitches: 75 });
+ * clave('son', { orientation: '3-2', pitches: 75 });
  */
-export function clave({
-    name = 'son',
+export function clave(name = 'son', {
     orientation = '2-3',
     subdivision = 0.5,
     pitches = 60,
@@ -67,7 +67,7 @@ export function clave({
     if (typeof subdivision !== 'number' || subdivision <= 0) {
         throw new Error('clave: subdivision must be a positive number of quarter notes');
     }
-    return fromOnsets(clavePattern(name, orientation), {
+    return fromGrid(clavePattern(name, { orientation }), {
         pitches,
         velocities,
         duration,

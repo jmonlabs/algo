@@ -3,8 +3,8 @@ import { MusicTheoryConstants, ARTICULATION_TYPES, ORNAMENT_TYPES, ConstantsAPI 
 
 // Theory imports
 import harmony from './theory/harmony/index.js';
-import rhythm from './theory/rhythm/index.js';
-import profile from './theory/profile/index.js';
+import * as rhythm from '../rhythm/index.js';
+import profile from '../rhythm/profile/index.js';
 
 // Generative algorithm imports
 import { CellularAutomata } from './generative/cellular-automata/index.js';
@@ -31,9 +31,9 @@ import * as Utils from './utils.js';
 // Export namespaces
 export const theory = {
     harmony,
+    // theory.rhythm and theory.profile are jm.rhythm now; src/index.js keeps
+    // the old names of both here for one release.
     rhythm,
-    // Weight profiles over a cycle: the Rhythm Code, the Tonality Code, the
-    // stability order — and whatever you fold out of your own material.
     profile
 };
 

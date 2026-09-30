@@ -87,12 +87,13 @@ What the voices do from one chord to the next. No key here: a chord is three pit
 - The smoothest next chord: `smoothWalk(chord, { length, seed, maxVoiceLeading, qualities, bassRange, octaveBounds })` picks, among all major and minor triads, the ones the voices reach by moving least.
 - Chorale: `lead(chords, { ranges, top })` writes chords given as `{ bass, pitchClasses }` for any number of voices: every voicing in the ranges is tried, and the sequence kept is the one where the voices move least, uncrossed and without parallel fifths or octaves, the way back to the first chord included. `counterpoint(voices, { beatsPerBar })` reads voices already written and reports those parallels, and the harshest clashes, as data (`{ kind, time, bar, beat, voices, pitches }`).
 
-### Theory — `jm.theory.*`
-Rhythm generation and profiles. `Rhythm.random()` and `Rhythm.darwin()` return JMON notes, with `pitches` cycled across them the way `euclid` does.
+### Rhythm — `jm.rhythm.*`
+Where the notes fall. A rhythm is a grid, one place per step, hit or not: `grid(notes, { subdivision, beats })` reads one off notes, `fromGrid("x..x..x.", { pitches, subdivision })` lays one out as notes, `draw(notes)` prints either.
+- Patterns: `euclid({ steps, pulses, rotation, pitches })` and `euclidPattern({ steps, pulses })`; `clave("son", { orientation, pitches })` and `clavePattern("son", { orientation })` for the son, rumba, bossa, tresillo and afro claves, in 2-3 or 3-2 (`CLAVES` holds them); `isorhythm({ pitches, durations })` and `beatcycle({ pitches, durations })` cycle pitches over durations; `new Rhythm({ measureLength, durations }).random({ seed })` and `.darwin({ seed })` return notes with `pitches` cycled across them. `metricStrengths` grades the places of any meter into downbeat, half-bar, beat, upbeat.
+- Profiles: `Profile` is a weight per position over a cycle, with `fit`, `rotate`, `bestRotation` and `fromPositions`. Bodzsar's Rhythm Code (16 eighth-note places), Tonality Code (12 pitch classes) and stability order (7 degrees) ship as `presets`; a profile folded out of your own tracks is the same object.
 
-- `theory.rhythm.clave` — son, rumba, bossa, tresillo and afro claves as grids or notes, in 2-3 or 3-2. `metricStrengths` grades the places of any meter into downbeat, half-bar, beat, upbeat.
-- `theory.profile.Profile` — a weight per position over a cycle, with `fit`, `rotate`, `bestRotation` and `fromPositions`. Bodzsar's Rhythm Code (16 eighth-note places), Tonality Code (12 pitch classes) and stability order (7 degrees) ship as presets; a profile folded out of your own tracks is the same object.
-- `theory.harmony` — the classes `Scale`, `Voice` and `Solfege` behind `jm.harmony`, and the names of 4.x for one release.
+### Theory — `jm.theory.*`
+The names of 4.x for `theory.harmony`, `theory.rhythm` and `theory.profile`, kept for one release over `jm.harmony`, `jm.voices` and `jm.rhythm`; and the classes `Scale`, `Voice` and `Solfege` behind `jm.harmony`.
 
 ### Generative — `jm.generative.*`
 - Minimalism: `MinimalismProcess` (additive and subtractive), `Tintinnabuli`, `phaseShift(pattern, { cycles, shift })`
@@ -189,6 +190,15 @@ triad the old call started from, the tonic at octave 4 (`[62, 65, 69]` for D).
 (it was `k.scale().generate(options)`); `k.voice()` and `k.ornament()` are
 gone, `harmonize` and `performance.ornament` taking the key instead.
 `jm.theory.harmony` answers to the old names for one release.
+
+**`jm.rhythm`.** `theory.rhythm` and `theory.profile`, together. The binary
+grid of a track is `grid` and `fromGrid` (they were `onsets` and `fromOnsets`;
+`notes.onsets` is the list of times, and one word means one thing).
+`euclidPattern(steps, pulses, rotation)` is `euclidPattern({ steps, pulses,
+rotation })`, `clavePattern(name, orientation)` is `clavePattern(name, {
+orientation })`, and `clave({ name, ...options })` is `clave(name, options)`:
+the pattern's name is the subject. `jm.theory.rhythm` and `jm.theory.profile`
+answer to the old names and shapes for one release.
 
 ## Changes in 4.0
 

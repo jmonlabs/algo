@@ -1,4 +1,4 @@
-import { euclid, euclidPattern } from '../../theory/rhythm/euclid.js';
+import { euclid, euclidPattern } from '../../../rhythm/euclid.js';
 
 /**
  * Represents a collection of loops for rhythm and melody pattern generation
@@ -295,7 +295,7 @@ export class Loop {
    * takes a rotation.
    */
   static generateEuclideanRhythm(beats, pulses) {
-    return euclidPattern(beats, pulses);
+    return euclidPattern({ steps: beats, pulses });
   }
 
   /**

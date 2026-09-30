@@ -1,7 +1,7 @@
-import { Profile } from '../theory/profile/Profile.js';
+import { Profile } from '../../rhythm/profile/Profile.js';
 import { timeToBeats } from '../../notes/index.js';
-import { presets as profilePresets } from '../theory/profile/presets.js';
-import { metricStrengths } from '../theory/rhythm/clave.js';
+import { presets as profilePresets } from '../../rhythm/profile/presets.js';
+import { metricStrengths } from '../../rhythm/clave.js';
 import { onsetPositions } from '../analysis/salience.js';
 
 /**

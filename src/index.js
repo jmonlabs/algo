@@ -31,6 +31,7 @@ import * as notes from "./notes/index.js";
 import * as performance from "./performance/index.js";
 import * as harmony from "./harmony/index.js";
 import * as voices from "./voices/index.js";
+import * as rhythm from "./rhythm/index.js";
 
 /**
  * The composition API.
@@ -49,8 +50,8 @@ const jm = {
   //   jm.harmony.chord(62, k);
   key: harmony.key,
 
-  // The names of 4.x for theory.harmony, kept for one release while the
-  // pieces move to jm.harmony and jm.voices. Nothing new goes here.
+  // The names of 4.x for theory.*, kept for one release while the pieces
+  // move to jm.harmony, jm.voices and jm.rhythm. Nothing new goes here.
   theory: {
     ...algorithms.theory,
     harmony: {
@@ -61,6 +62,18 @@ const jm = {
       chordify: harmony.chord,
       chordifyMany: harmony.chords,
     },
+    rhythm: {
+      ...rhythm,
+      onsets: rhythm.grid,
+      fromOnsets: rhythm.fromGrid,
+      clave: (options = {}) => {
+        const { name, ...rest } = options;
+        return rhythm.clave(name, rest);
+      },
+      clavePattern: (name, orientation) => rhythm.clavePattern(name, { orientation }),
+      euclidPattern: (steps, pulses, rotation) => rhythm.euclidPattern({ steps, pulses, rotation }),
+    },
+    profile: algorithms.theory.profile,
   },
   generative: algorithms.generative,
   processors: algorithms.processors,
@@ -81,6 +94,10 @@ const jm = {
   // What the voices do from one chord to the next: neoRiemannian,
   // neoRiemannianWalk, smoothWalk, lead, counterpoint.
   voices,
+
+  // Where the notes fall: grid, fromGrid, draw, euclid, clave, isorhythm,
+  // beatcycle, Rhythm, Profile and its presets.
+  rhythm,
 
   // The names of 4.x, kept for one release while the pieces move to jm.notes
   // and jm.performance. Nothing new goes here.

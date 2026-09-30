@@ -1,4 +1,4 @@
-import { beatsToTime } from '../../../notes/index.js';
+import { beatsToTime } from '../notes/index.js';
 
 /**
  * The pattern ↔ notes pair, which is what `euclid` and `clave` are made of.
@@ -8,7 +8,7 @@ import { beatsToTime } from '../../../notes/index.js';
  * `'X..X..X.'`, `'1..1..1.'`). A note array is a pattern with its hits already
  * spread out in time.
  *
- * `onsets` reads a pattern off some notes, `fromOnsets` lays a pattern out as
+ * `grid` reads a pattern off some notes, `fromGrid` lays a pattern out as
  * notes, and `draw` prints either one. Between them they cover both directions,
  * so a rhythm can be shown, edited as text, and played back without a hand-
  * written loop in between.
@@ -35,7 +35,7 @@ export function parsePattern(pattern) {
 /**
  * A grid of onsets read off notes, one boolean per step.
  *
- * The inverse of `fromOnsets`. A note is a hit wherever it starts; a chord,
+ * The inverse of `fromGrid`. A note is a hit wherever it starts; a chord,
  * being several notes at one time, counts once. `pitch: null` (a rest) never
  * counts, so a phrase padded with rests draws the same as the phrase without.
  *
@@ -53,11 +53,11 @@ export function parsePattern(pattern) {
  *
  * @example
  * // One bar of eighths, a note on every eighth
- * onsets(euclid({ steps: 8, pulses: 3, subdivision: 0.5 }), { beats: 4 });
+ * grid(euclid({ steps: 8, pulses: 3, subdivision: 0.5 }), { beats: 4 });
  * // [true, false, false, true, false, false, true, false]
  */
-export function onsets(notes, { subdivision = 0.5, beats, start = 0, cyclic = false } = {}) {
-    if (!(subdivision > 0)) throw new Error('onsets: subdivision must be a positive number of quarter notes');
+export function grid(notes, { subdivision = 0.5, beats, start = 0, cyclic = false } = {}) {
+    if (!(subdivision > 0)) throw new Error('grid: subdivision must be a positive number of quarter notes');
     const times = notes.map((n) => (typeof n.time === 'string' ? parseFloat(n.time) : n.time ?? 0));
 
     let windowBeats = beats;
@@ -101,13 +101,13 @@ export function onsets(notes, { subdivision = 0.5, beats, start = 0, cyclic = fa
  *
  * @example
  * // The tresillo, on a kick, one bar of eighths
- * fromOnsets('x..x..x.', { pitches: 36, subdivision: 0.5 });
+ * fromGrid('x..x..x.', { pitches: 36, subdivision: 0.5 });
  *
  * @example
  * // A row of an automaton decides which eighths play
- * fromOnsets(row, { pitches: chord, subdivision: 0.5, time: bar * 4 });
+ * fromGrid(row, { pitches: chord, subdivision: 0.5, time: bar * 4 });
  */
-export function fromOnsets(pattern, {
+export function fromGrid(pattern, {
     pitches = 60,
     velocities = 0.8,
     duration,
@@ -116,12 +116,12 @@ export function fromOnsets(pattern, {
     useStringTime = false,
     repeat = 1,
 } = {}) {
-    if (!(subdivision > 0)) throw new Error('fromOnsets: subdivision must be a positive number of quarter notes');
+    if (!(subdivision > 0)) throw new Error('fromGrid: subdivision must be a positive number of quarter notes');
     const grid = parsePattern(pattern);
     const pitchList = Array.isArray(pitches) ? pitches : [pitches];
     const velocityList = Array.isArray(velocities) ? velocities : [velocities];
-    if (pitchList.length === 0) throw new Error('fromOnsets: pitches cannot be an empty array');
-    if (velocityList.length === 0) throw new Error('fromOnsets: velocities cannot be an empty array');
+    if (pitchList.length === 0) throw new Error('fromGrid: pitches cannot be an empty array');
+    if (velocityList.length === 0) throw new Error('fromGrid: velocities cannot be an empty array');
     const noteDuration = typeof duration === 'number' && duration > 0 ? duration : subdivision * 0.8;
 
     const notes = [];
@@ -145,7 +145,7 @@ export function fromOnsets(pattern, {
 /**
  * Print a rhythm or a pattern as one character per step.
  *
- * Takes notes (which it reads as a grid with `onsets`) or a pattern, so the
+ * Takes notes (which it reads as a grid with `grid`) or a pattern, so the
  * same call shows a phrase the generators produced and a pattern you typed.
  * Reading a rhythm is quicker than reading a list of durations, and quicker
  * still than a list of note objects.
@@ -164,7 +164,7 @@ export function fromOnsets(pattern, {
  *
  * @example
  * draw(cell, { beats: 8 });            // 'x.x.x...xx.x.x.x'
- * draw(euclidPattern(8, 3));           // 'x..x..x.'
+ * draw(euclidPattern({ steps: 8, pulses: 3 }));  // 'x..x..x.'
  * draw('x..x..x.', { on: 'X', off: '-' });  // 'X..X..X.'
  */
 export function draw(thing, {
@@ -179,11 +179,11 @@ export function draw(thing, {
 } = {}) {
     const isNotes = Array.isArray(thing) && thing.length > 0
         && typeof thing[0] === 'object' && thing[0] !== null;
-    const grid = isNotes
-        ? onsets(thing, { subdivision, beats, start, cyclic })
+    const hits = isNotes
+        ? grid(thing, { subdivision, beats, start, cyclic })
         : parsePattern(thing);
-    if (!separator || !group) return grid.map((hit) => (hit ? on : off)).join('');
-    return grid
+    if (!separator || !group) return hits.map((hit) => (hit ? on : off)).join('');
+    return hits
         .map((hit, step) => (hit ? on : off) + (step % group === group - 1 ? separator : ''))
         .join('');
 }

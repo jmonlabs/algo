@@ -1,6 +1,6 @@
 import { onsetGrid, stops, profileFit, upbeatRatio, anticipationRate, stopRate } from '../../analysis/RhythmCode.js';
 import { emotionalMap } from '../../analysis/EmotionalMap.js';
-import { presets as profilePresets } from '../../theory/profile/presets.js';
+import { presets as profilePresets } from '../../../rhythm/profile/presets.js';
 import { doPitchClass } from '../../theory/harmony/Solfege.js';
 
 /**
