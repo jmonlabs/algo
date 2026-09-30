@@ -1,6 +1,3 @@
-// Constants
-import { MusicTheoryConstants, ARTICULATION_TYPES, ORNAMENT_TYPES, ConstantsAPI } from './constants/index.js';
-
 // Theory imports
 import harmony from './theory/harmony/index.js';
 import * as rhythm from '../rhythm/index.js';
@@ -21,8 +18,6 @@ import { drummer, presets as drummerPresets } from './generative/drummer/index.j
 import { Corruptor, corruptJmon } from './processors/Corruptor.js';
 import { groove, anticipate, applySteps, STEPS as GROOVE_STEPS } from './processors/Groove.js';
 
-// Analysis imports
-
 // Utils imports
 import * as Utils from './utils.js';
 
@@ -35,20 +30,6 @@ export const theory = {
     profile
 };
 
-export const constants = {
-    theory: MusicTheoryConstants,
-    articulations: ARTICULATION_TYPES,
-    ornaments: ORNAMENT_TYPES,
-    // Convenience methods from ConstantsAPI
-    list: ConstantsAPI.list.bind(ConstantsAPI),
-    get: ConstantsAPI.get.bind(ConstantsAPI),
-    describe: ConstantsAPI.describe.bind(ConstantsAPI),
-    search: ConstantsAPI.search.bind(ConstantsAPI),
-    listArticulations: ConstantsAPI.listArticulations.bind(ConstantsAPI),
-    listOrnaments: ConstantsAPI.listOrnaments.bind(ConstantsAPI),
-    listScales: ConstantsAPI.listScales.bind(ConstantsAPI),
-    listIntervals: ConstantsAPI.listIntervals.bind(ConstantsAPI)
-};
 
 // src/generative/index.js is jm.generative now; this stays for the package's
 // own use for one release.
@@ -91,7 +72,6 @@ export const utils = {
 // Export everything as default
 export default {
     theory,
-    constants,
     generative,
     processors,
     utils

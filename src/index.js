@@ -34,6 +34,7 @@ import * as voices from "./voices/index.js";
 import * as rhythm from "./rhythm/index.js";
 import * as generative from "./generative/index.js";
 import * as analysis from "./analysis/index.js";
+import * as constants from "./constants/index.js";
 
 /**
  * The composition API.
@@ -78,7 +79,6 @@ const jm = {
     profile: algorithms.theory.profile,
   },
   processors: algorithms.processors,
-  constants: algorithms.constants,
 
   // What a composer does to a list of notes: shift, transpose, canon, tile,
   // reverse, concatenate, quantize… and the builders track, piece, chordNotes.
@@ -105,6 +105,9 @@ const jm = {
 
   // Measurements, flat: gini, density, salience, rhythmCode, emotionalMap…
   analysis,
+
+  // The tables: theory, articulations, ornaments, and list/get/describe/search.
+  constants,
 
   // The names of 4.x, kept for one release while the pieces move to jm.notes
   // and jm.performance. Nothing new goes here.

@@ -21,6 +21,9 @@ Colonnes : la sorte d'entrée (183 fonctions, 27 classes, 91 données), qui l'ap
 - `jm.rhythm` : fait. `theory.rhythm` et `theory.profile` réunis ; `onsets`/`fromOnsets` (le grillage binaire) sont `grid`/`fromGrid`, `notes.onsets` gardant le mot pour les temps d'attaque ; `euclidPattern({ steps, pulses, rotation })`, `clavePattern(name, { orientation })`, `clave(name, options)` suivent la règle d'appel. `jm.theory.rhythm`/`profile` restent une façade. siuraa appelle `jm.rhythm` ; notes identiques.
 - `jm.generative` : fait. `MinimalismProcess` est le verbe `minimalism.unfold(notes, { operation, direction, repetition })`, `phaseShift` est `phase`, `loops.Loop` est retiré (git le garde : `git show 76512ae:src/algorithms/generative/loops/Loop.js`). Le reste garde ses noms et sous-espaces. siuraa appelle `unfold` ; notes identiques.
 - `jm.analysis` : fait. Une couche plate ; `MusicalAnalysis` reste la classe interne derrière (Darwin la lit), `MusicalIndex` retiré (`git show 0a8aed4:src/algorithms/analysis/MusicalIndex.js`), `onsetGrid` est `positions`, `analyzeRhythm` est `rhythmCode` ; `quadrantOf` et `chordChangeBehaviours` restent internes (dans le rapport d'`emotionalMap`). Aucune pièce n'appelait `jm.analysis` : pas de façade.
+- `jm.constants` : fait, tel quel, comme module `src/constants/index.js`.
+
+Tous les espaces sont en place ; `jm.utils`, `jm.processors` et `jm.theory` restent des façades des noms de 4.x, à retirer en 5.1.
 
 ## La cible
 
