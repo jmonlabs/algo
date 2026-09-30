@@ -32,7 +32,7 @@ const beatsOf = (time) => (typeof time === 'number' ? time : timeToBeats(time));
 
 /**
  * Musical analysis: statistical and musical metrics over pitches, durations,
- * onsets and notes. This is the one implementation; `MusicalIndex` and
+ * onsets and notes. This is the one implementation; `jm.analysis` and
  * `Darwin` read the same functions, so a score means the same thing wherever
  * it appears.
  */

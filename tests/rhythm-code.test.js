@@ -214,7 +214,7 @@ test("anticipate only moves onto free places and never past another onset", () =
 test("rhythm tools are reachable from jm", () => {
   assert.equal(typeof jm.theory.profile.Profile, "function");
   assert.equal(typeof jm.theory.rhythm.clave, "function");
-  assert.equal(typeof jm.analysis.rhythm.analyzeRhythm, "function");
+  assert.equal(typeof jm.analysis.rhythmCode, "function");
   assert.equal(typeof jm.processors.groove, "function");
 });
 

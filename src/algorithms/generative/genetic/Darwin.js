@@ -14,7 +14,7 @@
  * form for the operators.
  */
 
-import { MusicalIndex } from '../../analysis/MusicalIndex.js';
+import { MusicalAnalysis } from '../../analysis/MusicalAnalysis.js';
 
 export class Darwin {
   /**
@@ -291,31 +291,34 @@ export class Darwin {
     const fitnessComponents = {};
 
     // Calculate metrics for pitches
+    // Rests (null) are dropped before every metric.
+    const sounding = (values) => values.filter((v) => v !== null && v !== undefined);
     if (pitches.length > 0) {
-      const pitchIndex = new MusicalIndex(pitches);
-      fitnessComponents.gini_pitch = pitchIndex.gini();
-      fitnessComponents.spread_pitch = pitchIndex.spread();
-      fitnessComponents.motifStrength_pitch = pitchIndex.motifStrength();
+      const values = sounding(pitches);
+      fitnessComponents.gini_pitch = MusicalAnalysis.gini(values);
+      fitnessComponents.spread_pitch = MusicalAnalysis.spread(values);
+      fitnessComponents.motifStrength_pitch = MusicalAnalysis.motifStrength(values);
       if (this.scale) {
-        fitnessComponents.dissonance_pitch = pitchIndex.dissonance(this.scale);
+        const classes = this.scale.map((p) => ((p % 12) + 12) % 12);
+        fitnessComponents.dissonance_pitch = this.scale.length === 0 ? 0 : MusicalAnalysis.dissonance(values, classes);
       }
     }
 
     // Calculate metrics for durations
     if (durations.length > 0) {
-      const durationIndex = new MusicalIndex(durations);
-      fitnessComponents.gini_duration = durationIndex.gini();
-      fitnessComponents.spread_duration = durationIndex.spread();
-      fitnessComponents.motifStrength_duration = durationIndex.motifStrength();
-      fitnessComponents.measureFit_duration = durationIndex.measureFit(this.measureLength);
+      const values = sounding(durations);
+      fitnessComponents.gini_duration = MusicalAnalysis.gini(values);
+      fitnessComponents.spread_duration = MusicalAnalysis.spread(values);
+      fitnessComponents.motifStrength_duration = MusicalAnalysis.motifStrength(values);
+      fitnessComponents.measureFit_duration = MusicalAnalysis.measureFit(values, this.measureLength);
     }
 
     // Calculate metrics for offsets if needed
     if (offsets.length > 0) {
-      const offsetIndex = new MusicalIndex(offsets);
-      fitnessComponents.gini_offset = offsetIndex.gini();
-      fitnessComponents.spread_offset = offsetIndex.spread();
-      fitnessComponents.motifStrength_offset = offsetIndex.motifStrength();
+      const values = sounding(offsets);
+      fitnessComponents.gini_offset = MusicalAnalysis.gini(values);
+      fitnessComponents.spread_offset = MusicalAnalysis.spread(values);
+      fitnessComponents.motifStrength_offset = MusicalAnalysis.motifStrength(values);
     }
 
     // Calculate rest proportion

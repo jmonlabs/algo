@@ -167,8 +167,8 @@ test("pillars can alternate with chord tones and prefer tension on request", () 
 });
 
 test("melody analysis is reachable from jm", () => {
-  assert.equal(typeof jm.analysis.melody.emotionalMap, "function");
-  assert.equal(typeof jm.analysis.salience.salient, "function");
+  assert.equal(typeof jm.analysis.emotionalMap, "function");
+  assert.equal(typeof jm.analysis.salient, "function");
   assert.equal(typeof jm.theory.harmony.Solfege.stability, "function");
 });
 
@@ -195,8 +195,8 @@ test("the analyses read JMON chord notes and bare { time, pitches } alike", () =
   assert.deepEqual(a.quadrants, b.quadrants);
   assert.deepEqual(a.behaviours, b.behaviours);
   assert.deepEqual(
-    jm.analysis.salience.chordChanges(melody, { chords: track }),
-    jm.analysis.salience.chordChanges(melody, { chords: bare }),
+    jm.analysis.chordChanges(melody, { chords: track }),
+    jm.analysis.chordChanges(melody, { chords: bare }),
   );
   assert.deepEqual(E.pillars(track, { key: D }).map((p) => p.pitch), E.pillars(bare, { key: D }).map((p) => p.pitch));
   // a single-pitch note counts as a one-note chord, and string times are read

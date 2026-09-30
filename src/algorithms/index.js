@@ -22,7 +22,6 @@ import { Corruptor, corruptJmon } from './processors/Corruptor.js';
 import { groove, anticipate, applySteps, STEPS as GROOVE_STEPS } from './processors/Groove.js';
 
 // Analysis imports
-import * as analysisModule from './analysis/index.js';
 
 // Utils imports
 import * as Utils from './utils.js';
@@ -81,10 +80,6 @@ export const processors = {
     GROOVE_STEPS
 };
 
-export const analysis = {
-    ...analysisModule
-};
-
 
 // algorithms/utils.js is internal helpers now; gcd and lcm are all jm.utils
 // still shows of it, for one release.
@@ -99,6 +94,5 @@ export default {
     constants,
     generative,
     processors,
-    analysis,
     utils
 };

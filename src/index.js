@@ -33,6 +33,7 @@ import * as harmony from "./harmony/index.js";
 import * as voices from "./voices/index.js";
 import * as rhythm from "./rhythm/index.js";
 import * as generative from "./generative/index.js";
+import * as analysis from "./analysis/index.js";
 
 /**
  * The composition API.
@@ -77,7 +78,6 @@ const jm = {
     profile: algorithms.theory.profile,
   },
   processors: algorithms.processors,
-  analysis: algorithms.analysis,
   constants: algorithms.constants,
 
   // What a composer does to a list of notes: shift, transpose, canon, tile,
@@ -102,6 +102,9 @@ const jm = {
   // The material: minimalism (unfold, phase, Tintinnabuli), walks, fractals,
   // automata, genetic, drummer.
   generative,
+
+  // Measurements, flat: gini, density, salience, rhythmCode, emotionalMap…
+  analysis,
 
   // The names of 4.x, kept for one release while the pieces move to jm.notes
   // and jm.performance. Nothing new goes here.

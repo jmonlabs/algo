@@ -108,11 +108,11 @@ The names of 4.x for `theory.harmony`, `theory.rhythm` and `theory.profile`, kep
 Gaussian processes live in [`@tangent.to/ds`](https://tangent-to.github.io/ds/) and are used directly. A thin wrapper ships here but is deliberately not reachable from `jm`, so importing this package never pulls that in.
 
 ### Analysis — `jm.analysis.*`
-`MusicalAnalysis` is the one set of metrics: gini, spread, motif, motifStrength, dissonance, measureFit, contour entropy, syncopation, density and the rest. `MusicalIndex` is an instance view over the same functions, and `Darwin`'s weights and targets are keyed by the same names, so a score is the same number wherever it appears.
-
-- `analysis.rhythm` — a track as a binary onset grid, after Bodzsar's *Rhythm Code*: stops, eighth- and quarter-note anticipations, upbeat ratio, fit to a profile in either clave orientation, `detectOrientation`, and `profileFromTracks` to learn a profile from a corpus.
-- `analysis.melody` — Bodzsar's *Emotional Map of Melody*: every note placed by solfège stability and distance from the chord under it, quadrant shares, the four behaviours at a chord change, and `pillars` to pick a non-chord tone per chord to land on.
-- `analysis.salience` — which notes those two look at: stops, accents, contour peaks, notes on chord changes, long or repeated notes, motif edges.
+Measurements, in one flat layer: each takes notes or values first and returns a number, a series or a report; none changes the notes. `Darwin`'s weights and targets are keyed by the same names, so a score is the same number wherever it appears.
+- Over a series of values (pitches, durations, anything): `gini`, `balance`, `spread`, `motif`, `motifStrength`, `measureFit`, `restProportion`, `autocorrelation`, `dissonance(pitches, { scale })`, `fibonacciIndex`, `contourEntropy`, `intervalVariance`; over onsets in beats: `rhythmic`, `syncopation`, `gapVariance`; over notes: `density`, `densityCurve`, `velocityEnvelope`, `rhythmicSignature`, and `analyze(notes)` for all of them at once.
+- Which notes carry the melody: `salience(notes, { mode })` is a weight per note, `salient(notes, { mode, threshold })` the notes that pass; the modes are functions too: `stops`, `accents`, `contourPeaks`, `chordChanges`, `long`, `repeated`, `motifEdges`, `anchors`.
+- Bodzsar's *Rhythm Code*: `positions(notes, { pulse, salience })` are a track's places on the pulse grid; `anticipations`, `metricHistogram`, `upbeatRatio`, `stopRate`, `anticipationRate` and `profileFit(positions, { profile })` read them; `rhythmCode(notes, { pulse, profile })` is the whole report, `detectOrientation` says 2-3 or 3-2, `profileFromTracks` learns a profile from a corpus.
+- Bodzsar's *Emotional Map of Melody*: `emotionalMap(melody, { key, chords })` places every note by solfège stability and distance from the chord under it and reports quadrant shares and the behaviours at chord changes; `mapNotes` is the points alone, `pillars(chords, { key })` picks a non-chord tone per chord to land on, `chordAt(chords, { time })` the chord a moment belongs to.
 
 The books' tables are data, not rules: every score is a measurement, and every table is a preset you can swap for one folded out of your own material.
 
@@ -204,6 +204,15 @@ the verb `unfold(notes, { operation, direction, repetition })` and
 `phaseShift` become `phase`. `Loop` is gone: `notes.tile` repeats,
 `rhythm.euclid` makes the Euclidean rhythms, and two polyloops are `tile`
 twice with two `cycle`s.
+
+**`jm.analysis`.** One flat layer. `MusicalAnalysis.gini(values, weights)`
+is `gini(values, { weights })` and so on for every static of the class;
+`MusicalIndex` is gone (`Darwin` reads `MusicalAnalysis` directly, with the
+same numbers); `analysis.rhythm.onsetGrid` is `positions`, `analyzeRhythm` is
+`rhythmCode`, `chordAt(chords, time, anticipation)` is `chordAt(chords, {
+time, anticipation })`; the salience modes and the Emotional Map functions
+keep their names, flat. Nothing outside the tests called the old paths, so
+there is no façade.
 
 ## Changes in 4.0
 
