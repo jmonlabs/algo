@@ -754,7 +754,7 @@ export function expressivize(notes, options = {}) {
  *
  * A sampled string held for several seconds otherwise sits at one level from
  * its attack to its release, which is the sound of a tape loop rather than a
- * bow. This writes an `amplitudeEnvelope` on every note — anchors in beats
+ * bow. This writes `dynamics` on every note — anchors in beats
  * from the note's start, values as multiples of its velocity — which jmon/io
  * compiles, the player applies to sampled instruments, and a MIDI export
  * writes as CC 11. The note's `velocity` becomes the peak of the stroke.
@@ -775,7 +775,7 @@ export function expressivize(notes, options = {}) {
  *   ends at `1 - fade` of the peak
  * @param {number} [options.minDuration=1] - Beats below which a note is only
  *   given a soft attack
- * @returns {Array} New notes with `amplitudeEnvelope`
+ * @returns {Array} New notes with `dynamics`
  *
  * @example
  * // A long note: 0 → 0.65 in a quarter beat, 1 at 60 %, 0.75 at the end.
@@ -792,14 +792,14 @@ export function bow(notes, options = {}) {
 
   return notes.map((note) => {
     const duration = note.duration || 0;
-    if (note.pitch === null || note.pitch === undefined || note.amplitudeEnvelope || !(duration > 0)) {
+    if (note.pitch === null || note.pitch === undefined || note.dynamics || note.amplitudeEnvelope || !(duration > 0)) {
       return { ...note };
     }
     const rise = Math.min(attack, duration / 3);
     if (duration < minDuration) {
       return {
         ...note,
-        amplitudeEnvelope: [
+        dynamics: [
           { time: 0, value: 0 },
           { time: rise, value: 1 },
           { time: duration, value: 1 },
@@ -808,7 +808,7 @@ export function bow(notes, options = {}) {
     }
     return {
       ...note,
-      amplitudeEnvelope: [
+      dynamics: [
         { time: 0, value: 0 },
         { time: rise, value: 1 - swell },
         { time: Math.max(rise, duration * peak), value: 1 },

@@ -1015,10 +1015,10 @@
                     ]
                   }
                 },
-                "pitchEnvelope": {
+                "bend": {
                   "type": "array",
                   "minItems": 1,
-                  "description": "Pitch envelope over the note, in semitone offsets relative to the written pitch (transposition-safe). Either an array of numbers spread evenly across the note duration (e.g., [0, 1] bends up one semitone, SCAMP-style), or anchor objects with explicit timing. Compiles to the same backend pitch-curve mechanism as glissando/portamento/bend articulations.",
+                  "description": "What the pitch does over the note, in semitones relative to `pitch` plus `tuning` (transposition-safe). Either an array of numbers spread evenly across the note duration (e.g., [0, 1] rises one semitone by the end, SCAMP-style), or anchor objects with explicit timing. The glissando, portamento and bend articulations are shorthands that compile to this field; when a note has both, the field wins. Was `pitchEnvelope`, still read.",
                   "items": {
                     "oneOf": [
                       {
@@ -1212,10 +1212,32 @@
                     "additionalProperties": false
                   }
                 },
-                "microtuning": {
+                "tuning": {
                   "type": "number",
-                  "description": "Microtuning adjustment in semitones."
+                  "description": "The note's tuning: a fixed offset from `pitch`, in semitones (-0.15 is 15 cents flat, 0.5 a quarter tone sharp). The note sounds at `pitch + tuning`; a `bend` is relative to that. Was `microtuning`, still read."
                 },
+                "dynamics": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "What the loudness does over the note, as multiples of its velocity: an array of numbers spread evenly across the note duration (e.g., [0.6, 1, 0.7] swells then eases), or anchor objects { time, value } with time in beats from the note start. Was `amplitudeEnvelope`, still read.",
+                  "items": {
+                    "oneOf": [
+                      { "type": "number", "minimum": 0 },
+                      {
+                        "type": "object",
+                        "required": ["time", "value"],
+                        "properties": {
+                          "time": { "type": "number", "minimum": 0 },
+                          "value": { "type": "number", "minimum": 0 }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "microtuning": { "type": "number", "description": "Deprecated: use `tuning`." },
+                "pitchEnvelope": { "type": "array", "description": "Deprecated: use `bend`." },
+                "amplitudeEnvelope": { "type": "array", "description": "Deprecated: use `dynamics`." },
                 "channel": {
                   "type": "integer",
                   "minimum": 0,

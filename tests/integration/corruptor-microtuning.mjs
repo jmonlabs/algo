@@ -47,9 +47,9 @@ try {
 
   let microtuningCount = 0;
   corrupted.tracks[0].notes.forEach((note, i) => {
-    if (note.microtuning !== undefined) {
+    if (note.tuning !== undefined) {
       microtuningCount++;
-      console.log(`  ✓ Note ${i}: microtuning = ${note.microtuning.toFixed(4)} semitones`);
+      console.log(`  ✓ Note ${i}: microtuning = ${note.tuning.toFixed(4)} semitones`);
     }
   });
 
@@ -89,7 +89,7 @@ try {
   const corrupted = corruptor.corrupt(piece);
 
   const microtunings = corrupted.tracks[0].notes
-    .map(n => n.microtuning)
+    .map(n => n.tuning)
     .filter(m => m !== undefined);
 
   const min = Math.min(...microtunings);

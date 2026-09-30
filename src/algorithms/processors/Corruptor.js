@@ -513,7 +513,7 @@ export class Corruptor {
     return notes.map((note) => {
       if (typeof note.pitch !== 'number' || !this.allows('detune', note) || this.seededRandom() >= amount) return note;
       const direction = this.seededRandom() < 0.5 ? -1 : 1;
-      return { ...note, microtuning: (note.microtuning || 0) + direction * semitones };
+      return { ...note, tuning: (note.tuning ?? note.microtuning ?? 0) + direction * semitones };
     });
   }
 
@@ -597,12 +597,12 @@ export class Corruptor {
     // Harmonic Erosion - Microtonal drift
     if (this.options.microtonalDrift) {
       const sigma = this.amount('drift', entropy) * 0.5 * this.options.driftAmount; // Standard deviation
-      const microtuning = this.gaussianRandom(0, sigma);
+      const tuning = this.gaussianRandom(0, sigma);
 
-      if (!corruptedNote.microtuning) {
-        corruptedNote.microtuning = microtuning;
+      if (!corruptedNote.tuning) {
+        corruptedNote.tuning = tuning;
       } else {
-        corruptedNote.microtuning += microtuning;
+        corruptedNote.tuning += tuning;
       }
     }
 

@@ -123,6 +123,25 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
 - A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
 
+## Changes in 3.4
+
+Three note fields say what a note is rather than how it is produced, and the
+schema names them so:
+
+| Was | Is | What it says |
+|---|---|---|
+| `microtuning` | `tuning` | the note's tuning: a fixed offset from `pitch`, in semitones |
+| `pitchEnvelope` | `bend` | what the pitch does over the note, in semitones, relative to `pitch + tuning` |
+| `amplitudeEnvelope` | `dynamics` | what the loudness does over the note, as multiples of its velocity |
+
+The old names are still read everywhere, and `io.validate` renames them with a
+warning. `bow` now writes `dynamics`; the `Corruptor` writes `tuning`. The
+`bend` articulation (`{ type: "bend", amount }`) is a shorthand that compiles
+to the field, and the field wins when a note has both.
+
+Also new: `voiceChorale`, `counterpoint`, `diatonic`, `transposeDiatonic`,
+`canon` and `humanize` (see above).
+
 ## Changes in 3.3
 
 `Corruptor` takes a `where` option: `{ stutter: (note) => …, slam: (note) => … }`,

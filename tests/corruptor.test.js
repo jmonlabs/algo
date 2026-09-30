@@ -113,25 +113,25 @@ test("higher entropy moves the music further from the original", () => {
   assert.ok(drift(1) > drift(0), "entropy 1 should depart further than entropy 0");
 });
 
-/* --- microtuning --------------------------------------------------------- */
+/* --- tuning --------------------------------------------------------- */
 
-test("microtonal drift is emitted as a JMON microtuning field", () => {
+test("microtonal drift is emitted as a JMON tuning field", () => {
   const corrupted = run({ seed: 42, microtonalDrift: true, driftAmount: 1 });
-  const drifted = allNotes(corrupted).filter((n) => n.microtuning !== undefined);
+  const drifted = allNotes(corrupted).filter((n) => n.tuning !== undefined);
 
-  assert.ok(drifted.length > 0, "expected at least one note to carry microtuning");
+  assert.ok(drifted.length > 0, "expected at least one note to carry tuning");
   for (const note of drifted) {
-    assert.ok(Number.isFinite(note.microtuning));
-    assert.ok(Math.abs(note.microtuning) <= 2, `implausible drift: ${note.microtuning}`);
+    assert.ok(Number.isFinite(note.tuning));
+    assert.ok(Math.abs(note.tuning) <= 2, `implausible drift: ${note.tuning}`);
   }
 });
 
 test("microtonal drift can be switched off", () => {
   const corrupted = run({ seed: 42, microtonalDrift: false });
   assert.equal(
-    allNotes(corrupted).filter((n) => n.microtuning !== undefined).length,
+    allNotes(corrupted).filter((n) => n.tuning !== undefined).length,
     0,
-    "microtuning appeared despite microtonalDrift: false",
+    "tuning appeared despite microtonalDrift: false",
   );
 });
 
@@ -162,11 +162,11 @@ test("the first note is never dropped", () => {
 test("a dimension set explicitly stops following entropy", () => {
   // Entropy at its maximum, but the pitches are told to stay put.
   const notes = allNotes(run({ seed: 8, entropy: 1, drift: 0 }));
-  assert.equal(notes.filter((n) => n.microtuning).length, 0, "drift 0 should leave the pitches alone");
+  assert.equal(notes.filter((n) => n.tuning).length, 0, "drift 0 should leave the pitches alone");
 
   // And the reverse: entropy at rest, but the pitches drift.
   const drifted = allNotes(run({ seed: 8, entropy: 0, drift: 1 }));
-  assert.ok(drifted.some((n) => n.microtuning), "drift 1 should detune despite entropy 0");
+  assert.ok(drifted.some((n) => n.tuning), "drift 1 should detune despite entropy 0");
 });
 
 test("temporal displacement is linear in the jitter intensity", () => {
@@ -252,7 +252,7 @@ test("offScale lands the note outside the scale it was given", () => {
 test("detune is a stated interval, not a sprinkle", () => {
   const notes = violent({ detune: 1, detuneCents: 50 });
   for (const note of notes) {
-    assert.equal(Math.abs(note.microtuning), 0.5, "expected a quarter tone");
+    assert.equal(Math.abs(note.tuning), 0.5, "expected a quarter tone");
   }
 });
 
