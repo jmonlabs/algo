@@ -96,12 +96,11 @@ Where the notes fall. A rhythm is a grid, one place per step, hit or not: `grid(
 The names of 4.x for `theory.harmony`, `theory.rhythm` and `theory.profile`, kept for one release over `jm.harmony`, `jm.voices` and `jm.rhythm`; and the classes `Scale`, `Voice` and `Solfege` behind `jm.harmony`.
 
 ### Generative — `jm.generative.*`
-- Minimalism: `MinimalismProcess` (additive and subtractive), `Tintinnabuli`, `phaseShift(pattern, { cycles, shift })`
+- Minimalism: `unfold(notes, { operation, direction, repetition })` plays a phrase again and again, gaining or losing a note each time (`additive` or `subtractive`; `forward`, `backward`, `inward`, `outward`); `phase(notes, { cycles, shift })` sets two voices on one pattern, the second drifting behind; `Tintinnabuli`
 - Walks: `Chain` (Markov), `RandomWalk` (Brownian), `Phasor` and `PhasorSystem`. `Chain.line()` for a single flat walk
 - Fractals: Mandelbrot, Julia, Burning Ship and logistic maps
 - Automata: `CellularAutomata`
 - Genetic: `Darwin` breeds variations of a phrase toward targets. Phrases go in and come out as JMON notes; `getBestGenome()` exposes the raw `[pitch, duration, time]` form the operators work on
-- Loops: Euclidean rhythms and polyrhythm
 - Drummer: 19 styles, multi-metre sections, variations and fills. `orientation: '2-3' | '3-2'` reweights the kick by the Rhythm Code over a two-bar cycle; `decorations` adds ghost snares, open hats, phrase crashes, a clave sidestick and several fill shapes.
 
 `Darwin` takes `metrics` (`{ name, fn(phrase, ctx), target, weight }`), a `context` (key, chords, profile, pulse), position-aware `operators`, and `crossoverMode: 'time'` to splice parents on a bar boundary. `generative.genetic.metrics` provides clave fit, anticipation rate, upbeat ratio, emotional-map sweetness and balance, last-note stability and more; `generative.genetic.operators` provides anticipate, delay, restify, to-chord-tone, to-non-chord-tone and step-stability moves.
@@ -199,6 +198,12 @@ rotation })`, `clavePattern(name, orientation)` is `clavePattern(name, {
 orientation })`, and `clave({ name, ...options })` is `clave(name, options)`:
 the pattern's name is the subject. `jm.theory.rhythm` and `jm.theory.profile`
 answer to the old names and shapes for one release.
+
+**`jm.generative`.** The same sub-spaces, with `MinimalismProcess` become
+the verb `unfold(notes, { operation, direction, repetition })` and
+`phaseShift` become `phase`. `Loop` is gone: `notes.tile` repeats,
+`rhythm.euclid` makes the Euclidean rhythms, and two polyloops are `tile`
+twice with two `cycle`s.
 
 ## Changes in 4.0
 

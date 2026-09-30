@@ -18,10 +18,9 @@ import { LogisticMap } from "../src/algorithms/generative/fractals/LogisticMap.j
 import { Chain } from "../src/algorithms/generative/walks/Chain.js";
 import { RandomWalk } from "../src/algorithms/generative/walks/RandomWalk.js";
 import { Phasor, PhasorSystem } from "../src/algorithms/generative/walks/PhasorWalk.js";
-import { MinimalismProcess, Tintinnabuli } from "../src/algorithms/generative/minimalism/MinimalismProcess.js";
-import { phaseShift } from "../src/algorithms/generative/minimalism/phaseShift.js";
+import { Tintinnabuli } from "../src/algorithms/generative/minimalism/MinimalismProcess.js";
+import { unfold, phase } from "../src/generative/index.js";
 import { Darwin } from "../src/algorithms/generative/genetic/Darwin.js";
-import { Loop } from "../src/algorithms/generative/loops/Loop.js";
 import { drummer, presets } from "../src/algorithms/generative/drummer/index.js";
 
 const SEQ = [
@@ -179,23 +178,19 @@ test("a Phasor system oscillates without drifting to infinity", () => {
 /* --- minimalism ---------------------------------------------------------- */
 
 test("additive forward accumulates the sequence note by note", () => {
-  const out = new MinimalismProcess({
-    operation: "additive", direction: "forward", repetition: 0,
-  }).generate(SEQ);
+  const out = unfold(SEQ, { operation: "additive", direction: "forward" });
   assert.deepEqual(out.map((n) => n.pitch), [60, 60, 62, 60, 62, 64]);
 });
 
 test("subtractive forward peels the sequence from the front", () => {
-  const out = new MinimalismProcess({
-    operation: "subtractive", direction: "forward", repetition: 0,
-  }).generate(SEQ);
+  const out = unfold(SEQ, { operation: "subtractive", direction: "forward" });
   assert.deepEqual(out.map((n) => n.pitch), [60, 62, 64, 62, 64, 64]);
 });
 
 test("every operation/direction pair produces sorted, non-negative timing", () => {
   for (const operation of ["additive", "subtractive"]) {
     for (const direction of ["forward", "backward", "inward", "outward"]) {
-      const out = new MinimalismProcess({ operation, direction, repetition: 0 }).generate(SEQ);
+      const out = unfold(SEQ, { operation, direction });
       assert.ok(out.length > 0, `${operation}/${direction} produced nothing`);
       const times = out.map((n) => n.time);
       assert.deepEqual([...times].sort((a, b) => a - b), times, `${operation}/${direction} unsorted`);
@@ -204,17 +199,15 @@ test("every operation/direction pair produces sorted, non-negative timing", () =
   }
 });
 
-test("MinimalismProcess validates its options", () => {
-  assert.throws(() => new MinimalismProcess({ operation: "sideways", direction: "forward", repetition: 0 }), /Invalid operation/);
-  assert.throws(() => new MinimalismProcess({ operation: "additive", direction: "sideways", repetition: 0 }), /Invalid direction/);
-  assert.throws(() => new MinimalismProcess({ operation: "additive", direction: "forward", repetition: -1 }), /Invalid repetition/);
+test("unfold validates its options", () => {
+  assert.throws(() => unfold(SEQ, { operation: "sideways", direction: "forward" }), /Invalid operation/);
+  assert.throws(() => unfold(SEQ, { operation: "additive", direction: "sideways" }), /Invalid direction/);
+  assert.throws(() => unfold(SEQ, { operation: "additive", direction: "forward", repetition: -1 }), /Invalid repetition/);
 });
 
-test("MinimalismProcess still accepts djalgo tuples", () => {
+test("unfold still accepts djalgo tuples", () => {
   const tuples = [[60, 1, 0], [62, 1, 1], [64, 1, 2]];
-  const out = new MinimalismProcess({
-    operation: "additive", direction: "forward", repetition: 0,
-  }).generate(tuples);
+  const out = unfold(tuples, { operation: "additive", direction: "forward" });
   assert.deepEqual(out.map((n) => n.pitch), [60, 60, 62, 60, 62, 64]);
 });
 
@@ -229,8 +222,8 @@ test("Tintinnabuli maps every note onto the t-chord", () => {
   }
 });
 
-test("phaseShift returns two voices that drift apart", () => {
-  const out = phaseShift(SEQ, { cycles: 2, shift: 0.25 });
+test("phase returns two voices that drift apart", () => {
+  const out = phase(SEQ, { cycles: 2, shift: 0.25 });
   assert.deepEqual(Object.keys(out).sort(), ["voice1", "voice2"]);
   assert.ok(Array.isArray(out.voice1) && Array.isArray(out.voice2));
   assert.notDeepEqual(
@@ -283,26 +276,6 @@ test("Darwin is reproducible for a given seed", () => {
   a.evolveGenerations({ generations: 2, k: 5 });
   b.evolveGenerations({ generations: 2, k: 5 });
   assert.deepEqual(a.getBestIndividual(), b.getBestIndividual());
-});
-
-/* --- loops --------------------------------------------------------------- */
-
-test("Loop.euclidean places the expected onsets", () => {
-  const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
-  const data = loop.toPlotData();
-  assert.deepEqual(data.map((d) => d.time), [0, 3, 6]);
-});
-
-test("Loop exposes its loops as JMON tracks", () => {
-  const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
-  const tracks = loop.toJmonTracks();
-  assert.ok(Array.isArray(tracks));
-  assert.ok(Array.isArray(tracks[0].notes));
-});
-
-test("Loop rejects an empty construction", () => {
-  assert.throws(() => new Loop({}), /loops is required/);
-  assert.throws(() => new Loop({ loops: [] }), /cannot be empty/);
 });
 
 /* --- drummer ------------------------------------------------------------- */

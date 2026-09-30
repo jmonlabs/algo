@@ -32,6 +32,7 @@ import * as performance from "./performance/index.js";
 import * as harmony from "./harmony/index.js";
 import * as voices from "./voices/index.js";
 import * as rhythm from "./rhythm/index.js";
+import * as generative from "./generative/index.js";
 
 /**
  * The composition API.
@@ -75,7 +76,6 @@ const jm = {
     },
     profile: algorithms.theory.profile,
   },
-  generative: algorithms.generative,
   processors: algorithms.processors,
   analysis: algorithms.analysis,
   constants: algorithms.constants,
@@ -98,6 +98,10 @@ const jm = {
   // Where the notes fall: grid, fromGrid, draw, euclid, clave, isorhythm,
   // beatcycle, Rhythm, Profile and its presets.
   rhythm,
+
+  // The material: minimalism (unfold, phase, Tintinnabuli), walks, fractals,
+  // automata, genetic, drummer.
+  generative,
 
   // The names of 4.x, kept for one release while the pieces move to jm.notes
   // and jm.performance. Nothing new goes here.

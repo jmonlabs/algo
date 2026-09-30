@@ -13,7 +13,6 @@ import { Mandelbrot } from "../src/algorithms/generative/fractals/Mandelbrot.js"
 import { Julia } from "../src/algorithms/generative/fractals/Julia.js";
 import { BurningShip } from "../src/algorithms/generative/fractals/BurningShip.js";
 import { Fractal } from "../src/algorithms/generative/fractals/Fractal.js";
-import { Loop } from "../src/algorithms/generative/loops/Loop.js";
 import { CellularAutomata } from "../src/algorithms/generative/cellular-automata/CellularAutomata.js";
 
 const GRID = { width: 7, height: 5, maxIterations: 20 };
@@ -68,31 +67,6 @@ test("the Fractal factory yields instances that carry toPlotData", () => {
   }
 });
 
-test("Loop.toPlotData emits sounding notes and drops rests", () => {
-  // Euclidean 3/8 places 3 onsets across 8 beats; the gaps are null-pitch rests.
-  const loop = Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] });
-  const data = loop.toPlotData();
-
-  assert.equal(data.length, 3, "expected exactly the 3 Euclidean onsets");
-  assert.deepEqual(data.map((d) => d.time), [0, 3, 6]);
-  for (const row of data) {
-    assert.equal(row.pitch, 60);
-    assert.equal(row.loop, "Euclidean 3/8");
-    assert.ok(Number.isFinite(row.duration));
-    assert.ok(Number.isFinite(row.velocity));
-  }
-});
-
-test("Loop.toPlotData accepts a bare note array as well as a JMON track", () => {
-  const loop = new Loop({
-    loops: [[{ pitch: 62, duration: 1, time: 0, velocity: 0.5 }]],
-    measureLength: 4,
-  });
-  assert.deepEqual(loop.toPlotData(), [
-    { loop: "Loop 1", time: 0, duration: 1, pitch: 62, velocity: 0.5 },
-  ]);
-});
-
 test("CellularAutomata.toPlotData still shapes the CA grid", () => {
   const ca = new CellularAutomata({ ruleNumber: 30, width: 9, ruleLength: 3 });
   ca.generate(4);
@@ -115,5 +89,5 @@ test("the removed visualization wrappers are gone from the public surface", asyn
   for (const method of ["plotEvolution", "plotGeneration", "plotDensity"]) {
     assert.equal(ca[method], undefined, `CellularAutomata.${method} should be removed`);
   }
-  assert.equal(Loop.euclidean({ beats: 8, pulses: 3, pitches: [60] }).plot, undefined, "Loop.plot should be removed");
+  assert.equal(jm.generative.loops, undefined, "Loop is gone: tile repeats, euclid makes the rhythms");
 });

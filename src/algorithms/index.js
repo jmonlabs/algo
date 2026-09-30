@@ -8,11 +8,10 @@ import profile from '../rhythm/profile/index.js';
 
 // Generative algorithm imports
 import { CellularAutomata } from './generative/cellular-automata/index.js';
-import { Loop } from './generative/loops/index.js';
 import { Darwin, operators as geneticOperators, metrics as geneticMetrics, metric as geneticMetric, phraseToNotes as geneticPhraseToNotes } from './generative/genetic/index.js';
 import { RandomWalk, Chain, Phasor, PhasorSystem } from './generative/walks/index.js';
 import { Mandelbrot, Julia, BurningShip, Fractal, LogisticMap } from './generative/fractals/index.js';
-import { MinimalismProcess, Tintinnabuli, phaseShift } from './generative/minimalism/index.js';
+import { Tintinnabuli } from './generative/minimalism/index.js';
 import { drummer, presets as drummerPresets } from './generative/drummer/index.js';
 // GaussianProcessRegressor is NOT imported here to avoid @tangent.to/ds dependency
 // Users who need it must import it directly:
@@ -52,9 +51,10 @@ export const constants = {
     listIntervals: ConstantsAPI.listIntervals.bind(ConstantsAPI)
 };
 
+// src/generative/index.js is jm.generative now; this stays for the package's
+// own use for one release.
 export const generative = {
     automata: { CellularAutomata },
-    loops: { Loop },
     genetic: {
         Darwin,
         // Position-aware mutations and fitness terms for Darwin
@@ -65,7 +65,7 @@ export const generative = {
     },
     walks: { RandomWalk, Chain, Phasor, PhasorSystem },
     fractals: { Mandelbrot, Julia, BurningShip, Fractal, LogisticMap },
-    minimalism: { MinimalismProcess, Tintinnabuli, phaseShift },
+    minimalism: { Tintinnabuli },
     drummer: Object.assign(drummer, { presets: drummerPresets })
     // GaussianProcessRegressor is not exported here: it depends on @tangent.to/ds.
     // import { GaussianProcessRegressor } from './generative/gaussian-processes/index.js';
