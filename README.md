@@ -107,14 +107,17 @@ Gaussian processes live in [`@tangent.to/ds`](https://tangent-to.github.io/ds/) 
 
 The books' tables are data, not rules: every score is a measurement, and every table is a preset you can swap for one folded out of your own material.
 
+### Notes — `jm.notes.*`
+What a composer does to a list of notes. Every function takes the list first and returns a new one.
+- Move and repeat: `shift(notes, beats)`, `place(notes, { time, octave, velocity })`, `truncate(notes, beats)`, `tile(notes, { times, cycle })`, `concatenate(lists)`, `combine(lists)`
+- Change the pitches: `transpose(notes, semitones)`, `transposeDiatonic(notes, { steps, scale })`, `diatonic(pitch, { steps, scale })`, `invert(notes, pivot)`, `canon(notes, { delay, steps, scale, octave })`
+- Change the time: `augment(notes, factor)`, `reverse(notes)`, `quantize(notes, { grid, mode })`, `split(notes, maxDuration)`, `deduplicate(notes, tolerance)`, `normalize(notes, { min, max })`
+- Measure: `span(notes)`, `range(notes)`, `onsets(notes)`
+- Build: `track(notes, { label, synth })`, `piece(tracks, { tempo })`, `chordNotes(chords, { duration })` (a progression laid out as chord notes: playable, and what the analyses and `Darwin` read as `chords`), `beatsToTime`, `timeToBeats`
+
 ### Utils — `jm.utils.*`
-- Transformations: `invert`, `retrograde`, `augment`, `transpose`, `applySwing`, `splitLongNotes`, `removeDuplicates`, `normalizeVelocities`
-- In the key: `diatonic(pitch, steps, scale)` and `transposeDiatonic(notes, steps, scale)` move by steps of a scale (pitch classes, or a `jm.key`), and `canon(notes, { delay, steps, scale, octave })` is the following voice of a canon.
-- Performance: `bow` shapes each note like a bow stroke; `humanize(notes, { seed, timing, velocity, lag })` moves each note a little in time and velocity, the same way for the same seed.
+The names of 4.x, kept for one release while the pieces move to `jm.notes` and `jm.performance` (`sustained`, `bow`, `humanize`, `expressivize`, `applySwing` still live here until then). Nothing new goes here.
 - `jm.processors.groove` slides stops to heavier places on a rhythm profile; `anticipate` moves chosen onsets earlier when the target is free; `applySteps` runs Bodzsar's four-step procedure.
-- Queries: `getPitchRange`, `getTotalDuration`, `extractRhythm`
-- Quantization: `quantize`, `quantizeEvents`, `quantizeTrack`, `quantizePiece` (grids in quarter notes; `1/3` for triplets)
-- Builders: `createTrack`, `createPiece`, `chordNotes` (a progression laid out as JMON chord notes: playable, and what the analyses and `Darwin` read as `chords`)
 
 ## Conventions
 
@@ -122,6 +125,27 @@ The books' tables are data, not rules: every score is a measurement, and every t
 - Everything that enters or leaves a generator is a list of JMON notes, `{ pitch, duration, time, velocity }`, with time in quarter notes. A chord is an array of pitches; a chord on a timeline is a JMON note whose `pitch` is that array (`chordTrack`).
 - Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
 - A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
+
+## Changes in 5.0 (in progress)
+
+The package is being reorganised by musical question rather than by
+technique; the plan and every decision are in `REORGANISATION.md`. Done so far:
+
+**`jm.notes`.** What a composer does to a list of notes, under verbs, with the
+builders under nouns. From `jm.utils`: `shiftTime` is `shift`, `retrograde` is
+`reverse`, `concatenateNotes` and `combineNotes` are `concatenate` and
+`combine`, `quantizeEvents` is `quantize` (the value-level `quantize` is
+internal), `removeDuplicates` is `deduplicate`, `splitLongNotes` is `split`,
+`normalizeVelocities` is `normalize`, `extractRhythm`, `getPitchRange` and
+`getTotalDuration` are `onsets`, `range` and `span`, `createTrack` and
+`createPiece` are `track` and `piece`, and `at(notes, start, { octave })` is
+`place(notes, { time, octave, velocity })`. `jm.utils` answers to the old names
+for one release. Gone, with nothing calling them: `tracksToDict`, `getOctave`,
+`getSharp`, `setTimeAccordingToDurations`, `adjustNoteDurationsToPreventOverlaps`,
+`repairNotes`, `midiToCde`, `noOverlap`, `checkInput`, `offsetTrack`,
+`quantizeNotes`, `quantizeTrack`, `quantizePiece`, `qlToSeconds`, `fibonacci`,
+`instrumentMapping`, `chain`, `concatSections`, `createScale`,
+`recalculateTiming`, `getTimingInfo`.
 
 ## Changes in 4.0
 

@@ -1,6 +1,6 @@
 /**
  * Tests for the voices written and read by theory/harmony/Counterpoint.js,
- * and for the line helpers beside them in utils/jmon-utils.js: diatonic,
+ * and for the line helpers of notes and performance: diatonic,
  * transposeDiatonic, canon, humanize.
  *
  * Run with: node --test tests/counterpoint.test.js
@@ -11,7 +11,8 @@ import assert from "node:assert/strict";
 
 import jm from "../src/index.js";
 import { counterpoint, parallelPerfects, voiceChorale } from "../src/algorithms/theory/harmony/Counterpoint.js";
-import { canon, diatonic, humanize, transposeDiatonic } from "../src/utils/jmon-utils.js";
+import { canon, diatonic, transposeDiatonic } from "../src/notes/index.js";
+import { humanize } from "../src/utils/jmon-utils.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
 const pc = (pitch) => ((pitch % 12) + 12) % 12;

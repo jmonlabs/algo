@@ -86,8 +86,10 @@ export const analysis = {
 };
 
 
+// What algorithms/utils.js still holds for the public: the swing. The rest
+// is internal helpers, or has moved to jm.notes.
 export const utils = {
-    ...Utils
+    applySwing: Utils.applySwing,
 };
 
 // Export everything as default

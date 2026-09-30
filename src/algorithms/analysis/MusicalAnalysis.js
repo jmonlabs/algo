@@ -25,7 +25,7 @@
  * @property {string|number} duration - Note duration
  */
 
-import { timeToBeats } from '../../utils/jmon-utils.js';
+import { timeToBeats } from '../../notes/index.js';
 
 /** A note's time in beats, whether it was given as a number or as "bars:beats:ticks". */
 const beatsOf = (time) => (typeof time === 'number' ? time : timeToBeats(time));

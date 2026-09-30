@@ -1,4 +1,4 @@
-import { beatsToTime } from '../../../utils/jmon-utils.js';
+import { beatsToTime } from '../../../notes/index.js';
 
 /**
  * Merges durations and pitches until both ends coincide, then sets each note's

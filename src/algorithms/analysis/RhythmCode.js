@@ -1,5 +1,5 @@
 import { Profile } from '../theory/profile/Profile.js';
-import { timeToBeats } from '../../utils/jmon-utils.js';
+import { timeToBeats } from '../../notes/index.js';
 import { presets as profilePresets } from '../theory/profile/presets.js';
 import { metricStrengths } from '../theory/rhythm/clave.js';
 import { onsetPositions, salience } from './salience.js';

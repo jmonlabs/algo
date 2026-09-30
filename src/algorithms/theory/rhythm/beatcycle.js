@@ -1,4 +1,4 @@
-import { beatsToTime } from '../../../utils/jmon-utils.js';
+import { beatsToTime } from '../../../notes/index.js';
 
 /**
  * Map pitches to durations cyclically and accumulate their start times.

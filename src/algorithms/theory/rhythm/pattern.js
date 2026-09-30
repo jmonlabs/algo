@@ -1,4 +1,4 @@
-import { beatsToTime } from '../../../utils/jmon-utils.js';
+import { beatsToTime } from '../../../notes/index.js';
 
 /**
  * The pattern ↔ notes pair, which is what `euclid` and `clave` are made of.

@@ -1,4 +1,4 @@
-import { beatsToTime } from '../../../utils/jmon-utils.js';
+import { beatsToTime } from '../../../notes/index.js';
 
 /**
  * Mulberry32 — small deterministic PRNG. Same seed always produces the

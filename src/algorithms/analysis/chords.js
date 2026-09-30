@@ -1,4 +1,4 @@
-import { timeToBeats } from '../../utils/jmon-utils.js';
+import { timeToBeats } from '../../notes/index.js';
 
 /**
  * A chord timeline, as the analyses and Darwin's `context.chords` read it.

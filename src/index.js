@@ -28,6 +28,7 @@
 
 import algorithms from "./algorithms/index.js";
 import * as jmonUtils from "./utils/jmon-utils.js";
+import * as notes from "./notes/index.js";
 
 /**
  * The composition API.
@@ -53,13 +54,43 @@ const jm = {
   analysis: algorithms.analysis,
   constants: algorithms.constants,
 
+  // What a composer does to a list of notes: shift, transpose, canon, tile,
+  // reverse, concatenate, quantize… and the builders track, piece, chordNotes.
+  notes,
+
+  // The names of 4.x, kept for one release while the pieces move to jm.notes
+  // and jm.performance. Nothing new goes here.
   utils: {
     ...algorithms.utils,
     ...jmonUtils,
+    beatsToTime: notes.beatsToTime,
+    timeToBeats: notes.timeToBeats,
+    createTrack: notes.track,
+    createPiece: notes.piece,
+    chordNotes: notes.chordNotes,
+    shiftTime: notes.shift,
+    transpose: notes.transpose,
+    diatonic: notes.diatonic,
+    transposeDiatonic: notes.transposeDiatonic,
+    canon: notes.canon,
+    truncate: notes.truncate,
+    tile: notes.tile,
+    augment: notes.augment,
+    retrograde: notes.reverse,
+    invert: notes.invert,
+    concatenateNotes: notes.concatenate,
+    combineNotes: notes.combine,
+    quantize: notes.quantize,
+    removeDuplicates: notes.deduplicate,
+    splitLongNotes: notes.split,
+    normalizeVelocities: notes.normalize,
+    extractRhythm: notes.onsets,
+    getPitchRange: notes.range,
+    getTotalDuration: notes.span,
   },
 
   // Keep in step with package.json; tests/utils-transforms asserts they match.
-  VERSION: "4.0.0",
+  VERSION: "5.0.0",
 };
 
 export { jm };

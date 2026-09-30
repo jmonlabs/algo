@@ -13,7 +13,8 @@ import { clave, clavePattern, metricStrengths } from "../src/algorithms/theory/r
 import { euclid, euclidPattern } from "../src/algorithms/theory/rhythm/euclid.js";
 import { onsets, fromOnsets, draw } from "../src/algorithms/theory/rhythm/pattern.js";
 import { isorhythm } from "../src/algorithms/theory/rhythm/isorhythm.js";
-import { at, lcm, gcd } from "../src/utils/jmon-utils.js";
+import { lcm, gcd } from "../src/utils/jmon-utils.js";
+import { place } from "../src/notes/index.js";
 import * as R from "../src/algorithms/analysis/RhythmCode.js";
 import * as S from "../src/algorithms/analysis/salience.js";
 import { groove, anticipate, applySteps } from "../src/algorithms/processors/Groove.js";
@@ -271,16 +272,16 @@ test("lcm is when two cycles line up again", () => {
   assert.equal(isorhythm({ pitches: [1, 2, 3, 4, 5], durations: [1, 2, 3, 4] }).length, lcm(5, 4));
 });
 
-test("at places a phrase without touching what it does not say", () => {
+test("place moves a phrase without touching what it does not say", () => {
   const notes = [{ pitch: 60, duration: 1, time: 0, velocity: 0.9 }];
-  assert.deepEqual(at(notes, 16, {}), [{ pitch: 60, duration: 1, time: 16, velocity: 0.9 }]);
-  assert.deepEqual(at(notes, 16, { velocity: 0.3 })[0].velocity, 0.3);
-  assert.deepEqual(at(notes, 0, { octave: 1 })[0].pitch, 72);
-  assert.deepEqual(at(notes, 0, { octave: -1 })[0].pitch, 48);
+  assert.deepEqual(place(notes, { time: 16 }), [{ pitch: 60, duration: 1, time: 16, velocity: 0.9 }]);
+  assert.deepEqual(place(notes, { time: 16, velocity: 0.3 })[0].velocity, 0.3);
+  assert.deepEqual(place(notes, { octave: 1 })[0].pitch, 72);
+  assert.deepEqual(place(notes, { octave: -1 })[0].pitch, 48);
   // a chord moves as a chord
-  assert.deepEqual(at([{ pitch: [60, 64], duration: 1, time: 0 }], 0, { octave: 1 })[0].pitch, [72, 76]);
+  assert.deepEqual(place([{ pitch: [60, 64], duration: 1, time: 0 }], { octave: 1 })[0].pitch, [72, 76]);
   // a rest stays a rest
-  assert.equal(at([{ pitch: null, duration: 1, time: 0 }], 4, { octave: 2 })[0].pitch, null);
+  assert.equal(place([{ pitch: null, duration: 1, time: 0 }], { time: 4, octave: 2 })[0].pitch, null);
 });
 
 test("at and draw refuse nonsense loudly", () => {
