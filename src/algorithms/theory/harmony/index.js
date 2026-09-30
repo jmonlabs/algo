@@ -8,7 +8,7 @@ import { Arpeggiate, arpeggiate } from "./Arpeggiate.js";
 import { Strum, strum } from "./Strum.js";
 import { Key, key } from "./Key.js";
 import Solfege from "./Solfege.js";
-import { counterpoint, parallelPerfects, voiceChorale } from "./Counterpoint.js";
+import { counterpoint, parallelPerfects, voiceChorale } from "../../../voices/counterpoint.js";
 
 // Export both as namespace and individual exports
 export {

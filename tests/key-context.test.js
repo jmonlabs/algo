@@ -1,6 +1,6 @@
 /**
- * The jm.key() context: setting tonic/mode once and handing it to Scale,
- * Voice, Ornament, Progression and the chord helpers.
+ * The jm.key() context: setting tonic/mode once and handing it to the scale,
+ * Progression, jm.harmony and the chord helpers.
  *
  * node:test + assert. Run with: node --test tests/key-context.test.js
  */
@@ -8,10 +8,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import jm from "../src/index.js";
 import { Key, key } from "../src/algorithms/theory/harmony/Key.js";
 import { Scale } from "../src/algorithms/theory/harmony/Scale.js";
 import { Voice } from "../src/algorithms/theory/harmony/Voice.js";
-import { Ornament } from "../src/algorithms/theory/harmony/Ornament.js";
 import { Chain } from "../src/algorithms/generative/walks/Chain.js";
 
 /* --- the factory --------------------------------------------------------- */
@@ -39,27 +39,23 @@ test("new Key(options) is the options-object form; key() stays positional-only",
 
 /* --- context-applied constructors ---------------------------------------- */
 
-test("the context builds harmony objects without repeating tonic/mode", () => {
+test("the context gives the scale and the progression without repeating tonic/mode", () => {
   const k = key("D", "dorian");
 
-  const scale = k.scale();
-  assert.ok(scale instanceof Scale);
-  assert.deepEqual(scale.generate({ start: 62, length: 7 }), [62, 64, 65, 67, 69, 71, 72]);
-
-  const voice = k.voice({ measureLength: 4 });
-  assert.ok(voice instanceof Voice);
-  assert.deepEqual([voice.tonic, voice.mode], ["D", "dorian"]);
-
-  const ornament = k.ornament({ type: "mordent", parameters: { by: -1 } });
-  assert.ok(ornament instanceof Ornament);
+  assert.deepEqual(k.scale({ start: 62, length: 7 }), [62, 64, 65, 67, 69, 71, 72]);
 
   const progression = k.progression();
   assert.equal(progression.mode, "dorian");
+
+  // Chords under a melody and ornaments are jm.harmony and jm.performance
+  // now; the context is handed to them.
+  const melody = [{ pitch: 62, time: 0, duration: 4 }, { pitch: 65, time: 4, duration: 4 }];
+  assert.deepEqual(jm.harmony.harmonize(melody, { key: k }), [[62, 65, 69], [65, 69, 72]]);
 });
 
 test("a context scale matches one built by hand", () => {
   const byHand = new Scale({ tonic: "F", mode: "lydian" }).generate({ start: 65, length: 7 });
-  const byContext = key("F", "lydian").scale().generate({ start: 65, length: 7 });
+  const byContext = key("F", "lydian").scale({ start: 65, length: 7 });
   assert.deepEqual(byContext, byHand);
 });
 
@@ -68,12 +64,9 @@ test("a context scale matches one built by hand", () => {
 test("per-call options beat the context", () => {
   const k = key("C", "major");
 
-  assert.equal(k.scale({ mode: "minor" }).mode, "minor");
-  assert.equal(k.scale({ tonic: "G" }).tonic, "G");
-  assert.deepEqual(
-    k.scale({ tonic: "A", mode: "minor" }).generate({ start: 69, length: 3 }),
-    [69, 71, 72],
-  );
+  assert.equal(k.progression({ mode: "minor" }).mode, "minor");
+  assert.equal(k.progression({ tonic: "G" }).tonicNote, "G");
+  assert.deepEqual(jm.harmony.chord(60, { key: k, degrees: [0, 2, 4, 6] }), [60, 64, 67, 71]);
   // The context itself is untouched by an override.
   assert.deepEqual([k.tonic, k.mode], ["C", "major"]);
 });

@@ -29,6 +29,8 @@
 import algorithms from "./algorithms/index.js";
 import * as notes from "./notes/index.js";
 import * as performance from "./performance/index.js";
+import * as harmony from "./harmony/index.js";
+import * as voices from "./voices/index.js";
 
 /**
  * The composition API.
@@ -38,17 +40,28 @@ import * as performance from "./performance/index.js";
  * runs the same in Node, Deno and a browser.
  */
 const jm = {
-  // Key context — set tonic and mode once and produce harmony objects
-  // (Scale, Voice, Ornament, Progression, chord(s)) without repeating
-  // `{ tonic, mode }` at every call site.
+  // A key: tonic and mode, given once. The one call that takes two plain
+  // arguments, because "D minor" is how a key is said.
   //
-  //   const k = jm.key("C", "major");
-  //   k.scale().generate({ length: 8 });
-  //   k.voice({ measureLength: 4, output: "track" }).generate(melody);
-  //   k.ornament({ type: "trill", parameters: { by: 1 } }).apply(notes, 0);
-  key: (tonic, mode) => algorithms.theory.harmony.key(tonic, mode),
+  //   const k = jm.key("D", "minor");
+  //   k.scale({ start: 50, length: 8 });
+  //   k.progression().generate(4, { seed: 1 });
+  //   jm.harmony.chord(62, k);
+  key: harmony.key,
 
-  theory: algorithms.theory,
+  // The names of 4.x for theory.harmony, kept for one release while the
+  // pieces move to jm.harmony and jm.voices. Nothing new goes here.
+  theory: {
+    ...algorithms.theory,
+    harmony: {
+      ...algorithms.theory.harmony,
+      counterpoint: voices.counterpoint,
+      parallelPerfects: voices.parallelPerfects,
+      voiceChorale: voices.lead,
+      chordify: harmony.chord,
+      chordifyMany: harmony.chords,
+    },
+  },
   generative: algorithms.generative,
   processors: algorithms.processors,
   analysis: algorithms.analysis,
@@ -61,6 +74,13 @@ const jm = {
   // How the notes are played: sustain, bow, humanize, embellish, swing,
   // ornament, articulate, strum, arpeggiate, groove, corrupt.
   performance,
+
+  // In a key: key, Progression, chord, chords, harmonize, solfege…
+  harmony,
+
+  // What the voices do from one chord to the next: neoRiemannian,
+  // neoRiemannianWalk, smoothWalk, lead, counterpoint.
+  voices,
 
   // The names of 4.x, kept for one release while the pieces move to jm.notes
   // and jm.performance. Nothing new goes here.

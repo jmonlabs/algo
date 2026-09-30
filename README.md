@@ -75,15 +75,24 @@ const track = [
 
 ## What is here
 
-### Theory — `jm.theory.*`
-Scales, intervals, chords, voice leading, progressions, ornaments and articulations, rhythm generation. `Rhythm.random()` and `Rhythm.darwin()` return JMON notes, with `pitches` cycled across them the way `euclid` does.
+### Harmony — `jm.harmony.*`
+In a key. `jm.key(tonic, mode)` sets it once: `k.scale({ start, length })` is its pitches, `k.pitchClasses()` its pitch classes, `k.progression({ circleOf, radius })` a `Progression`, `k.chord(pitch)` and `k.solfege(pitch)` shortcuts for the functions below, and the key is handed to the rest as `{ key: k }` or as `k` itself.
+- Chords: `chord(pitch, { key, degrees })` stacks scale degrees on a pitch, `chords(pitches, { key })` does it for several, `harmonize(melody, { key, measureLength, output })` puts a chord under each measure of a melody (or under each note with `perNote`), as pitch arrays, as chord notes or as roots.
+- Progressions: `new Progression({ tonic, mode })` reads roman numerals, `generate(["i", "VI", "III", "VII"])`, or draws chords on a circle of intervals, `generate(4, { seed })` with `circleOf` and `radius`.
+- Solfège, after Bodzsar: `solfege(pitch, key)` is the syllable relative to the relative major (a minor tonic is LA), `degree(pitch, key)` its number, `stability(pitch, { key, order })` its rank on the order DO SO MI LA RE TI FA; `chordDistance(pitch, chord)` and `isChordTone(pitch, chord)` look at a chord instead.
 
-`jm.key(tonic, mode)`, or `jm.key({ tonic, mode })` like every class here, sets the key once and builds Scale, Voice, Ornament, Progression and chords without repeating `{ tonic, mode }`. It also answers `k.solfege(pitch)` and `k.stability(pitch)`: the syllable relative to the relative major (a minor tonic is LA) and its rank on the stability order DO SO MI LA RE TI FA.
+### Voices — `jm.voices.*`
+What the voices do from one chord to the next. No key here: a chord is three pitches, and the next one comes from where the voices can go.
+- Neo-Riemannian moves: `neoRiemannian(chord, ["P", "L", "R"])` applies moves in order, each keeping two of three notes; `neoRiemannianWalk(chord, { length, seed, vocabulary, opWeights, inKey })` draws them, `inKey` keeping the walk inside a key's pitch classes.
+- The smoothest next chord: `smoothWalk(chord, { length, seed, maxVoiceLeading, qualities, bassRange, octaveBounds })` picks, among all major and minor triads, the ones the voices reach by moving least.
+- Chorale: `lead(chords, { ranges, top })` writes chords given as `{ bass, pitchClasses }` for any number of voices: every voicing in the ranges is tried, and the sequence kept is the one where the voices move least, uncrossed and without parallel fifths or octaves, the way back to the first chord included. `counterpoint(voices, { beatsPerBar })` reads voices already written and reports those parallels, and the harshest clashes, as data (`{ kind, time, bar, beat, voices, pitches }`).
+
+### Theory — `jm.theory.*`
+Rhythm generation and profiles. `Rhythm.random()` and `Rhythm.darwin()` return JMON notes, with `pitches` cycled across them the way `euclid` does.
 
 - `theory.rhythm.clave` — son, rumba, bossa, tresillo and afro claves as grids or notes, in 2-3 or 3-2. `metricStrengths` grades the places of any meter into downbeat, half-bar, beat, upbeat.
 - `theory.profile.Profile` — a weight per position over a cycle, with `fit`, `rotate`, `bestRotation` and `fromPositions`. Bodzsar's Rhythm Code (16 eighth-note places), Tonality Code (12 pitch classes) and stability order (7 degrees) ship as presets; a profile folded out of your own tracks is the same object.
-- `theory.harmony.Solfege` — degree, syllable, stability rank and distance to the nearest chord tone.
-- `theory.harmony.voiceChorale(chords, { ranges })` — writes chords given as `{ bass, pitchClasses }` for any number of voices: every voicing in the ranges is tried, and the sequence kept is the one where the voices move least, uncrossed and without parallel fifths or octaves, the way back to the first chord included. `theory.harmony.counterpoint(voices)` reads voices already written and reports those parallels, and the harshest clashes, as data (`{ kind, time, bar, beat, voices, pitches }`).
+- `theory.harmony` — the classes `Scale`, `Voice` and `Solfege` behind `jm.harmony`, and the names of 4.x for one release.
 
 ### Generative — `jm.generative.*`
 - Minimalism: `MinimalismProcess` (additive and subtractive), `Tintinnabuli`, `phaseShift(pattern, { cycles, shift })`
@@ -128,8 +137,8 @@ The names of 4.x, kept for one release as a façade over `jm.notes` and `jm.perf
 
 ## Conventions
 
-- A class takes one options object: `new Scale({ tonic, mode })`. A function or a method takes its subject first — the notes, the pitch, the chords — and then either one number whose meaning the name gives away (`transpose(notes, 12)`, `truncate(notes, 32)`) or one options object where everything is named (`humanize(notes, { seed, timing })`, `sustained(60, { duration, step })`). Never two positional values in a row, and a seed is always named: `nrtWalk(8, { seed: 1 })`. `jm.key()` is the one exception, taking `(tonic, mode)` as well as `{ tonic, mode }`.
-- Everything that enters or leaves a generator is a list of JMON notes, `{ pitch, duration, time, velocity }`, with time in quarter notes. A chord is an array of pitches; a chord on a timeline is a JMON note whose `pitch` is that array (`chordTrack`).
+- A class takes one options object: `new Scale({ tonic, mode })`. A function or a method takes its subject first — the notes, the pitch, the chords — and then either one number whose meaning the name gives away (`transpose(notes, 12)`, `truncate(notes, 32)`) or one options object where everything is named (`humanize(notes, { seed, timing })`, `sustained(60, { duration, step })`). Never two positional values in a row, and a seed is always named: `neoRiemannianWalk(chord, { length: 8, seed: 1 })`. `jm.key()` is the one exception, taking `(tonic, mode)` as well as `{ tonic, mode }`.
+- Everything that enters or leaves a generator is a list of JMON notes, `{ pitch, duration, time, velocity }`, with time in quarter notes. A chord is an array of pitches; a chord on a timeline is a JMON note whose `pitch` is that array (`chordNotes`).
 - Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
 - A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
 
@@ -164,6 +173,22 @@ and `arpeggiate` come here from harmony (their classes are no longer in `jm`),
 `jm.processors` and `jm.utils` answer to the old names for one release.
 jmon/studio now exposes every space algo defines, so `jm.notes` and
 `jm.performance` reach the notebooks without a change there.
+
+**`jm.harmony` and `jm.voices`.** `Progression` kept two kinds of walk that
+never read the key they were built with; they are now functions of a chord in
+`jm.voices`: `new Progression({ tonic, mode, ...options }).smooth(n, { seed })`
+is `smoothWalk(chord, { length: n, seed, ...options })`, `.nrtWalk(n, { seed })`
+is `neoRiemannianWalk(chord, { length: n, seed, vocabulary, opWeights, inKey })`,
+and `.applyTransforms(ops)` is `neoRiemannian(chord, ops)`, where `chord` is the
+triad the old call started from, the tonic at octave 4 (`[62, 65, 69]` for D).
+`voiceChorale` is `lead`; `counterpoint` keeps its name; both live in
+`jm.voices`. `chordify` and `chordifyMany` are `harmony.chord` and
+`harmony.chords`, `new Voice({ tonic, mode }).generate(melody)` is
+`harmony.harmonize(melody, { key })`, and `Solfege`'s functions are flat in
+`jm.harmony`, taking a key context. `k.scale(options)` returns the pitches
+(it was `k.scale().generate(options)`); `k.voice()` and `k.ornament()` are
+gone, `harmonize` and `performance.ornament` taking the key instead.
+`jm.theory.harmony` answers to the old names for one release.
 
 ## Changes in 4.0
 

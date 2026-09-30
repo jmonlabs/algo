@@ -1,5 +1,5 @@
 /**
- * Tests for the voices written and read by theory/harmony/Counterpoint.js,
+ * Tests for the voices written and read by voices/counterpoint.js,
  * and for the line helpers of notes and performance: diatonic,
  * transposeDiatonic, canon, humanize.
  *
@@ -10,7 +10,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import jm from "../src/index.js";
-import { counterpoint, parallelPerfects, voiceChorale } from "../src/algorithms/theory/harmony/Counterpoint.js";
+import { counterpoint, parallelPerfects, lead as voiceChorale } from "../src/voices/index.js";
 import { canon, diatonic, transposeDiatonic } from "../src/notes/index.js";
 import { humanize } from "../src/performance/index.js";
 
@@ -94,7 +94,9 @@ test("voiceChorale says which chord cannot be written, and when the rules cannot
   assert.deepEqual(voiceChorale(chords, { ranges: [[58, 60]], allowParallels: true }), [[60], [58]]);
 });
 
-test("voiceChorale is reached from the harmony namespace", () => {
+test("lead is reached from the voices namespace, and the old name still answers", () => {
+  assert.equal(jm.voices.lead, voiceChorale);
+  assert.equal(jm.voices.counterpoint, counterpoint);
   assert.equal(jm.theory.harmony.voiceChorale, voiceChorale);
   assert.equal(jm.theory.harmony.counterpoint, counterpoint);
 });

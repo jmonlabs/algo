@@ -1,30 +1,23 @@
 import { Scale } from './Scale.js';
-import { Voice } from './Voice.js';
-import { Ornament } from './Ornament.js';
 import { Progression } from './Progression.js';
 import { chordify, chordifyMany } from './Chordify.js';
 import { solfege, stability, degree } from './Solfege.js';
 
 /**
- * A reusable key context that collapses the repeated `{tonic, mode}`
- * boilerplate across `Scale`, `Voice`, `Ornament`, `Progression`,
- * `chordify`, and `chordifyMany`.
- *
- * Instead of writing `tonic: 'C', mode: 'major'` at every call site, set
- * the key once and ask the context for the harmony objects you need —
- * tonic/mode are merged in automatically and can still be overridden
- * per-call.
+ * A key: a tonic and a mode, set once, and everything the key answers from
+ * there — its scale, its chords, its progressions, the solfège of a pitch.
+ * The functions of jm.harmony and jm.performance that need a key take it
+ * as `key`.
  *
  * @example
  * ```js
  * const k = jm.key('C', 'major');
  *
- * const scale = k.scale().generate({ length: 8 });
- * const voice = k.voice({ measureLength: 4, output: 'track' });
- * const trill = k.ornament({ type: 'trill', parameters: { by: 1 } });
+ * const scale = k.scale({ start: 60, length: 8 });   // MIDI pitches, C4 to C5
  * const prog  = k.progression().generate(['I', 'IV', 'V', 'I']);
- * const chord = k.chord(60);          // chordify(60, {tonic:'C', mode:'major'})
+ * const chord = k.chord(60);          // [60, 64, 67], jm.harmony.chord(60, k) as well
  * const chords = k.chords([60, 62, 64]);
+ * k.solfege(64);                      // 'MI'
  * ```
  */
 export class Key {
@@ -43,14 +36,15 @@ export class Key {
         return { tonic: this.tonic, mode: this.mode, ...extra };
     }
 
-    /** @returns {Scale} */
-    scale(options = {}) { return new Scale(this._opts(options)); }
-
-    /** @returns {Voice} */
-    voice(options = {}) { return new Voice(this._opts(options)); }
-
-    /** @returns {Ornament} */
-    ornament(options = {}) { return new Ornament(this._opts(options)); }
+    /**
+     * The scale of the key, as MIDI pitches.
+     * @param {Object} [options]
+     * @param {number|string} [options.start] - The first pitch (a MIDI number or a name such as 'D3'); the tonic at octave 4 by default
+     * @param {number|string} [options.end] - The last pitch
+     * @param {number} [options.length] - How many pitches
+     * @returns {Array<number>}
+     */
+    scale(options = {}) { return new Scale(this._opts()).generate(options); }
 
     /** @returns {Progression} */
     progression(options = {}) { return new Progression(this._opts(options)); }
