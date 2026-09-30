@@ -6,11 +6,12 @@
 /**
  * Convert beats (quarter notes) to bars:beats:ticks format
  * @param {number} beats - Time in beats (quarter notes)
- * @param {number} beatsPerBar - Beats per bar (default: 4 for 4/4 time)
- * @param {number} ticksPerBeat - Ticks per quarter note (default: 480, MIDI standard)
+ * @param {Object} [options]
+ * @param {number} [options.beatsPerBar=4] - Beats per bar (4 for 4/4 time)
+ * @param {number} [options.ticksPerBeat=480] - Ticks per quarter note (480 is MIDI's usual)
  * @returns {string} Time in "bars:beats:ticks" format
  */
-export function beatsToTime(beats, beatsPerBar = 4, ticksPerBeat = 480) {
+export function beatsToTime(beats, { beatsPerBar = 4, ticksPerBeat = 480 } = {}) {
   const bars = Math.floor(beats / beatsPerBar);
   const remainingBeats = beats - bars * beatsPerBar;
   const wholeBeats = Math.floor(remainingBeats);
@@ -23,11 +24,12 @@ export function beatsToTime(beats, beatsPerBar = 4, ticksPerBeat = 480) {
 /**
  * Convert bars:beats:ticks format to beats (quarter notes)
  * @param {string|number} timeString - Time in "bars:beats:ticks" format or number
- * @param {number} beatsPerBar - Beats per bar (default: 4 for 4/4 time)
- * @param {number} ticksPerBeat - Ticks per quarter note (default: 480, MIDI standard)
+ * @param {Object} [options]
+ * @param {number} [options.beatsPerBar=4] - Beats per bar (4 for 4/4 time)
+ * @param {number} [options.ticksPerBeat=480] - Ticks per quarter note (480 is MIDI's usual)
  * @returns {number} Time in beats (quarter notes)
  */
-export function timeToBeats(timeString, beatsPerBar = 4, ticksPerBeat = 480) {
+export function timeToBeats(timeString, { beatsPerBar = 4, ticksPerBeat = 480 } = {}) {
   if (typeof timeString === 'number') return timeString;
   if (typeof timeString !== 'string') return 0;
   
@@ -45,11 +47,11 @@ export function timeToBeats(timeString, beatsPerBar = 4, ticksPerBeat = 480) {
  * emit `name`, so a track built here arrived unnamed everywhere.
  *
  * @param {Array} notes - Array of notes in various formats
- * @param {string} label - Track label
- * @param {Object} options - Additional track properties (synth, effects…)
+ * @param {Object} [options] - The track's other fields: `label`, `synth`, `effects`…
+ * @param {string} [options.label='Untitled Track']
  * @returns {Object} JMON track object
  */
-export function createTrack(notes, label = 'Untitled Track', options = {}) {
+export function createTrack(notes, { label = 'Untitled Track', ...options } = {}) {
   const normalizedNotes = normalizeNotes(notes);
 
   return {
@@ -71,7 +73,7 @@ export function createTrack(notes, label = 'Untitled Track', options = {}) {
 export function createPiece(tracks, metadata = {}) {
   const normalizedTracks = tracks.map((track, index) => {
     if (Array.isArray(track)) {
-      return createTrack(track, `Track ${index + 1}`);
+      return createTrack(track, { label: `Track ${index + 1}` });
     }
     if (track.notes) {
       // `name` is accepted on the way in so older callers keep working, but
@@ -162,12 +164,13 @@ export function normalizeNotes(notes) {
 /**
  * Create a basic scale sequence in JMON format
  * @param {Array} pitches - Array of MIDI note numbers
- * @param {number} duration - Duration for each note (default: 1 beat)
- * @param {number} startTime - Starting time in beats (default: 0)
+ * @param {Object} [options]
+ * @param {number} [options.duration=1] - Duration of each note, in beats
+ * @param {number} [options.time=0] - Time of the first note, in beats
  * @returns {Array} JMON note objects
  */
-export function createScale(pitches, duration = 1, startTime = 0) {
-  let currentTime = startTime;
+export function createScale(pitches, { duration = 1, time = 0 } = {}) {
+  let currentTime = time;
   
   return pitches.map(pitch => {
     const note = {
@@ -324,15 +327,16 @@ export function shiftTime(notes, timeShift) {
  *
  * @example
  * const cell = isorhythm({ pitches: [60, 62, 64], durations: [0.75, 0.75, 0.5] });
- * const notes = tile(cell, 4);          // four cycles, back to back
- * const spaced = tile(cell, 4, 8);      // one cycle per 8 beats
+ * const notes = tile(cell, { times: 4 });            // four cycles, back to back
+ * const spaced = tile(cell, { times: 4, cycle: 8 }); // one cycle per 8 beats
  *
  * @param {Array} notes - JMON notes
- * @param {number} times - How many cycles to emit (0 gives an empty array)
- * @param {number} [cycle] - Beats between cycle starts; defaults to the phrase's extent
+ * @param {Object} options
+ * @param {number} options.times - How many cycles to emit (0 gives an empty array)
+ * @param {number} [options.cycle] - Beats between cycle starts; defaults to the phrase's extent
  * @returns {Array} The tiled notes, in time order
  */
-export function tile(notes, times, cycle) {
+export function tile(notes, { times, cycle } = {}) {
   if (!Array.isArray(notes) || notes.length === 0 || !(times > 0)) return [];
 
   let length = cycle;
@@ -435,33 +439,39 @@ export function combineTracks(tracks) {
  *
  * @example
  * // Drone D2 held for 24 beats, re-attacked every 4 beats
- * const drone = sustained(38, 24, 0, 0.4);
+ * const drone = sustained(38, { duration: 24, velocity: 0.4 });
  *
  * @example
  * // String pad on a chord, each note re-attacked every 6 beats
  * const pad = chordPitches.flatMap((p) =>
- *   sustained(p, totalDur, startTime, 0.25, 6)
+ *   sustained(p, { duration: totalDur, time: startTime, velocity: 0.25, step: 6 })
  * );
  *
  * @example
  * // A bowing rather than a metronome: two quarters and a half, cycled, with
- * // the downbeat carrying the weight. `step` and `vel` advance together.
- * const bowed = sustained(69, 8, 0, [0.5, 0.36, 0.43], [1, 1, 2]);
+ * // the downbeat carrying the weight. `step` and `velocity` advance together.
+ * const bowed = sustained(69, { duration: 8, velocity: [0.5, 0.36, 0.43], step: [1, 1, 2] });
  *
  * @param {number} pitch - MIDI pitch
- * @param {number} totalDur - Total duration to fill (beats)
- * @param {number} [startTime=0] - When the held tone begins (beats)
- * @param {number|number[]} [vel=0.4] - Velocity per attack. An array cycles
- *   alongside `step`, so an uneven pattern can be shaped as a bowing or a
- *   strum rather than a row of identical attacks.
- * @param {number|number[]} [step=4] - Re-attack interval (beats). Smaller =
- *   more attacks. An array is a pattern of durations, cycled until `totalDur`
- *   is filled: `[1, 1, 2]` fills a 4/4 bar with two quarters and a half.
- * @returns {Array} Array of JMON notes covering `[startTime, startTime+totalDur)`
+ * @param {Object} options - Named like a note's own fields
+ * @param {number} options.duration - Total duration to fill (beats)
+ * @param {number} [options.time=0] - When the held tone begins (beats)
+ * @param {number|number[]} [options.velocity=0.4] - Velocity per attack. An
+ *   array cycles alongside `step`, so an uneven pattern can be shaped as a
+ *   bowing or a strum rather than a row of identical attacks.
+ * @param {number|number[]} [options.step=4] - Re-attack interval (beats).
+ *   Smaller = more attacks. An array is a pattern of durations, cycled until
+ *   `duration` is filled: `[1, 1, 2]` fills a 4/4 bar with two quarters and a half.
+ * @returns {Array} Array of JMON notes covering `[time, time + duration)`
  */
-export function sustained(pitch, totalDur, startTime = 0, vel = 0.4, step = 4) {
+export function sustained(pitch, { duration, time = 0, velocity = 0.4, step = 4 } = {}) {
+  const totalDur = duration;
+  const startTime = time;
+  if (!(totalDur > 0)) {
+    throw new Error("sustained: `duration` must be a number of beats greater than 0");
+  }
   const pattern = Array.isArray(step) ? step : [step];
-  const velocities = Array.isArray(vel) ? vel : [vel];
+  const velocities = Array.isArray(velocity) ? velocity : [velocity];
 
   if (pattern.length === 0 || pattern.some((d) => !(d > 0))) {
     throw new Error("sustained: every step must be a duration greater than 0");
@@ -525,16 +535,17 @@ function scalePitchClasses(scale) {
  * C lands.
  *
  * @param {number} pitch - MIDI pitch
- * @param {number} steps - Scale steps, negative to go down
- * @param {Array<number>|Object} scale - Pitch classes of the scale, or a key
- *   context (`jm.key("D", "minor")`)
+ * @param {Object} options
+ * @param {number} options.steps - Scale steps, negative to go down
+ * @param {Array<number>|Object} options.scale - Pitch classes of the scale,
+ *   or a key context (`jm.key("D", "minor")`)
  * @returns {number} MIDI pitch
  *
  * @example
- * diatonic(77, -3, [0, 2, 4, 5, 7, 9, 10]);  // F5 -> C5, 72
- * diatonic(77, -3, jm.key("D", "minor"));    // the same
+ * diatonic(77, { steps: -3, scale: [0, 2, 4, 5, 7, 9, 10] });  // F5 -> C5, 72
+ * diatonic(77, { steps: -3, scale: jm.key("D", "minor") });    // the same
  */
-export function diatonic(pitch, steps, scale) {
+export function diatonic(pitch, { steps, scale } = {}) {
   const classes = scalePitchClasses(scale);
   const size = classes.length;
   const pc = (p) => ((p % 12) + 12) % 12;
@@ -550,13 +561,14 @@ export function diatonic(pitch, steps, scale) {
  * by note; rests are copied as they are.
  *
  * @param {Array} notes - JMON notes
- * @param {number} steps - Scale steps, negative to go down
- * @param {Array<number>|Object} scale - Pitch classes of the scale, or a key
+ * @param {Object} options
+ * @param {number} options.steps - Scale steps, negative to go down
+ * @param {Array<number>|Object} options.scale - Pitch classes of the scale, or a key
  * @returns {Array} New notes
  */
-export function transposeDiatonic(notes, steps, scale) {
+export function transposeDiatonic(notes, { steps, scale } = {}) {
   const classes = scalePitchClasses(scale);
-  const move = (p) => (typeof p === "number" ? diatonic(p, steps, classes) : p);
+  const move = (p) => (typeof p === "number" ? diatonic(p, { steps, scale: classes }) : p);
   return notes.map((n) => ({
     ...n,
     pitch: Array.isArray(n.pitch) ? n.pitch.map(move) : move(n.pitch),
@@ -587,7 +599,7 @@ export function canon(notes, options = {}) {
   const { delay = 0, steps = 0, scale, octave = 0, semitones = 0 } = options;
   const classes = steps === 0 ? null : scalePitchClasses(scale);
   const shift = 12 * octave + semitones;
-  const move = (p) => (typeof p === "number" ? (classes ? diatonic(p, steps, classes) : p) + shift : p);
+  const move = (p) => (typeof p === "number" ? (classes ? diatonic(p, { steps, scale: classes }) : p) + shift : p);
   return shiftTime(notes, delay).map((n) => ({
     ...n,
     pitch: Array.isArray(n.pitch) ? n.pitch.map(move) : move(n.pitch),

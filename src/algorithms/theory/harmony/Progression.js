@@ -67,7 +67,7 @@ export class Progression extends MusicTheoryConstants {
      *
      * @example
      * // The circle, drawing ordinary tonal progressions
-     * new Progression({ tonic: 'D', mode: 'minor' }).generate(4, 1);
+     * new Progression({ tonic: 'D', mode: 'minor' }).generate(4, { seed: 1 });
      *
      * @example
      * // A walk that keeps its voice leading and stays in the key
@@ -75,7 +75,7 @@ export class Progression extends MusicTheoryConstants {
      *   tonic: 'D', mode: 'minor',
      *   vocabulary: ['P', 'L', 'R', 'N', 'S', 'RPR', 'PRP'],
      *   inKey: true,
-     * }).nrtWalk(4, 1);
+     * }).nrtWalk(4, { seed: 1 });
      */
     constructor(options = {}) {
         super();
@@ -190,12 +190,14 @@ export class Progression extends MusicTheoryConstants {
     }
 
     /**
-     * Generate a musical progression
+     * A progression: chords drawn at random from the circle (see `circleOf`
+     * and `radius`), or the chords the roman numerals name.
      * @param {number|Array} lengthOrNumerals - Either number of chords or array of roman numerals
-     * @param {number} seed - The seed value for the random number generator
+     * @param {Object} [options]
+     * @param {number|null} [options.seed=null] - Seed of the draw; the same seed gives the same progression
      * @returns {Array} Array of chord arrays representing the progression
      */
-    generate(lengthOrNumerals = 4, seed = null) {
+    generate(lengthOrNumerals = 4, { seed = null } = {}) {
         // Check if first argument is an array of roman numerals
         if (Array.isArray(lengthOrNumerals)) {
             return this.generateFromRomanNumerals(lengthOrNumerals);
@@ -203,10 +205,7 @@ export class Progression extends MusicTheoryConstants {
 
         const length = lengthOrNumerals;
 
-        // Use a seeded RNG when `seed` is provided (deterministic), else
-        // fall back to Math.random. The previous Math.seedrandom assignment
-        // was a no-op (the library wasn't loaded), so callers passing a seed
-        // got non-deterministic output. Now they actually get reproducibility.
+        // A seeded RNG when `seed` is given (deterministic), else Math.random.
         const rng = seed !== null ? Progression._mulberry32(seed) : Math.random;
 
         const pickWeighted = (weights) => {
@@ -335,21 +334,27 @@ export class Progression extends MusicTheoryConstants {
     }
 
     /**
-     * Generate a circle of fifths progression
-     * @param {number} length - Number of chords in the progression
-     * @returns {Array} Array of chords
+     * Walk the circle: from the tonic, each chord a `circleOf` interval above
+     * the last (fifths by default, or fourths, thirds, whatever the
+     * constructor was given), staying in the tonic's octave.
+     *
+     * @param {number} [length=4] - Number of chords
+     * @param {Object} [options]
+     * @param {'major'|'minor'|'diminished'} [options.quality='major'] - The quality of every chord
+     * @returns {Array<Array<number>>} Chords, each three MIDI pitches
+     *
+     * @example
+     * new Progression({ tonic: 'D', circleOf: 'P5' }).circle(4);  // D, A, E, B major
+     * new Progression({ tonic: 'D', circleOf: 'M3' }).circle(3);  // D, F#, Bb major
      */
-    circleOfFifths(length = 4) {
+    circle(length = 4, { quality = 'major' } = {}) {
+        const nSemitones = MusicTheoryConstants.intervals[this.circleOf];
         const progression = [];
         let currentRoot = this.tonicMidi;
 
         for (let i = 0; i < length; i++) {
-            // Generate major chord at current root
-            const chord = this.generateChord(currentRoot, 'major');
-            progression.push(chord);
-
-            // Move to next fifth (7 semitones up)
-            currentRoot = (currentRoot + 7) % 12 + Math.floor(currentRoot / 12) * 12;
+            progression.push(this.generateChord(currentRoot, quality));
+            currentRoot = (currentRoot + nSemitones) % 12 + Math.floor(currentRoot / 12) * 12;
         }
 
         return progression;
@@ -385,14 +390,9 @@ export class Progression extends MusicTheoryConstants {
      * `tonic` is just the starting root.
      *
      * @param {number} length - Number of chords
-     * @param {number|null} [seed=null] - RNG seed (deterministic). Positional,
-     *   like `generate(length, seed)` and `nrtWalk(length, seed)`.
-     *   `options.seed` is still read, and wins when both are given.
-     * @param {Object} [options] - PerPer runcharacterruncharacterruncharacterruncharacter of 
-      
-      
-      
-     *        ``qualities``, `bassRange` —— is constructor config.
+     * @param {Object} [options] - Per run only. The character of the walk —
+     *   `maxVoiceLeading`, `qualities`, `bassRange` — is constructor config.
+     * @param {number} [options.seed=0] - Seed of the draw; the same seed gives the same walk
      * @param {string} [options.startQuality] - Override start triad quality
      *   (defaults to 'minor' if constructor `mode` is a minor-family mode,
      *   else 'major').
@@ -408,16 +408,16 @@ export class Progression extends MusicTheoryConstants {
      *
      * @example
      * // Severance-flavoured walk; identical output for identical seed.
-     * new Progression({ tonic: 'C', mode: 'minor', bassRange: 3 }).smooth(4, 42);
+     * new Progression({ tonic: 'C', mode: 'minor', bassRange: 3 }).smooth(4, { seed: 42 });
      *
      * @example
      * // A walk that stays around A3 instead of wandering octaves
      * new Progression({
      *   tonic: 'C', mode: 'minor',
      *   octaveBounds: { center: 57, range: 12 },
-     * }).smooth(16, 1);
+     * }).smooth(16, { seed: 1 });
      */
-    smooth(length, seed = null, options = {}) {
+    smooth(length, options = {}) {
         const QUALITY_INTERVALS = {
             major: [0, 4, 7],
             minor: [0, 3, 7],
@@ -426,17 +426,12 @@ export class Progression extends MusicTheoryConstants {
         };
         const MINOR_FAMILY = new Set(['minor', 'phrygian', 'aeolian', 'locrian', 'dorian']);
 
-        if (typeof seed === 'object' && seed !== null) {
-            // smooth(4, { ... }) — the pre-3.5 call shape.
-            options = seed;
-            seed = options.seed ?? null;
-        }
         Progression._refuseMovedOptions("smooth", options);
         const {
+            seed: usedSeed = 0,
             startQuality = MINOR_FAMILY.has(this.mode) ? 'minor' : 'major',
             octaveBounds = this.octaveBounds,
         } = options;
-        const usedSeed = options.seed ?? seed ?? 0;
         const { maxVoiceLeading, qualities, bassRange } = this;
 
         if (!QUALITY_INTERVALS[startQuality]) {
@@ -487,7 +482,7 @@ export class Progression extends MusicTheoryConstants {
 
             if (candidates.length === 0) {
                 console.warn(
-                    `[Progression.smooth] No candidate at step ${n} for seed=${seed} ` +
+                    `[Progression.smooth] No candidate at step ${n} for seed=${usedSeed} ` +
                     `(maxVoiceLeading=${maxVoiceLeading}, bassRange=${bassRange}). ` +
                     `Returning ${progression.length} chords instead of ${length}.`
                 );
@@ -777,11 +772,9 @@ export class Progression extends MusicTheoryConstants {
      * the walk leave it.
      *
      * @param {number} length - Number of chords (including start)
-     * @param {number|null} [seed=null] - RNG seed (deterministic). Positional,
-     *   like `generate(length, seed)`. `options.seed` is still read, and wins
-     *   when both are given.
      * @param {Object} [options] - Per run only. The character of the walk —
      *   `vocabulary`, `opWeights`, `inKey` — is constructor config.
+     * @param {number} [options.seed=0] - Seed of the draw; the same seed gives the same walk
      * @param {'closest'|'root'|'random'} [options.shape='closest']
      * @param {{center:number, range:number}} [options.octaveBounds]
      * @param {string} [options.startQuality]
@@ -792,25 +785,20 @@ export class Progression extends MusicTheoryConstants {
      * new Progression({
      *   tonic: 'C', mode: 'minor',
      *   vocabulary: ['P', 'L', 'R', 'PL', 'LR'],
-     * }).nrtWalk(4, 42, { octaveBounds: { center: 62, range: 12 } });
+     * }).nrtWalk(4, { seed: 42, octaveBounds: { center: 62, range: 12 } });
      *
      * @example
      * // A walk that keeps its voice leading and never leaves D minor:
-     * new Progression({ tonic: 'D', mode: 'minor', inKey: true }).nrtWalk(8, 3);
+     * new Progression({ tonic: 'D', mode: 'minor', inKey: true }).nrtWalk(8, { seed: 3 });
      */
-    nrtWalk(length, seed = null, options = {}) {
-        if (typeof seed === 'object' && seed !== null) {
-            // nrtWalk(4, { ... }) — the pre-3.5 call shape.
-            options = seed;
-            seed = options.seed ?? null;
-        }
+    nrtWalk(length, options = {}) {
         Progression._refuseMovedOptions("nrtWalk", options);
         const {
+            seed: usedSeed = 0,
             shape = 'closest',
             octaveBounds = null,
             startQuality = Progression._MINOR_FAMILY.has(this.mode) ? 'minor' : 'major',
         } = options;
-        const usedSeed = options.seed ?? seed ?? 0;
         const { vocabulary, opWeights, inKey } = this;
 
         const rng = Progression._mulberry32(usedSeed);

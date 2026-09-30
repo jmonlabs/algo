@@ -91,7 +91,7 @@ export class MinimalismProcess {
     // Adjust offsets based on durations and return JMON-compliant notes
     // Always use numeric time in quarter notes
     const withOffsets = this.adjustOffsets(processed);
-    return this.toJmonNotes(withOffsets, false);
+    return this.toJmonNotes(withOffsets);
   }
 
   additiveForward() {
@@ -292,7 +292,7 @@ export class MinimalismProcess {
 
   // Produce JMON notes: { pitch, duration, time }
   // Always use numeric time in quarter notes (like pitch: 60, time: 4.5)
-  toJmonNotes(notesWithOffsets, useStringTime = false) {
+  toJmonNotes(notesWithOffsets, { useStringTime = false } = {}) {
     return notesWithOffsets.map(({ pitch, duration, offset, ...rest }) => {
       // Remove the old time property to avoid conflicts
       const { time: oldTime, ...cleanRest } = rest;
@@ -421,9 +421,10 @@ export class Tintinnabuli {
    * Accepts: JMON notes, legacy objects, or tuples
    * Returns: JMON notes with numeric time (quarter notes)
    * @param {Array} sequence - Input sequence
-   * @param {boolean} useStringTime - Whether to use bars:beats:ticks strings for display (default: false)
+   * @param {Object} [options]
+   * @param {boolean} [options.useStringTime=false] - Whether to use bars:beats:ticks strings for display
    */
-  generate(sequence, useStringTime = false) {
+  generate(sequence, { useStringTime = false } = {}) {
     const normalizedSequence = this.normalizeInput(sequence);
     const tVoice = [];
     

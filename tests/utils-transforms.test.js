@@ -137,7 +137,7 @@ test("getPitchRange spans chords and ignores rests", () => {
 /* --- normalizeVelocities ------------------------------------------------- */
 
 test("normalizeVelocities rescales into the target range", () => {
-  const out = normalizeVelocities([n(60, 0, 1, 0.2), n(62, 1, 1, 0.6), n(64, 2, 1, 1.0)], 0, 1);
+  const out = normalizeVelocities([n(60, 0, 1, 0.2), n(62, 1, 1, 0.6), n(64, 2, 1, 1.0)], { min: 0, max: 1 });
   // Compared with a tolerance: (0.6 - 0.2) / 0.8 is 0.49999999999999994 in
   // IEEE 754, which is the arithmetic being right, not the function being wrong.
   const expected = [0, 0.5, 1];
@@ -150,7 +150,7 @@ test("normalizeVelocities rescales into the target range", () => {
 });
 
 test("normalizeVelocities collapses a flat sequence to the midpoint", () => {
-  const out = normalizeVelocities([n(60, 0, 1, 0.7), n(62, 1, 1, 0.7)], 0.2, 0.8);
+  const out = normalizeVelocities([n(60, 0, 1, 0.7), n(62, 1, 1, 0.7)], { min: 0.2, max: 0.8 });
   assert.deepEqual(out.map((x) => x.velocity), [0.5, 0.5]);
 });
 
@@ -194,29 +194,29 @@ test("removeDuplicates does not mutate its input", () => {
 /* --- quantize ------------------------------------------------------------ */
 
 test("quantize snaps to the grid in every mode", () => {
-  assert.equal(quantize(1.3, 0.5, "nearest"), 1.5);
-  assert.equal(quantize(1.3, 0.5, "floor"), 1);
-  assert.equal(quantize(1.3, 0.5, "ceil"), 1.5);
+  assert.equal(quantize(1.3, { grid: 0.5, mode: "nearest" }), 1.5);
+  assert.equal(quantize(1.3, { grid: 0.5, mode: "floor" }), 1);
+  assert.equal(quantize(1.3, { grid: 0.5, mode: "ceil" }), 1.5);
 });
 
 test("quantize is idempotent, including on triplet grids", () => {
   for (const grid of [0.25, 0.5, 1 / 3, 1 / 6, 1]) {
     for (let v = 0; v < 8; v += 0.07) {
-      const once = quantize(v, grid);
-      assert.equal(quantize(once, grid), once, `not idempotent at grid=${grid} v=${v}`);
+      const once = quantize(v, { grid: grid });
+      assert.equal(quantize(once, { grid: grid }), once, `not idempotent at grid=${grid} v=${v}`);
     }
   }
 });
 
 test("quantize lands on exact values where the grid divides evenly", () => {
-  assert.equal(quantize(0.99, 1 / 3), 1);
-  assert.equal(quantize(2.01, 1 / 3), 2);
+  assert.equal(quantize(0.99, { grid: 1 / 3 }), 1);
+  assert.equal(quantize(2.01, { grid: 1 / 3 }), 2);
 });
 
 test("quantize passes non-finite values through and rejects a bad grid", () => {
-  assert.equal(quantize(undefined, 0.25), undefined);
-  assert.equal(quantize(NaN, 0.25).toString(), "NaN");
-  assert.throws(() => quantize(1, 0), /positive number/);
+  assert.equal(quantize(undefined, { grid: 0.25 }), undefined);
+  assert.equal(quantize(NaN, { grid: 0.25 }).toString(), "NaN");
+  assert.throws(() => quantize(1, { grid: 0 }), /positive number/);
 });
 
 /* --- quantizeEvents / Track / Piece -------------------------------- */
@@ -285,7 +285,7 @@ test("everything migrated is reachable through jm.utils", async () => {
 
 test("createTrack labels a track the way the rest of the library reads it", async () => {
   const { createTrack } = await import("../src/utils/jmon-utils.js");
-  const track = createTrack([{ pitch: 60, duration: 1, time: 0 }], "Bass");
+  const track = createTrack([{ pitch: 60, duration: 1, time: 0 }], { label: "Bass" });
 
   assert.equal(track.label, "Bass", "the players and the score renderer read `label`");
   assert.equal(track.name, undefined, "`name` is not a JMON field");
@@ -384,28 +384,28 @@ test("jm imports nothing outside itself", async () => {
 /* --- sustained ------------------------------------------------------------ */
 
 test("sustained fills the span with a uniform step, as it always did", () => {
-  const out = sustained(38, 10, 0, 0.4, 4);
+  const out = sustained(38, { duration: 10, time: 0, velocity: 0.4, step: 4 });
 
   assert.deepEqual(out.map((x) => [x.duration, x.time]), [[4, 0], [4, 4], [2, 8]]);
   assert.ok(out.every((x) => x.pitch === 38 && x.velocity === 0.4));
 });
 
 test("sustained takes a pattern of durations, cycled", () => {
-  const out = sustained(69, 8, 0, 0.5, [1, 1, 2]);
+  const out = sustained(69, { duration: 8, time: 0, velocity: 0.5, step: [1, 1, 2] });
 
   assert.deepEqual(out.map((x) => x.duration), [1, 1, 2, 1, 1, 2]);
   assert.deepEqual(out.map((x) => x.time), [0, 1, 2, 4, 5, 6]);
 });
 
 test("sustained shapes velocity alongside the pattern", () => {
-  const out = sustained(69, 8, 0, [0.5, 0.36, 0.43], [1, 1, 2]);
+  const out = sustained(69, { duration: 8, time: 0, velocity: [0.5, 0.36, 0.43], step: [1, 1, 2] });
 
   assert.deepEqual(out.map((x) => x.velocity), [0.5, 0.36, 0.43, 0.5, 0.36, 0.43]);
 });
 
 test("sustained never overruns the span it was given", () => {
   for (const [total, step] of [[7, [1, 1, 2]], [5, [2, 3]], [3.5, [1, 1, 2]], [10, 4]]) {
-    const out = sustained(60, total, 2, 0.4, step);
+    const out = sustained(60, { duration: total, time: 2, velocity: 0.4, step: step });
     const spanned = out.reduce((sum, x) => sum + x.duration, 0);
     assert.ok(Math.abs(spanned - total) < 1e-9,
       `pattern ${JSON.stringify(step)} spanned ${spanned} of ${total}`);
@@ -415,9 +415,9 @@ test("sustained never overruns the span it was given", () => {
 });
 
 test("sustained refuses a step that would never advance", () => {
-  assert.throws(() => sustained(60, 8, 0, 0.4, 0), /greater than 0/);
-  assert.throws(() => sustained(60, 8, 0, 0.4, [1, 0, 2]), /greater than 0/);
-  assert.throws(() => sustained(60, 8, 0, 0.4, []), /greater than 0/);
+  assert.throws(() => sustained(60, { duration: 8, time: 0, velocity: 0.4, step: 0 }), /greater than 0/);
+  assert.throws(() => sustained(60, { duration: 8, time: 0, velocity: 0.4, step: [1, 0, 2] }), /greater than 0/);
+  assert.throws(() => sustained(60, { duration: 8, time: 0, velocity: 0.4, step: [] }), /greater than 0/);
 });
 
 /* --- tile ---------------------------------------------------------------- */
@@ -427,7 +427,7 @@ test("tile repeats a phrase on its own extent by default", () => {
     { pitch: 60, duration: 0.75, time: 0 },
     { pitch: 62, duration: 0.25, time: 0.75 },
   ];
-  const out = tile(cell, 3);
+  const out = tile(cell, { times: 3 });
   assert.deepEqual(out.map((n) => n.time), [0, 0.75, 1, 1.75, 2, 2.75]);
   assert.deepEqual(out.map((n) => n.pitch), [60, 62, 60, 62, 60, 62]);
   assert.deepEqual(cell.map((n) => n.time), [0, 0.75], "the source must not be mutated");
@@ -435,18 +435,18 @@ test("tile repeats a phrase on its own extent by default", () => {
 
 test("tile honours an explicit cycle length, leaving air or overlapping", () => {
   const cell = [{ pitch: 60, duration: 1, time: 0 }];
-  assert.deepEqual(tile(cell, 4, 4).map((n) => n.time), [0, 4, 8, 12], "a beat per bar");
-  assert.deepEqual(tile(cell, 3, 0.5).map((n) => n.time), [0, 0.5, 1], "cycles may overlap");
+  assert.deepEqual(tile(cell, { times: 4, cycle: 4 }).map((n) => n.time), [0, 4, 8, 12], "a beat per bar");
+  assert.deepEqual(tile(cell, { times: 3, cycle: 0.5 }).map((n) => n.time), [0, 0.5, 1], "cycles may overlap");
 });
 
 test("tile keeps bars:beats:ticks times in their own notation", () => {
-  const out = tile([{ pitch: 60, duration: 1, time: "0:0:0" }], 2, 4);
+  const out = tile([{ pitch: 60, duration: 1, time: "0:0:0" }], { times: 2, cycle: 4 });
   assert.deepEqual(out.map((n) => n.time), ["0:0:0", "1:0:0"]);
 });
 
 test("tile returns nothing when there is nothing to repeat", () => {
-  assert.deepEqual(tile([], 4), []);
-  assert.deepEqual(tile([{ pitch: 60, duration: 1, time: 0 }], 0), []);
+  assert.deepEqual(tile([], { times: 4 }), []);
+  assert.deepEqual(tile([{ pitch: 60, duration: 1, time: 0 }], { times: 0 }), []);
 });
 
 /* --- bow ------------------------------------------------------------------ */

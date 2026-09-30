@@ -33,11 +33,11 @@ const D_MINOR = [0, 2, 4, 5, 7, 9, 10];
 /* --- parallelPerfects ---------------------------------------------------- */
 
 test("parallelPerfects sees fifths and octaves moving together, and nothing else", () => {
-  assert.equal(parallelPerfects(57, 50, 55, 48), true, "fifth to fifth, both down");
-  assert.equal(parallelPerfects(62, 50, 60, 48), true, "octave to octave");
-  assert.equal(parallelPerfects(57, 50, 57, 50), false, "held notes are not a motion");
-  assert.equal(parallelPerfects(57, 50, 59, 48), false, "contrary motion");
-  assert.equal(parallelPerfects(65, 50, 64, 48), false, "parallel tenths are allowed");
+  assert.equal(parallelPerfects([57, 50], [55, 48]), true, "fifth to fifth, both down");
+  assert.equal(parallelPerfects([62, 50], [60, 48]), true, "octave to octave");
+  assert.equal(parallelPerfects([57, 50], [57, 50]), false, "held notes are not a motion");
+  assert.equal(parallelPerfects([57, 50], [59, 48]), false, "contrary motion");
+  assert.equal(parallelPerfects([65, 50], [64, 48]), false, "parallel tenths are allowed");
 });
 
 /* --- voiceChorale -------------------------------------------------------- */
@@ -70,7 +70,7 @@ test("voiceChorale leaves no parallel fifths or octaves, the way back to the sta
     const from = [GROUND[k].bass, ...voicing[k]];
     const to = [GROUND[next].bass, ...voicing[next]];
     for (let i = 0; i < from.length; i++) for (let j = i + 1; j < from.length; j++) {
-      assert.equal(parallelPerfects(from[i], from[j], to[i], to[j]), false, `chords ${k} to ${next}, voices ${i} and ${j}`);
+      assert.equal(parallelPerfects([from[i], from[j]], [to[i], to[j]]), false, `chords ${k} to ${next}, voices ${i} and ${j}`);
     }
   }
 });
@@ -136,37 +136,37 @@ test("counterpoint can be told what to look for, and takes a list of voices", ()
 /* --- diatonic, transposeDiatonic ----------------------------------------- */
 
 test("diatonic moves by steps of the scale, not by semitones", () => {
-  assert.equal(diatonic(77, -3, D_MINOR), 72, "f down to c: a perfect fourth");
-  assert.equal(diatonic(76, -3, D_MINOR), 70, "e down to b flat: an augmented fourth");
-  assert.equal(diatonic(62, 7, D_MINOR), 74, "seven steps are an octave");
-  assert.equal(diatonic(62, 0, D_MINOR), 62);
-  assert.equal(diatonic(60, -1, D_MINOR), 58, "across the octave, downwards");
+  assert.equal(diatonic(77, { steps: -3, scale: D_MINOR }), 72, "f down to c: a perfect fourth");
+  assert.equal(diatonic(76, { steps: -3, scale: D_MINOR }), 70, "e down to b flat: an augmented fourth");
+  assert.equal(diatonic(62, { steps: 7, scale: D_MINOR }), 74, "seven steps are an octave");
+  assert.equal(diatonic(62, { steps: 0, scale: D_MINOR }), 62);
+  assert.equal(diatonic(60, { steps: -1, scale: D_MINOR }), 58, "across the octave, downwards");
 });
 
 test("diatonic keeps a note outside the scale at its distance from the step below", () => {
-  assert.equal(diatonic(73, -3, D_MINOR), 68, "c sharp moves as c does: to g, and a semitone above");
+  assert.equal(diatonic(73, { steps: -3, scale: D_MINOR }), 68, "c sharp moves as c does: to g, and a semitone above");
 });
 
 test("diatonic takes a key, or a scale given in any order or octave", () => {
   const key = jm.key("D", "minor");
   for (let pitch = 40; pitch < 90; pitch++) {
     for (const steps of [-9, -3, -1, 2, 5, 8]) {
-      assert.equal(diatonic(pitch, steps, key), diatonic(pitch, steps, D_MINOR));
-      assert.equal(diatonic(pitch, steps, [62, 64, 65, 67, 69, 70, 72]), diatonic(pitch, steps, D_MINOR));
+      assert.equal(diatonic(pitch, { steps: steps, scale: key }), diatonic(pitch, { steps: steps, scale: D_MINOR }));
+      assert.equal(diatonic(pitch, { steps: steps, scale: [62, 64, 65, 67, 69, 70, 72] }), diatonic(pitch, { steps: steps, scale: D_MINOR }));
     }
   }
-  assert.throws(() => diatonic(60, 1), /scale/);
+  assert.throws(() => diatonic(60, { steps: 1 }), /scale/);
 });
 
 test("diatonic counts on scales of any size", () => {
   const pentatonic = [0, 2, 4, 7, 9];
-  assert.equal(diatonic(60, 5, pentatonic), 72);
-  assert.equal(diatonic(64, 1, pentatonic), 67);
+  assert.equal(diatonic(60, { steps: 5, scale: pentatonic }), 72);
+  assert.equal(diatonic(64, { steps: 1, scale: pentatonic }), 67);
 });
 
 test("transposeDiatonic moves chords note by note and leaves rests", () => {
   const notes = [n(77, 0), { pitch: [62, 65, 69], time: 1, duration: 1 }, { pitch: null, time: 2, duration: 1 }];
-  const out = transposeDiatonic(notes, -2, D_MINOR);
+  const out = transposeDiatonic(notes, { steps: -2, scale: D_MINOR });
   assert.deepEqual(out.map((x) => x.pitch), [74, [58, 62, 65], null]);
   assert.equal(notes[0].pitch, 77, "the notes given are not changed");
 });

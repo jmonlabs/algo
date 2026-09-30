@@ -118,10 +118,37 @@ The books' tables are data, not rules: every score is a measurement, and every t
 
 ## Conventions
 
-- A class takes one options object: `new Scale({ tonic, mode })`. A function takes its subject first, then one scalar or one options object: `invert(notes, pivot)`, `phaseShift(pattern, { cycles, shift })`. `jm.key()` takes either `(tonic, mode)` or `{ tonic, mode }`.
+- A class takes one options object: `new Scale({ tonic, mode })`. A function or a method takes its subject first — the notes, the pitch, the chords — and then either one number whose meaning the name gives away (`transpose(notes, 12)`, `truncate(notes, 32)`) or one options object where everything is named (`humanize(notes, { seed, timing })`, `sustained(60, { duration, step })`). Never two positional values in a row, and a seed is always named: `nrtWalk(8, { seed: 1 })`. `jm.key()` is the one exception, taking `(tonic, mode)` as well as `{ tonic, mode }`.
 - Everything that enters or leaves a generator is a list of JMON notes, `{ pitch, duration, time, velocity }`, with time in quarter notes. A chord is an array of pitches; a chord on a timeline is a JMON note whose `pitch` is that array (`chordTrack`).
 - Names are camelCase, classes appear under their own name in the namespaces, and there are no aliases: one thing, one name.
 - A time given as `"bars:beats:ticks"` is read the same way everywhere, by `timeToBeats`.
+
+## Changes in 4.0
+
+Every function now follows the calling convention above, which the package
+had stated but not kept. The signatures that changed, old to new:
+
+| Was | Is |
+|---|---|
+| `sustained(pitch, totalDur, startTime, vel, step)` | `sustained(pitch, { duration, time, velocity, step })` |
+| `diatonic(pitch, steps, scale)` | `diatonic(pitch, { steps, scale })` |
+| `transposeDiatonic(notes, steps, scale)` | `transposeDiatonic(notes, { steps, scale })` |
+| `tile(notes, times, cycle)` | `tile(notes, { times, cycle })` |
+| `normalizeVelocities(notes, min, max)` | `normalizeVelocities(notes, { min, max })` |
+| `quantize(value, grid, mode)` | `quantize(value, { grid, mode })` |
+| `beatsToTime(beats, beatsPerBar, ticksPerBeat)`, `timeToBeats(…)` | `beatsToTime(beats, { beatsPerBar, ticksPerBeat })` |
+| `createScale(pitches, duration, startTime)` | `createScale(pitches, { duration, time })` |
+| `createTrack(notes, label, options)` | `createTrack(notes, { label, … })` |
+| `Progression.generate(length, seed)` | `generate(length, { seed })` |
+| `Progression.nrtWalk(length, seed, options)` | `nrtWalk(length, { seed, … })` |
+| `Progression.smooth(length, seed, options)` | `smooth(length, { seed, … })` |
+| `MinimalismProcess.generate(sequence, useStringTime)` | `generate(sequence, { useStringTime })` |
+| `parallelPerfects(a1, b1, a2, b2)` | `parallelPerfects([a1, b1], [a2, b2])` |
+
+`Progression.circleOfFifths(length)` is gone: it hard-coded the fifth and
+the major triad while the constructor's `circleOf` already names the
+interval. `circle(length, { quality })` walks whatever circle the
+progression was given.
 
 ## Changes in 3.4
 

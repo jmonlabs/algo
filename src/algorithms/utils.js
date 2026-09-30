@@ -646,11 +646,12 @@ export function extractRhythm(notes) {
  * A sequence whose velocities are all equal collapses to the midpoint.
  *
  * @param {Array<Object>} notes - JMON notes
- * @param {number} [min=0.1] - Target floor
- * @param {number} [max=1.0] - Target ceiling
+ * @param {Object} [options]
+ * @param {number} [options.min=0.1] - Target floor
+ * @param {number} [options.max=1.0] - Target ceiling
  * @returns {Array<Object>} New notes
  */
-export function normalizeVelocities(notes, min = 0.1, max = 1.0) {
+export function normalizeVelocities(notes, { min = 0.1, max = 1.0 } = {}) {
     if (!notes || notes.length === 0) return [];
 
     const velocities = notes.map(n => n.velocity ?? 0.8);
@@ -770,11 +771,12 @@ export function removeDuplicates(notes, tolerance = 0.01) {
 /**
  * Snap a numeric value to a grid.
  * @param {number} value - Value in quarter notes
- * @param {number} [grid=0.25] - Grid size in quarter notes
- * @param {'nearest'|'floor'|'ceil'} [mode='nearest'] - Rounding mode
+ * @param {Object} [options]
+ * @param {number} [options.grid=0.25] - Grid size in quarter notes
+ * @param {'nearest'|'floor'|'ceil'} [options.mode='nearest'] - Rounding mode
  * @returns {number} Snapped value; non-finite input is returned unchanged
  */
-export function quantize(value, grid = 0.25, mode = 'nearest') {
+export function quantize(value, { grid = 0.25, mode = 'nearest' } = {}) {
     if (typeof value !== 'number' || !Number.isFinite(value)) return value;
     if (!Number.isFinite(grid) || grid <= 0) {
         throw new Error(`quantize: grid must be a positive number, got ${grid}`);
@@ -814,7 +816,7 @@ export function quantizeEvents(events, options = {}) {
         const copy = { ...event };
         for (const field of fields) {
             if (typeof copy[field] !== 'number') continue;
-            const snapped = quantize(copy[field], grid, mode);
+            const snapped = quantize(copy[field], { grid, mode });
             // A note quantized out of existence is worse than one slightly
             // off the grid, so keep at least one grid unit of duration.
             copy[field] = (field === 'duration' && snapped <= 0) ? grid : snapped;

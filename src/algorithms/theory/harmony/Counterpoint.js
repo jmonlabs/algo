@@ -17,17 +17,15 @@ const pitchClass = (pitch) => ((pitch % 12) + 12) % 12;
  * and octaves of classical counterpoint, where two voices merge into one to
  * the ear.
  *
- * @param {number} a1 - The first voice, before
- * @param {number} b1 - The second voice, before
- * @param {number} a2 - The first voice, after
- * @param {number} b2 - The second voice, after
+ * @param {[number, number]} before - The two voices, before the move
+ * @param {[number, number]} after - The same two voices, after it
  * @returns {boolean}
  *
  * @example
- * parallelPerfects(57, 50, 55, 48);  // A over D, then G over C: true
- * parallelPerfects(57, 50, 57, 50);  // nothing moved: false
+ * parallelPerfects([57, 50], [55, 48]);  // A over D, then G over C: true
+ * parallelPerfects([57, 50], [57, 50]);  // nothing moved: false
  */
-export function parallelPerfects(a1, b1, a2, b2) {
+export function parallelPerfects([a1, b1], [a2, b2]) {
     const together = Math.sign(a2 - a1) === Math.sign(b2 - b1) && a1 !== a2;
     const perfect = (x, y) => [0, 7].includes(pitchClass(Math.abs(x - y)));
     return together && perfect(a1, b1) && perfect(a2, b2);
@@ -67,7 +65,7 @@ function moveCost(from, to, allowParallels) {
     if (!allowParallels && before.length === after.length) {
         for (let i = 0; i < before.length; i++) {
             for (let j = i + 1; j < before.length; j++) {
-                if (parallelPerfects(before[i], before[j], after[i], after[j])) return Infinity;
+                if (parallelPerfects([before[i], before[j]], [after[i], after[j]])) return Infinity;
             }
         }
     }
@@ -211,7 +209,7 @@ export function counterpoint(voices, options = {}) {
                     findings.push({ kind: 'clash', ...where, ...pair });
                 }
                 const [pa, pb] = previous ? [previous[i], previous[j]] : [];
-                if (parallels && pa && pb && parallelPerfects(pa.pitch, pb.pitch, a.pitch, b.pitch)) {
+                if (parallels && pa && pb && parallelPerfects([pa.pitch, pb.pitch], [a.pitch, b.pitch])) {
                     findings.push({ kind: 'parallel', ...where, ...pair, from: [pa.pitch, pb.pitch] });
                 }
             }
