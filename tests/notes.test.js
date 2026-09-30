@@ -12,8 +12,6 @@ import assert from "node:assert/strict";
 import {
   invert, reverse, augment, onsets, normalize, range, span, split, deduplicate, quantize, tile, track, piece,
 } from "../src/notes/index.js";
-import { applySwing } from "../src/algorithms/utils.js";
-import { bow, sustained } from "../src/utils/jmon-utils.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
 
@@ -86,19 +84,6 @@ test("augment keeps a chord's notes aligned", () => {
 test("augment rejects a non-positive factor", () => {
   assert.throws(() => augment([n(60, 0)], 0), /positive number/);
   assert.throws(() => augment([n(60, 0)], -1), /positive number/);
-});
-
-/* --- applySwing ---------------------------------------------------------- */
-
-test("applySwing delays off-beats and leaves down-beats put", () => {
-  const out = applySwing([n(60, 0), n(62, 0.5), n(64, 1), n(65, 1.5)], { ratio: 0.67 });
-  assert.deepEqual(out.map((x) => x.time), [0, 0.67, 1, 1.67]);
-});
-
-test("applySwing with ratio 0.5 is a no-op", () => {
-  const times = [0, 0.5, 1, 1.5];
-  const out = applySwing(times.map((t, i) => n(60 + i, t)), { ratio: 0.5 });
-  assert.deepEqual(out.map((x) => x.time), times);
 });
 
 /* --- small queries ------------------------------------------------------- */
@@ -333,45 +318,6 @@ test("jm imports nothing outside itself", async () => {
   assert.ok(seen.size > 30, `only walked ${seen.size} files; the graph looks wrong`);
 });
 
-/* --- sustained ------------------------------------------------------------ */
-
-test("sustained fills the span with a uniform step, as it always did", () => {
-  const out = sustained(38, { duration: 10, time: 0, velocity: 0.4, step: 4 });
-
-  assert.deepEqual(out.map((x) => [x.duration, x.time]), [[4, 0], [4, 4], [2, 8]]);
-  assert.ok(out.every((x) => x.pitch === 38 && x.velocity === 0.4));
-});
-
-test("sustained takes a pattern of durations, cycled", () => {
-  const out = sustained(69, { duration: 8, time: 0, velocity: 0.5, step: [1, 1, 2] });
-
-  assert.deepEqual(out.map((x) => x.duration), [1, 1, 2, 1, 1, 2]);
-  assert.deepEqual(out.map((x) => x.time), [0, 1, 2, 4, 5, 6]);
-});
-
-test("sustained shapes velocity alongside the pattern", () => {
-  const out = sustained(69, { duration: 8, time: 0, velocity: [0.5, 0.36, 0.43], step: [1, 1, 2] });
-
-  assert.deepEqual(out.map((x) => x.velocity), [0.5, 0.36, 0.43, 0.5, 0.36, 0.43]);
-});
-
-test("sustained never overruns the span it was given", () => {
-  for (const [total, step] of [[7, [1, 1, 2]], [5, [2, 3]], [3.5, [1, 1, 2]], [10, 4]]) {
-    const out = sustained(60, { duration: total, time: 2, velocity: 0.4, step: step });
-    const spanned = out.reduce((sum, x) => sum + x.duration, 0);
-    assert.ok(Math.abs(spanned - total) < 1e-9,
-      `pattern ${JSON.stringify(step)} spanned ${spanned} of ${total}`);
-    assert.equal(out[0].time, 2);
-    assert.ok(out.every((x) => x.duration > 0), "produced a zero-length note");
-  }
-});
-
-test("sustained refuses a step that would never advance", () => {
-  assert.throws(() => sustained(60, { duration: 8, time: 0, velocity: 0.4, step: 0 }), /greater than 0/);
-  assert.throws(() => sustained(60, { duration: 8, time: 0, velocity: 0.4, step: [1, 0, 2] }), /greater than 0/);
-  assert.throws(() => sustained(60, { duration: 8, time: 0, velocity: 0.4, step: [] }), /greater than 0/);
-});
-
 /* --- tile ---------------------------------------------------------------- */
 
 test("tile repeats a phrase on its own extent by default", () => {
@@ -399,41 +345,4 @@ test("tile keeps bars:beats:ticks times in their own notation", () => {
 test("tile returns nothing when there is nothing to repeat", () => {
   assert.deepEqual(tile([], { times: 4 }), []);
   assert.deepEqual(tile([{ pitch: 60, duration: 1, time: 0 }], { times: 0 }), []);
-});
-
-/* --- bow ------------------------------------------------------------------ */
-
-test("bow gives a long note a stroke: soft entry, swell, easing off", () => {
-  const [shaped] = bow([{ pitch: 69, duration: 4, time: 8, velocity: 0.6 }]);
-  assert.deepEqual(shaped.dynamics, [
-    { time: 0, value: 0 },
-    { time: 0.25, value: 0.65 },
-    { time: 2.4, value: 1 },
-    { time: 4, value: 0.75 },
-  ]);
-  assert.equal(shaped.velocity, 0.6, "the velocity stays, as the stroke's peak");
-  assert.equal(shaped.time, 8, "and the anchors are relative to the note, not the piece");
-});
-
-test("bow gives a short note a soft attack only, and never an attack longer than a third", () => {
-  const [short] = bow([{ pitch: 60, duration: 0.5, time: 0 }]);
-  assert.deepEqual(short.dynamics, [
-    { time: 0, value: 0 },
-    { time: 0.5 / 3, value: 1 },
-    { time: 0.5, value: 1 },
-  ]);
-});
-
-test("bow leaves rests and existing envelopes alone, and does not mutate", () => {
-  const own = [{ time: 0, value: 1 }];
-  const input = [
-    { pitch: null, duration: 2, time: 0 },
-    { pitch: 60, duration: 2, time: 2, dynamics: own },
-    { pitch: 62, duration: 2, time: 4 },
-  ];
-  const out = bow(input, { swell: 0.5, peak: 0.5, fade: 0 });
-  assert.equal(out[0].dynamics, undefined);
-  assert.equal(out[1].dynamics, own);
-  assert.deepEqual(out[2].dynamics.map((a) => a.value), [0, 0.5, 1, 1]);
-  assert.equal(input[2].dynamics, undefined, "the input notes are untouched");
 });

@@ -284,34 +284,6 @@ export function repeatPolyloops(polyloopsDict, { measures: nMeasures, measureLen
  * tolerate rests (`pitch: null`) and chords (`pitch: [60, 64, 67]`).
  * ------------------------------------------------------------------------- */
 
-/**
- * Push off-beat notes later to produce a swing feel.
- *
- * @param {Array<Object>} notes - JMON notes
- * @param {Object} [options]
- * @param {number} [options.ratio=0.67] - Where the off-beat lands inside the
- *   beat, as a fraction. 0.5 is straight, 0.67 is a triplet swing.
- * @param {number} [options.subdivision=0.5] - Off-beat position in quarter
- *   notes (0.5 = eighths, 0.25 = sixteenths)
- * @param {number} [options.tolerance=0.01] - How close a note must sit to the
- *   off-beat to count as one
- * @returns {Array<Object>} New notes
- */
-export function applySwing(notes, options = {}) {
-    const { ratio = 0.67, subdivision = 0.5, tolerance = 0.01 } = options;
-    const beat = subdivision * 2;
-
-    return notes.map(note => {
-        const time = note.time || 0;
-        const positionInBeat = time % beat;
-        const isOffBeat = Math.abs(positionInBeat - subdivision) < tolerance;
-        if (!isOffBeat) return { ...note };
-
-        const beatStart = time - positionInBeat;
-        return { ...note, time: beatStart + beat * ratio };
-    });
-}
-
 
 /* ---------------------------------------------------------------------------
  * Quantization
@@ -324,3 +296,41 @@ export function applySwing(notes, options = {}) {
  * 1/3 = eighth-note triplet (three notes in the space of one quarter note).
  * ------------------------------------------------------------------------- */
 
+/**
+ * Greatest common divisor of two whole numbers.
+ *
+ * Exported because it is half of a question that comes up whenever two
+ * repeating patterns are stacked: the pair realigns after their least common
+ * multiple, and `lcm` is built on this.
+ *
+ * @param {number} a
+ * @param {number} b
+ * @returns {number}
+ *
+ * @example
+ * gcd(7, 8); // 1
+ */
+export function gcd(a, b) {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+/**
+ * Least common multiple of two whole numbers: when two cycles line up again.
+ *
+ * Two patterns of 7 and 8 steps repeat together every 56. This is the number
+ * a polymeter is measured in, and `isorhythm` returns exactly this many notes
+ * before its two series realign.
+ *
+ * @param {number} a
+ * @param {number} b
+ * @returns {number}
+ *
+ * @example
+ * lcm(7, 8); // 56
+ */
+export function lcm(a, b) {
+  if (a === 0 || b === 0) return 0;
+  return Math.abs(a * b) / gcd(a, b);
+}

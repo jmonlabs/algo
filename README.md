@@ -115,9 +115,16 @@ What a composer does to a list of notes. Every function takes the list first and
 - Measure: `span(notes)`, `range(notes)`, `onsets(notes)`
 - Build: `track(notes, { label, synth })`, `piece(tracks, { tempo })`, `chordNotes(chords, { duration })` (a progression laid out as chord notes: playable, and what the analyses and `Darwin` read as `chords`), `beatsToTime`, `timeToBeats`
 
+### Performance — `jm.performance.*`
+How the notes are played, written back into them. A verb for each.
+- A held note as strokes: `sustain(pitch, { duration, time, velocity, step })`; the shape of a bow stroke: `bow(notes, { attack, swell, peak, fade })`
+- A hand: `humanize(notes, { seed, timing, velocity, lag })`; `embellish(notes, { seed, bendProb, vibratoProb })` for bends and vibratos on the long notes
+- A style: `ornament(notes, { type, at, key })`, `articulate(notes, { type, at })`, `strum(notes, { direction, speed })`, `arpeggiate(notes, { order, delay })`
+- A rhythm's feel: `swing(notes, { ratio })`; `groove(notes, { profile, reach })` slides stops to heavier places on a rhythm profile, `anticipate` moves chosen onsets earlier when the target is free, `applySteps` runs Bodzsar's four-step procedure (`steps` holds the presets)
+- A whole piece, worn: `corrupt(piece, { entropy, seed, … })`
+
 ### Utils — `jm.utils.*`
-The names of 4.x, kept for one release while the pieces move to `jm.notes` and `jm.performance` (`sustained`, `bow`, `humanize`, `expressivize`, `applySwing` still live here until then). Nothing new goes here.
-- `jm.processors.groove` slides stops to heavier places on a rhythm profile; `anticipate` moves chosen onsets earlier when the target is free; `applySteps` runs Bodzsar's four-step procedure.
+The names of 4.x, kept for one release as a façade over `jm.notes` and `jm.performance`. Nothing new goes here.
 
 ## Conventions
 
@@ -146,6 +153,17 @@ for one release. Gone, with nothing calling them: `tracksToDict`, `getOctave`,
 `quantizeNotes`, `quantizeTrack`, `quantizePiece`, `qlToSeconds`, `fibonacci`,
 `instrumentMapping`, `chain`, `concatSections`, `createScale`,
 `recalculateTiming`, `getTimingInfo`.
+
+**`jm.performance`.** How the notes are played: `sustained` is `sustain`,
+`expressivize` is `embellish`, `applySwing` is `swing`; `bow` and `humanize`
+keep their names; the `Ornament` and `Articulation` classes become the verbs
+`ornament(notes, { type, at })` and `articulate(notes, { type, at })`, `strum`
+and `arpeggiate` come here from harmony (their classes are no longer in `jm`),
+`groove`, `anticipate` and `applySteps` come from `jm.processors`, and
+`corruptJmon(piece, entropy, options)` is `corrupt(piece, { entropy, … })`.
+`jm.processors` and `jm.utils` answer to the old names for one release.
+jmon/studio now exposes every space algo defines, so `jm.notes` and
+`jm.performance` reach the notebooks without a change there.
 
 ## Changes in 4.0
 

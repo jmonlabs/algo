@@ -86,10 +86,11 @@ export const analysis = {
 };
 
 
-// What algorithms/utils.js still holds for the public: the swing. The rest
-// is internal helpers, or has moved to jm.notes.
+// algorithms/utils.js is internal helpers now; gcd and lcm are all jm.utils
+// still shows of it, for one release.
 export const utils = {
-    applySwing: Utils.applySwing,
+    gcd: Utils.gcd,
+    lcm: Utils.lcm,
 };
 
 // Export everything as default

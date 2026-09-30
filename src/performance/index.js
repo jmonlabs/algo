@@ -1,54 +1,21 @@
 /**
- * JMON Utilities - Official helpers for working with JMON format
- * These utilities provide a consistent API for creating and manipulating JMON objects
+ * jmon/performance — how the notes are played.
+ *
+ * A list of notes says what to play; these functions say how, and write it
+ * back into the notes: a held note as strokes, the shape of a bow stroke, the
+ * small errors of a hand, the ornaments and articulations of a style, the
+ * swing and the groove of a rhythm, and the corruption of a whole piece.
+ * Every function takes the notes first and returns new ones; a verb for each.
+ *
+ * @license GPL-3.0-or-later
  */
 
-/** @deprecated Use {@link createTrack}. JMON calls them tracks, not parts. */
-
-/** @deprecated Use {@link createPiece}. JMON calls them pieces. */
-
-/**
- * Greatest common divisor of two whole numbers.
- *
- * Exported because it is half of a question that comes up whenever two
- * repeating patterns are stacked: the pair realigns after their least common
- * multiple, and `lcm` is built on this.
- *
- * @param {number} a
- * @param {number} b
- * @returns {number}
- *
- * @example
- * gcd(7, 8); // 1
- */
-export function gcd(a, b) {
-  a = Math.abs(a);
-  b = Math.abs(b);
-  return b === 0 ? a : gcd(b, a % b);
-}
-
-/**
- * Least common multiple of two whole numbers: when two cycles line up again.
- *
- * Two patterns of 7 and 8 steps repeat together every 56. This is the number
- * a polymeter is measured in, and `isorhythm` returns exactly this many notes
- * before its two series realign.
- *
- * @param {number} a
- * @param {number} b
- * @returns {number}
- *
- * @example
- * lcm(7, 8); // 56
- */
-export function lcm(a, b) {
-  if (a === 0 || b === 0) return 0;
-  return Math.abs(a * b) / gcd(a, b);
-}
-
-// Alias for backwards compatibility
-
-
+import { Ornament } from "../algorithms/theory/harmony/Ornament.js";
+import { Articulation } from "../algorithms/theory/harmony/Articulation.js";
+import { Corruptor } from "../algorithms/processors/Corruptor.js";
+export { strum } from "../algorithms/theory/harmony/Strum.js";
+export { arpeggiate } from "../algorithms/theory/harmony/Arpeggiate.js";
+export { groove, anticipate, applySteps, STEPS as steps } from "../algorithms/processors/Groove.js";
 
 /**
  * Build a long held tone by re-attacking the same pitch every `step` beats.
@@ -61,18 +28,18 @@ export function lcm(a, b) {
  *
  * @example
  * // Drone D2 held for 24 beats, re-attacked every 4 beats
- * const drone = sustained(38, { duration: 24, velocity: 0.4 });
+ * const drone = sustain(38, { duration: 24, velocity: 0.4 });
  *
  * @example
  * // String pad on a chord, each note re-attacked every 6 beats
  * const pad = chordPitches.flatMap((p) =>
- *   sustained(p, { duration: totalDur, time: startTime, velocity: 0.25, step: 6 })
+ *   sustain(p, { duration: totalDur, time: startTime, velocity: 0.25, step: 6 })
  * );
  *
  * @example
  * // A bowing rather than a metronome: two quarters and a half, cycled, with
  * // the downbeat carrying the weight. `step` and `velocity` advance together.
- * const bowed = sustained(69, { duration: 8, velocity: [0.5, 0.36, 0.43], step: [1, 1, 2] });
+ * const bowed = sustain(69, { duration: 8, velocity: [0.5, 0.36, 0.43], step: [1, 1, 2] });
  *
  * @param {number} pitch - MIDI pitch
  * @param {Object} options - Named like a note's own fields
@@ -86,17 +53,17 @@ export function lcm(a, b) {
  *   `duration` is filled: `[1, 1, 2]` fills a 4/4 bar with two quarters and a half.
  * @returns {Array} Array of JMON notes covering `[time, time + duration)`
  */
-export function sustained(pitch, { duration, time = 0, velocity = 0.4, step = 4 } = {}) {
+export function sustain(pitch, { duration, time = 0, velocity = 0.4, step = 4 } = {}) {
   const totalDur = duration;
   const startTime = time;
   if (!(totalDur > 0)) {
-    throw new Error("sustained: `duration` must be a number of beats greater than 0");
+    throw new Error("sustain: `duration` must be a number of beats greater than 0");
   }
   const pattern = Array.isArray(step) ? step : [step];
   const velocities = Array.isArray(velocity) ? velocity : [velocity];
 
   if (pattern.length === 0 || pattern.some((d) => !(d > 0))) {
-    throw new Error("sustained: every step must be a duration greater than 0");
+    throw new Error("sustain: every step must be a duration greater than 0");
   }
 
   const notes = [];
@@ -112,6 +79,76 @@ export function sustained(pitch, { duration, time = 0, velocity = 0.4, step = 4 
     t += pattern[i % pattern.length];
   }
   return notes;
+}
+
+/**
+ * Shape each note like a bow stroke: its loudness enters softly, swells to a
+ * peak, and eases off before the note ends.
+ *
+ * A sampled string held for several seconds otherwise sits at one level from
+ * its attack to its release, which is the sound of a tape loop rather than a
+ * bow. This writes `dynamics` on every note — anchors in beats
+ * from the note's start, values as multiples of its velocity — which jmon/io
+ * compiles, the player applies to sampled instruments, and a MIDI export
+ * writes as CC 11. The note's `velocity` becomes the peak of the stroke.
+ *
+ * Returns new notes. Rests, and notes that already have an envelope, are
+ * copied as they are. A note shorter than `minDuration` gets a soft attack
+ * only: a swell on a short note is not heard as one.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {Object} [options]
+ * @param {number} [options.attack=0.25] - Beats to reach the stroke's first
+ *   level, at most a third of the note
+ * @param {number} [options.swell=0.35] - How much the stroke grows: it starts
+ *   at `1 - swell` of the peak
+ * @param {number} [options.peak=0.6] - Where the peak falls, as a fraction of
+ *   the note's duration
+ * @param {number} [options.fade=0.25] - How much it eases off by the end: it
+ *   ends at `1 - fade` of the peak
+ * @param {number} [options.minDuration=1] - Beats below which a note is only
+ *   given a soft attack
+ * @returns {Array} New notes with `dynamics`
+ *
+ * @example
+ * // A long note: 0 → 0.65 in a quarter beat, 1 at 60 %, 0.75 at the end.
+ * bow([{ pitch: 69, duration: 4, time: 0, velocity: 0.6 }]);
+ */
+export function bow(notes, options = {}) {
+  const {
+    attack = 0.25,
+    swell = 0.35,
+    peak = 0.6,
+    fade = 0.25,
+    minDuration = 1,
+  } = options;
+
+  return notes.map((note) => {
+    const duration = note.duration || 0;
+    if (note.pitch === null || note.pitch === undefined || note.dynamics || note.amplitudeEnvelope || !(duration > 0)) {
+      return { ...note };
+    }
+    const rise = Math.min(attack, duration / 3);
+    if (duration < minDuration) {
+      return {
+        ...note,
+        dynamics: [
+          { time: 0, value: 0 },
+          { time: rise, value: 1 },
+          { time: duration, value: 1 },
+        ],
+      };
+    }
+    return {
+      ...note,
+      dynamics: [
+        { time: 0, value: 0 },
+        { time: rise, value: 1 - swell },
+        { time: Math.max(rise, duration * peak), value: 1 },
+        { time: duration, value: 1 - fade },
+      ],
+    };
+  });
 }
 
 /**
@@ -197,7 +234,7 @@ export function humanize(notes, options = {}) {
  * @param {number} [options.vibratoDepthMax=50]
  * @returns {Array} The same notes array (mutated).
  */
-export function expressivize(notes, options = {}) {
+export function embellish(notes, options = {}) {
   const {
     seed = 0,
     bendProb = 0.15,
@@ -269,72 +306,80 @@ export function expressivize(notes, options = {}) {
 }
 
 /**
- * Shape each note like a bow stroke: its loudness enters softly, swells to a
- * peak, and eases off before the note ends.
+ * Push off-beat notes later to produce a swing feel.
  *
- * A sampled string held for several seconds otherwise sits at one level from
- * its attack to its release, which is the sound of a tape loop rather than a
- * bow. This writes `dynamics` on every note — anchors in beats
- * from the note's start, values as multiples of its velocity — which jmon/io
- * compiles, the player applies to sampled instruments, and a MIDI export
- * writes as CC 11. The note's `velocity` becomes the peak of the stroke.
- *
- * Returns new notes. Rests, and notes that already have an envelope, are
- * copied as they are. A note shorter than `minDuration` gets a soft attack
- * only: a swell on a short note is not heard as one.
- *
- * @param {Array} notes - JMON notes
+ * @param {Array<Object>} notes - JMON notes
  * @param {Object} [options]
- * @param {number} [options.attack=0.25] - Beats to reach the stroke's first
- *   level, at most a third of the note
- * @param {number} [options.swell=0.35] - How much the stroke grows: it starts
- *   at `1 - swell` of the peak
- * @param {number} [options.peak=0.6] - Where the peak falls, as a fraction of
- *   the note's duration
- * @param {number} [options.fade=0.25] - How much it eases off by the end: it
- *   ends at `1 - fade` of the peak
- * @param {number} [options.minDuration=1] - Beats below which a note is only
- *   given a soft attack
- * @returns {Array} New notes with `dynamics`
- *
- * @example
- * // A long note: 0 → 0.65 in a quarter beat, 1 at 60 %, 0.75 at the end.
- * bow([{ pitch: 69, duration: 4, time: 0, velocity: 0.6 }]);
+ * @param {number} [options.ratio=0.67] - Where the off-beat lands inside the
+ *   beat, as a fraction. 0.5 is straight, 0.67 is a triplet swing.
+ * @param {number} [options.subdivision=0.5] - Off-beat position in quarter
+ *   notes (0.5 = eighths, 0.25 = sixteenths)
+ * @param {number} [options.tolerance=0.01] - How close a note must sit to the
+ *   off-beat to count as one
+ * @returns {Array<Object>} New notes
  */
-export function bow(notes, options = {}) {
-  const {
-    attack = 0.25,
-    swell = 0.35,
-    peak = 0.6,
-    fade = 0.25,
-    minDuration = 1,
-  } = options;
+export function swing(notes, options = {}) {
+    const { ratio = 0.67, subdivision = 0.5, tolerance = 0.01 } = options;
+    const beat = subdivision * 2;
 
-  return notes.map((note) => {
-    const duration = note.duration || 0;
-    if (note.pitch === null || note.pitch === undefined || note.dynamics || note.amplitudeEnvelope || !(duration > 0)) {
-      return { ...note };
-    }
-    const rise = Math.min(attack, duration / 3);
-    if (duration < minDuration) {
-      return {
-        ...note,
-        dynamics: [
-          { time: 0, value: 0 },
-          { time: rise, value: 1 },
-          { time: duration, value: 1 },
-        ],
-      };
-    }
-    return {
-      ...note,
-      dynamics: [
-        { time: 0, value: 0 },
-        { time: rise, value: 1 - swell },
-        { time: Math.max(rise, duration * peak), value: 1 },
-        { time: duration, value: 1 - fade },
-      ],
-    };
-  });
+    return notes.map(note => {
+        const time = note.time || 0;
+        const positionInBeat = time % beat;
+        const isOffBeat = Math.abs(positionInBeat - subdivision) < tolerance;
+        if (!isOffBeat) return { ...note };
+
+        const beatStart = time - positionInBeat;
+        return { ...note, time: beatStart + beat * ratio };
+    });
 }
 
+/**
+ * Ornament a note: a trill, a mordent, a turn, a grace note… written out as
+ * the notes it stands for, in the scale of `key` when the ornament needs one.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {Object} options
+ * @param {string} options.type - The ornament: 'trill', 'mordent', 'turn', 'grace_note', 'arpeggio'…
+ * @param {number|null} [options.at=null] - The index of the note to ornament; omitted, one is drawn
+ * @param {Object} [options.parameters] - The ornament's own parameters
+ * @param {Object} [options.key] - A key context, for the neighbouring notes
+ * @param {number} [options.seed] - Makes the draws reproducible
+ * @returns {Array} New notes
+ *
+ * @example
+ * ornament(melody, { type: "mordent", at: 3, key: jm.key("D", "minor") });
+ */
+export function ornament(notes, { type, at = null, parameters, key, tonic, mode, seed } = {}) {
+  return new Ornament({ type, parameters, key, tonic, mode, seed }).apply(notes, at);
+}
+
+/**
+ * Articulate a note: staccato, tenuto, accent, glissando, vibrato… as the
+ * articulation the players and the exporters read.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {Object} options
+ * @param {string} options.type - The articulation
+ * @param {number|Array<number>|null} [options.at=null] - The index, or indices, of the notes; omitted, one is drawn
+ * @param {Object} [options.parameters] - The articulation's own parameters (a glissando's target, a vibrato's rate…)
+ * @returns {Array} New notes
+ *
+ * @example
+ * articulate(melody, { type: "staccato", at: [0, 2, 4] });
+ */
+export function articulate(notes, { type, at = null, parameters } = {}) {
+  return new Articulation({ type, parameters }).apply(notes, at);
+}
+
+/**
+ * Corrupt a piece: tape wobble, dropouts, stutters, drift… the way the
+ * `Corruptor` does. The options are the Corruptor's: `entropy` (0 leaves the
+ * piece alone, 1 wrecks it), which gestures may play and where, and `seed`.
+ *
+ * @param {Object} piece - A JMON piece
+ * @param {Object} [options] - The Corruptor's options
+ * @returns {Object} A new piece
+ */
+export function corrupt(piece, options = {}) {
+  return new Corruptor(options).corrupt(piece);
+}

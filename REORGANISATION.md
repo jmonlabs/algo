@@ -16,6 +16,7 @@ Colonnes : la sorte d'entrée (183 fonctions, 27 classes, 91 données), qui l'ap
 ## Avancement
 
 - `jm.notes` : fait (5.0.0, `jm.utils` reste une façade des anciens noms pour une version).
+- `jm.performance` : fait. Les pièces appellent `jm.notes` et `jm.performance` ; studio expose désormais tous les espaces d'algo.
 
 ## La cible
 

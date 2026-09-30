@@ -13,7 +13,7 @@ import { clave, clavePattern, metricStrengths } from "../src/algorithms/theory/r
 import { euclid, euclidPattern } from "../src/algorithms/theory/rhythm/euclid.js";
 import { onsets, fromOnsets, draw } from "../src/algorithms/theory/rhythm/pattern.js";
 import { isorhythm } from "../src/algorithms/theory/rhythm/isorhythm.js";
-import { lcm, gcd } from "../src/utils/jmon-utils.js";
+import { lcm, gcd } from "../src/algorithms/utils.js";
 import { place } from "../src/notes/index.js";
 import * as R from "../src/algorithms/analysis/RhythmCode.js";
 import * as S from "../src/algorithms/analysis/salience.js";

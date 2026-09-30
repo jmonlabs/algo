@@ -31,21 +31,17 @@ export {
   Solfege,
 };
 
-// Export harmony namespace
+// The harmony namespace. Ornament, Articulation, Strum and Arpeggiate are
+// performance now (jm.performance.ornament, articulate, strum, arpeggiate)
+// and are exported above for the package's own use only.
 export default {
-  Arpeggiate,
   Scale,
   Progression,
   Voice,
-  Ornament,
-  Articulation,
-  Strum,
   Key,
   key,
-  arpeggiate,
   chordify,
   chordifyMany,
-  strum,
   Solfege,
   counterpoint,
   parallelPerfects,

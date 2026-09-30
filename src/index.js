@@ -27,8 +27,8 @@
  */
 
 import algorithms from "./algorithms/index.js";
-import * as jmonUtils from "./utils/jmon-utils.js";
 import * as notes from "./notes/index.js";
+import * as performance from "./performance/index.js";
 
 /**
  * The composition API.
@@ -58,11 +58,20 @@ const jm = {
   // reverse, concatenate, quantize… and the builders track, piece, chordNotes.
   notes,
 
+  // How the notes are played: sustain, bow, humanize, embellish, swing,
+  // ornament, articulate, strum, arpeggiate, groove, corrupt.
+  performance,
+
   // The names of 4.x, kept for one release while the pieces move to jm.notes
   // and jm.performance. Nothing new goes here.
   utils: {
-    ...algorithms.utils,
-    ...jmonUtils,
+    sustained: performance.sustain,
+    bow: performance.bow,
+    humanize: performance.humanize,
+    expressivize: performance.embellish,
+    applySwing: performance.swing,
+    gcd: algorithms.utils.gcd,
+    lcm: algorithms.utils.lcm,
     beatsToTime: notes.beatsToTime,
     timeToBeats: notes.timeToBeats,
     createTrack: notes.track,
