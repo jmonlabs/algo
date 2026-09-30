@@ -27,13 +27,21 @@ jobs:
       - name: Unit tests
         run: |
           node --test \
-            tests/music-theory.test.js \
+            tests/notes.test.js \
+            tests/performance.test.js \
             tests/key-context.test.js \
+            tests/counterpoint.test.js \
+            tests/voices.test.js \
+            tests/rhythm-code.test.js \
+            tests/music-theory.test.js \
             tests/generative-algorithms.test.js \
+            tests/drummer-groove.test.js \
+            tests/darwin-bodzsar.test.js \
+            tests/ornament.test.js \
             tests/analysis.test.js \
+            tests/emotional-map.test.js \
             tests/corruptor.test.js \
-            tests/plot-data.test.js \
-            tests/utils-transforms.test.js
+            tests/plot-data.test.js
 
       # Browser-load test — protects the jsDelivr distribution path.
       # Loads src/index.js the same way `import("https://cdn.jsdelivr.net

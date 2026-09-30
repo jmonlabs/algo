@@ -145,7 +145,7 @@ const jm = {
     getTotalDuration: notes.span,
   },
 
-  // Keep in step with package.json; tests/utils-transforms asserts they match.
+  // Keep in step with package.json; tests/notes.test.js asserts they match.
   VERSION: "5.0.0",
 };
 
