@@ -109,14 +109,17 @@ test("Progression builds triads from roman numerals", () => {
   ]);
 });
 
-test("Progression walks its circle, fifths by default", () => {
-  const progression = new Progression({ tonic: "C", mode: "major" });
-  assert.deepEqual(progression.circle(4), [
-    [60, 64, 67],
-    [67, 71, 74],
-    [62, 66, 69],
-    [69, 73, 76],
-  ]);
+test("generate draws from the circle within the radius, the same way for the same seed", () => {
+  // radius [2, 0, 0]: two major roots on the circle of fifths from C — C and G — and nothing else.
+  const tight = new Progression({ tonic: "C", mode: "major", radius: [2, 0, 0], weights: [1, 0, 0] });
+  const chords = tight.generate(8, { seed: 3 });
+  assert.equal(chords.length, 8);
+  for (const chord of chords) assert.ok([60, 67].includes(chord[0]), `root ${chord[0]} is not C or G`);
+  assert.deepEqual(chords, tight.generate(8, { seed: 3 }), "a seed is reproducible");
+  // The circle of thirds instead: C, E, G#.
+  const thirds = new Progression({ tonic: "C", mode: "major", circleOf: "M3", radius: [3, 0, 0], weights: [1, 0, 0] });
+  const roots = new Set(thirds.generate(30, { seed: 1 }).map((c) => c[0]));
+  assert.deepEqual([...roots].sort((a, b) => a - b), [60, 64, 68]);
 });
 
 test("Progression takes an options object, not positional arguments", () => {

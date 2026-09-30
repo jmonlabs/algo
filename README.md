@@ -146,9 +146,9 @@ had stated but not kept. The signatures that changed, old to new:
 | `parallelPerfects(a1, b1, a2, b2)` | `parallelPerfects([a1, b1], [a2, b2])` |
 
 `Progression.circleOfFifths(length)` is gone: it hard-coded the fifth and
-the major triad while the constructor's `circleOf` already names the
-interval. `circle(length, { quality })` walks whatever circle the
-progression was given.
+the major triad, and walked in a straight line, while the constructor's
+`circleOf` and `radius` already say which circle and how much of it
+`generate` may draw from.
 
 ## Changes in 3.4
 

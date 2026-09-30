@@ -166,7 +166,7 @@ test('Progression: Generate I-IV-V-I', () => {
 
 test('Progression: Circle of fifths', () => {
   const progression = new Progression('C', 'major');
-  const circle = progression.circle(4);
+  const circle = progression.generate(4, { seed: 1 });
   if (!Array.isArray(circle) || circle.length !== 4) throw new Error('Invalid circle');
 });
 

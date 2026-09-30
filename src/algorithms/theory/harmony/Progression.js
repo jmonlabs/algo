@@ -334,33 +334,6 @@ export class Progression extends MusicTheoryConstants {
     }
 
     /**
-     * Walk the circle: from the tonic, each chord a `circleOf` interval above
-     * the last (fifths by default, or fourths, thirds, whatever the
-     * constructor was given), staying in the tonic's octave.
-     *
-     * @param {number} [length=4] - Number of chords
-     * @param {Object} [options]
-     * @param {'major'|'minor'|'diminished'} [options.quality='major'] - The quality of every chord
-     * @returns {Array<Array<number>>} Chords, each three MIDI pitches
-     *
-     * @example
-     * new Progression({ tonic: 'D', circleOf: 'P5' }).circle(4);  // D, A, E, B major
-     * new Progression({ tonic: 'D', circleOf: 'M3' }).circle(3);  // D, F#, Bb major
-     */
-    circle(length = 4, { quality = 'major' } = {}) {
-        const nSemitones = MusicTheoryConstants.intervals[this.circleOf];
-        const progression = [];
-        let currentRoot = this.tonicMidi;
-
-        for (let i = 0; i < length; i++) {
-            progression.push(this.generateChord(currentRoot, quality));
-            currentRoot = (currentRoot + nSemitones) % 12 + Math.floor(currentRoot / 12) * 12;
-        }
-
-        return progression;
-    }
-
-    /**
      * Weighted random choice helper
      * @param {Array} weights - Array of weights
      * @returns {number} Selected index
