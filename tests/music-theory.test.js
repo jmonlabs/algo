@@ -504,7 +504,7 @@ test("numerals refuses what is not a roman numeral, instead of playing I", () =>
 });
 
 test("what used to be a console warning is an error now", () => {
-  assert.throws(() => new Scale({ tonic: "C", mode: "sideways" }).generate(), /unknown mode/);
-  assert.throws(() => new Scale({ tonic: "H", mode: "major" }).generate(), /unknown tonic/);
+  assert.throws(() => new Scale({ tonic: "C", mode: "sideways" }), /not a valid scale/);
+  assert.throws(() => new Scale({ tonic: "H", mode: "major" }), /not a valid tonic/);
   assert.throws(() => new Articulation({ type: "staccato" }).apply([{ pitch: 60, duration: 1, time: 0 }], 3), /no note at index 3/);
 });
