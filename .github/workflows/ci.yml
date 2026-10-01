@@ -28,6 +28,7 @@ jobs:
         run: |
           node --test \
             tests/notes.test.js \
+            tests/arrange.test.js \
             tests/performance.test.js \
             tests/key-context.test.js \
             tests/counterpoint.test.js \

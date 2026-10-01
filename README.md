@@ -75,13 +75,15 @@ const track = [
 
 ## What is here
 
+### Arrange — `jm.arrange`
+The montage of a piece. `jm.arrange(form, { sections, parts, tempo, title, audioGraph })` puts the sections named in `form` end to end, each lasting its own `length` and playing some of the parts, and returns the piece, ready for `play`, with one track per part. A part is a track written from its own beat 0, `{ label, synth, notes }`; a section lists the parts it plays, `parts: ["pad", "bass"]`, or sets a part's `velocity`, `octave` or `time` for that section only, `parts: { pad: { velocity: 0.3 }, melody: { time: 2, octave: 1 } }`.
+
 ### Notes — `jm.notes.*`
 What a composer does to a list of notes. Every function takes the list first and returns a new one.
 - Move and repeat: `shift(notes, beats)`, `place(notes, { time, octave, velocity })`, `truncate(notes, beats)`, `cut(notes, { from, to })` (a slice, moved to 0), `tile(notes, { times, cycle })`, `concatenate(lists)`, `combine(lists)`
 - Change the pitches: `transpose(notes, semitones)`, `transposeDiatonic(notes, { steps, scale })`, `diatonic(pitch, { steps, scale })`, `invert(notes, pivot)`, `canon(notes, { delay, steps, scale, octave })`
 - Change the time: `augment(notes, factor)`, `fit(notes, beats)` (stretched to a length), `reverse(notes)`, `quantize(notes, { grid, mode })`, `split(notes, maxDuration)`, `deduplicate(notes, tolerance)`, `normalize(notes, { min, max })`
 - Measure: `span(notes)`, `range(notes)`, `onsets(notes)`
-- Montage: `arrange(form, { sections, parts })` puts sections end to end, each with its own `length`, and returns the piece's tracks, one per part; a section lists its parts, or sets a part's `velocity`, `octave` or `time` for that section only
 - Build: `track(notes, { label, synth })`, `piece(tracks, { tempo })`, `chordNotes(chords, { duration })` (a progression laid out as chord notes: playable, and what the analyses and `Darwin` read as `chords`), `beatsToTime`, `timeToBeats`
 
 ### Performance — `jm.performance.*`

@@ -34,6 +34,7 @@ import * as rhythm from "./rhythm/index.js";
 import * as generative from "./generative/index.js";
 import * as analysis from "./analysis/index.js";
 import * as constants from "./constants/index.js";
+import { arrange } from "./arrange.js";
 
 /**
  * The composition API: one space per musical question, and `key`.
@@ -51,6 +52,10 @@ const jm = {
   //   k.progression().draw(4, { seed: 1 });
   //   jm.harmony.chord(62, k);
   key: harmony.key,
+
+  // The montage of a piece: sections end to end, each playing some of the
+  // parts. Returns the piece, ready for play.
+  arrange,
 
   // What a composer does to a list of notes: shift, transpose, canon, tile,
   // reverse, concatenate, quantize… and the builders track, piece, chordNotes.
