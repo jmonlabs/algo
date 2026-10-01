@@ -86,7 +86,11 @@ const FIXTURE_HTML = `<!doctype html>
     checks["jm.key('C','major').tonic === 'C'"] = k.tonic === "C";
     checks["jm.key('C','major').mode === 'major'"] = k.mode === "major";
     checks["k.scale is function"] = typeof k.scale === "function";
-    checks["k.voice is function"] = typeof k.voice === "function";
+    checks["jm.harmony.harmonize is function"] = typeof jm.harmony?.harmonize === "function";
+    checks["jm.voices.smoothWalk is function"] = typeof jm.voices?.smoothWalk === "function";
+    checks["jm.rhythm.clave is function"] = typeof jm.rhythm?.clave === "function";
+    checks["jm.notes.shift is function"] = typeof jm.notes?.shift === "function";
+    checks["jm.performance.bow is function"] = typeof jm.performance?.bow === "function";
     const chain = new jm.generative.walks.Chain({
       walkRange: [0, 7], walkStart: 3,
       walkProbability: [-1, 0, 1], roundTo: 0,
