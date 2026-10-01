@@ -289,8 +289,7 @@ export function smoothWalk(chord, options = {}) {
       }
     }
     if (candidates.length === 0) {
-      console.warn(`[voices.smoothWalk] no chord within reach at step ${n} (seed ${seed}, maxVoiceLeading ${maxVoiceLeading}, bassRange ${bassRange}): ${progression.length} chords instead of ${length}`);
-      break;
+      throw new Error(`smoothWalk: no chord within reach at step ${n} (seed ${seed}, maxVoiceLeading ${maxVoiceLeading}, bassRange ${bassRange}); widen maxVoiceLeading or bassRange, or change the seed`);
     }
     // The closer, the likelier.
     const weights = candidates.map((c) => 1 / (1 + c.distance));

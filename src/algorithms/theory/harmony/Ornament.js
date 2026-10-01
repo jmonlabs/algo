@@ -82,9 +82,7 @@ export class Ornament {
             }
         }
 
-        // Default to quarter note if unable to parse
-        console.warn(`Unable to parse duration: ${duration}, defaulting to 1 quarter note`);
-        return 1;
+        throw new Error(`Ornament: cannot read the duration ${JSON.stringify(duration)}; give beats as a number`);
     }
 
     /**
@@ -241,8 +239,7 @@ export class Ornament {
         const validation = Ornament.validateOrnament(note, this.type, this.params);
 
         if (!validation.valid) {
-            console.warn(`Ornament validation failed: ${validation.errors.join(', ')}`);
-            return notes;
+            throw new Error(`Ornament (${this.type}): ${validation.errors.join(', ')}`);
         }
 
         // Apply the ornament based on type

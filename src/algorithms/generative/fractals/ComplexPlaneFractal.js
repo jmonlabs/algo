@@ -10,7 +10,7 @@
  * Constructor accepts `center` and `size`:
  *   { center: { x, y }, size: { w, h } }
  *
- * `xMin/xMax/yMin/yMax` are deprecated — pass center and size instead.
+ * The window is given as center and size.
  *
  * Subclasses must implement `iterate(point)` and the `type` getter.
  */
@@ -26,14 +26,7 @@ export class ComplexPlaneFractal {
       this._size = { w: options.size.w, h: options.size.h };
     } else if (options.xMin !== undefined || options.xMax !== undefined ||
                options.yMin !== undefined || options.yMax !== undefined) {
-      // Deprecated: xMin/xMax/yMin/yMax
-      console.warn('[jmon/algo] xMin/xMax/yMin/yMax are deprecated. Use center and size instead.');
-      const xMin = options.xMin ?? -2.5;
-      const xMax = options.xMax ?? 1.5;
-      const yMin = options.yMin ?? -2.0;
-      const yMax = options.yMax ?? 2.0;
-      this._center = { x: (xMin + xMax) / 2, y: (yMin + yMax) / 2 };
-      this._size = { w: xMax - xMin, h: yMax - yMin };
+      throw new Error('fractals: xMin/xMax/yMin/yMax are gone; give center { x, y } and size { w, h } instead');
     } else {
       // Defaults: full Mandelbrot view
       this._center = { x: -0.5, y: 0 };

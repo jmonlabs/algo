@@ -92,7 +92,7 @@ export class Rhythm {
         }
         
         if (nIter >= maxIterations) {
-            console.warn('Max iterations reached. The sum of the durations may not equal the measure length.');
+            throw new Error(`Rhythm.random: could not fill a measure of ${this.measureLength} with durations [${this.durations.join(', ')}] in ${maxIterations} tries; change the durations or the measure length`);
         }
         
         return Rhythm._toNotes(rhythm, { pitches, velocity, useStringTime });

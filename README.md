@@ -201,6 +201,8 @@ the pattern's name is the subject. `jm.theory.rhythm` and `jm.theory.profile`
 answer to the old names and shapes for one release.
 New: `kit(lines, options)`, a drum pattern written as one line of text per drum; `notes.cut` and `notes.fit`; `performance.detach`. `Progression.generate` was two functions under one name: `numerals(["i", "VI"])` reads roman numerals, `draw(4, { seed })` draws from the circle; an unknown numeral is an error now, not a silent I.
 
+Nothing in the package writes to the console any more: what was a warning (an unknown scale mode or tonic, an ornament that cannot be applied, a note that is not a note, a `smoothWalk` that runs out of chords, a `Rhythm` that cannot fill its measure) is an error, with the fix in its message. `xMin/xMax/yMin/yMax` on the fractals are gone; give `center` and `size`.
+
 **`jm.generative`.** The same sub-spaces, with `MinimalismProcess` become
 the verb `unfold(notes, { operation, direction, repetition })` and
 `phaseShift` become `phase`. `Loop` is gone: `notes.tile` repeats,

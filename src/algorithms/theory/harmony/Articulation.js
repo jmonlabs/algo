@@ -108,20 +108,17 @@ export class Articulation {
 
     // Handle single index
     if (noteIndex < 0 || noteIndex >= notes.length) {
-      console.warn(`Note index ${noteIndex} out of bounds`);
-      return notes;
+      throw new Error(`Articulation: no note at index ${noteIndex} (${notes.length} notes)`);
     }
 
     const articulationDef = ARTICULATION_TYPES[articulationType];
     if (!articulationDef) {
-      console.warn(`Unknown articulation type: ${articulationType}`);
-      return notes;
+      throw new Error(`Articulation: unknown type "${articulationType}" (${Object.keys(ARTICULATION_TYPES).join(', ')})`);
     }
 
     const note = notes[noteIndex];
     if (!note || typeof note !== "object") {
-      console.warn(`Invalid note at index ${noteIndex}`);
-      return notes;
+      throw new Error(`Articulation: the note at index ${noteIndex} is not a note`);
     }
 
     // Create new notes array
@@ -173,8 +170,7 @@ export class Articulation {
 
     const articulationDef = ARTICULATION_TYPES[articulationType];
     if (!articulationDef) {
-      console.warn(`Unknown articulation type: ${articulationType}`);
-      return { success: false };
+      throw new Error(`Articulation: unknown type "${articulationType}" (${Object.keys(ARTICULATION_TYPES).join(', ')})`);
     }
 
     // Apply articulation directly to the note object

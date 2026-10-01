@@ -51,8 +51,7 @@ export class Scale {
     generate(options = {}) {
         const intervals = MusicTheoryConstants.scaleIntervals[this.mode];
         if (!intervals) {
-            console.warn(`Unknown scale mode: ${this.mode}`);
-            return [];
+            throw new Error(`Scale: unknown mode "${this.mode}" (${Object.keys(MusicTheoryConstants.scaleIntervals).join(', ')})`);
         }
 
         // Convert note names to MIDI numbers if provided
@@ -66,8 +65,7 @@ export class Scale {
         // Get scale pattern
         const tonicIndex = MusicTheoryConstants.chromaticScale.indexOf(this.tonic);
         if (tonicIndex === -1) {
-            console.warn(`Unknown tonic: ${this.tonic}`);
-            return [];
+            throw new Error(`Scale: unknown tonic "${this.tonic}" (C, C#, D … B; flats are read as sharps)`);
         }
 
         // Default start: tonic at octave 4 (e.g., E4 = 64 for E major)

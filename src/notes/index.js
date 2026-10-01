@@ -156,13 +156,7 @@ function normalizeNotes(notes) {
       };
     }
     
-    // Fallback for unexpected formats
-    console.warn(`Unexpected note format at index ${index}:`, note);
-    return {
-      pitch: 60, // Default to middle C
-      duration: 1,
-      time: '0:0:0'
-    };
+    throw new Error(`notes: the note at index ${index} is not a note: ${JSON.stringify(note)}`);
   });
 }
 
