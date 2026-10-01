@@ -161,6 +161,36 @@ function normalizeNotes(notes) {
 }
 
 /**
+ * Degrees of a scale, as notes one after the other.
+ *
+ * What a walk, an automaton or any other generator hands back is a series
+ * of numbers; read as degrees of a scale, with a duration each, they are
+ * notes. A degree past the end of the scale is held at the end; `null` is a
+ * rest.
+ *
+ * @example
+ * const degrees = new Chain({ range: [0, 14], start: 7, steps: [-2, -1, 1, 2] }).line({ length: 16, seed: 42 });
+ * jm.notes.fromDegrees(degrees, { scale: SCALE, duration: 0.5 });
+ *
+ * @param {Array<number|null>} degrees - Indices into `scale`; `null` for a rest
+ * @param {Object} options
+ * @param {Array<number>} options.scale - The pitches, low to high
+ * @param {number} [options.duration=1] - Beats per note
+ * @param {number} [options.start=0] - Time of the first note, in beats
+ * @param {number} [options.velocity=0.8]
+ * @returns {Array<Object>} JMON notes
+ */
+export function fromDegrees(degrees, { scale, duration = 1, start = 0, velocity = 0.8 } = {}) {
+  if (!Array.isArray(scale) || scale.length === 0) throw new Error('fromDegrees: scale must be a non-empty list of pitches');
+  return degrees.map((degree, i) => {
+    const pitch = degree === null || degree === undefined
+      ? null
+      : scale[Math.max(0, Math.min(scale.length - 1, Math.round(degree)))];
+    return { pitch, duration, time: start + i * duration, velocity };
+  });
+}
+
+/**
  * Lay a progression on a timeline as JMON chord notes.
  *
  * A `Progression` returns chords as arrays of pitches. This gives each one a
@@ -170,7 +200,7 @@ function normalizeNotes(notes) {
  *
  * @example
  * const prog = jm.key("D", "minor").progression().numerals(["i", "VI", "III", "VII"]);
- * const chords = jm.utils.chordNotes(prog, { duration: 4 });
+ * const chords = jm.notes.chordNotes(prog, { duration: 4 });
  * // [{ pitch: [50, 53, 57], duration: 4, time: 0 }, { pitch: [...], duration: 4, time: 4 }, ...]
  *
  * @param {Array<Array<number>|number>} progression - Chords as pitch arrays (a bare number is a one-note chord)

@@ -10,7 +10,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  invert, reverse, augment, onsets, normalize, range, span, split, deduplicate, quantize, tile, track, piece, cut, fit,
+  invert, reverse, augment, onsets, normalize, range, span, split, deduplicate, quantize, tile, track, piece, cut, fit, fromDegrees,
 } from "../src/notes/index.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
@@ -210,7 +210,7 @@ test("jm.notes is the list of verbs and nouns, and nothing else", async () => {
   const { default: jm } = await import("../src/index.js");
   assert.deepEqual(Object.keys(jm.notes).sort(), [
     "augment", "beatsToTime", "canon", "chordNotes", "combine", "concatenate", "cut", "deduplicate", "diatonic",
-    "fit", "invert", "normalize", "onsets", "piece", "place", "quantize", "range", "reverse", "shift", "span", "split",
+    "fit", "fromDegrees", "invert", "normalize", "onsets", "piece", "place", "quantize", "range", "reverse", "shift", "span", "split",
     "tile", "timeToBeats", "track", "transpose", "transposeDiatonic", "truncate",
   ]);
 });
@@ -357,4 +357,13 @@ test("fit stretches a phrase to a length, keeping its proportions", () => {
   assert.deepEqual(four.map((x) => [x.time, x.duration]), [[0, 4 / 3], [4 / 3, 4 / 3], [8 / 3, 4 / 3]]);
   assert.deepEqual(fit([], 4), []);
   assert.throws(() => fit(phrase, 0), /positive/);
+});
+
+test("fromDegrees reads degrees in a scale, one note after the other", () => {
+  const scale = [50, 52, 53, 55, 57, 58, 60, 62];
+  const notes = fromDegrees([7, 5, null, 2, 20], { scale, duration: 0.5, velocity: 0.7 });
+  assert.deepEqual(notes.map((n) => n.pitch), [62, 58, null, 53, 62], "null is a rest, past the end is held at the end");
+  assert.deepEqual(notes.map((n) => n.time), [0, 0.5, 1, 1.5, 2]);
+  assert.ok(notes.every((n) => n.duration === 0.5 && n.velocity === 0.7));
+  assert.throws(() => fromDegrees([1], { scale: [] }), /scale/);
 });
