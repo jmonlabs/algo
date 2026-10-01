@@ -362,7 +362,7 @@ node --test tests/*.test.js
 
 338 assertion-backed tests, nothing to install. One of them walks the import graph from `src/index.js` and fails if anything outside the package is reached, which is the property the whole layout rests on.
 
-The scripts in `tests/integration/` need a real Tone.js or `@tangent.to/ds` and are observations rather than tests — see the README there.
+`tests/integration/gaussian-processes.mjs` needs `@tangent.to/ds` and is an observation rather than a test — see the README there.
 
 ## Sources
 
