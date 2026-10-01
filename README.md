@@ -81,6 +81,7 @@ What a composer does to a list of notes. Every function takes the list first and
 - Change the pitches: `transpose(notes, semitones)`, `transposeDiatonic(notes, { steps, scale })`, `diatonic(pitch, { steps, scale })`, `invert(notes, pivot)`, `canon(notes, { delay, steps, scale, octave })`
 - Change the time: `augment(notes, factor)`, `fit(notes, beats)` (stretched to a length), `reverse(notes)`, `quantize(notes, { grid, mode })`, `split(notes, maxDuration)`, `deduplicate(notes, tolerance)`, `normalize(notes, { min, max })`
 - Measure: `span(notes)`, `range(notes)`, `onsets(notes)`
+- Montage: `arrange(form, { sections, parts })` puts sections end to end, each with its own `length`, and returns the piece's tracks, one per part; a section lists its parts, or sets a part's `velocity`, `octave` or `time` for that section only
 - Build: `track(notes, { label, synth })`, `piece(tracks, { tempo })`, `chordNotes(chords, { duration })` (a progression laid out as chord notes: playable, and what the analyses and `Darwin` read as `chords`), `beatsToTime`, `timeToBeats`
 
 ### Performance — `jm.performance.*`

@@ -10,6 +10,7 @@ The generative classes follow the calling convention, nothing writes to the
 console, and `tests/integration/` keeps one script. New: `notes.cut`,
 `notes.fit`, `performance.detach`, `rhythm.kit`, `generative.project` and
 `rescale`, `Progression.numerals` and `draw`.
+`notes.arrange(form, { sections, parts })`: the montage of a piece.
 
 ## 5.0
 
