@@ -10,6 +10,7 @@ The generative classes follow the calling convention, nothing writes to the
 console, and `tests/integration/` keeps one script. New: `notes.cut`,
 `notes.fit`, `performance.detach`, `rhythm.kit`, `generative.project` and
 `rescale`, `Progression.numerals` and `draw`.
+`Chain` takes a `scale`, and `walk({ length, seed, duration })` returns the walk as notes read in it.
 
 ## 5.0
 
