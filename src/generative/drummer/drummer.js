@@ -1,7 +1,7 @@
 import { DEFAULT_DRUM_MAP } from "./drum-map.js";
 import { presets, getPreset } from "./presets.js";
-import { presets as profilePresets } from "../../../rhythm/profile/presets.js";
-import { clavePattern } from "../../../rhythm/clave.js";
+import { presets as profilePresets } from "../../rhythm/profile/presets.js";
+import { clavePattern } from "../../rhythm/clave.js";
 
 /**
  * Mulberry32 PRNG, seeded.

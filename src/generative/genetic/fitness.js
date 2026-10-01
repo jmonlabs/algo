@@ -1,7 +1,7 @@
 import { onsetGrid, stops, profileFit, upbeatRatio, anticipationRate, stopRate } from '../../analysis/RhythmCode.js';
 import { emotionalMap } from '../../analysis/EmotionalMap.js';
-import { presets as profilePresets } from '../../../rhythm/profile/presets.js';
-import { doPitchClass } from '../../theory/harmony/Solfege.js';
+import { presets as profilePresets } from '../../rhythm/profile/presets.js';
+import { doPitchClass } from '../../harmony/Solfege.js';
 
 /**
  * Fitness terms for `Darwin`, wrapping the Rhythm Code and Emotional Map

@@ -1,4 +1,4 @@
-import { scalePitchClasses, stability, chordDistance, triadOf } from '../../theory/harmony/Solfege.js';
+import { scalePitchClasses, stability, chordDistance, triadOf } from '../../harmony/Solfege.js';
 import { normalizeChords } from '../../analysis/chords.js';
 
 /**

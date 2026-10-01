@@ -26,7 +26,6 @@
  * @license GPL-3.0-or-later
  */
 
-import algorithms from "./algorithms/index.js";
 import * as notes from "./notes/index.js";
 import * as performance from "./performance/index.js";
 import * as harmony from "./harmony/index.js";
@@ -37,7 +36,7 @@ import * as analysis from "./analysis/index.js";
 import * as constants from "./constants/index.js";
 
 /**
- * The composition API.
+ * The composition API: one space per musical question, and `key`.
  *
  * `jm.play`, `jm.score` and `jm.converters` used to live here. They moved to
  * `jmon/show` and `jmon/io`, which is why this package now imports nothing and
@@ -52,33 +51,6 @@ const jm = {
   //   k.progression().draw(4, { seed: 1 });
   //   jm.harmony.chord(62, k);
   key: harmony.key,
-
-  // The names of 4.x for theory.*, kept for one release while the pieces
-  // move to jm.harmony, jm.voices and jm.rhythm. Nothing new goes here.
-  theory: {
-    ...algorithms.theory,
-    harmony: {
-      ...algorithms.theory.harmony,
-      counterpoint: voices.counterpoint,
-      parallelPerfects: voices.parallelPerfects,
-      voiceChorale: voices.lead,
-      chordify: harmony.chord,
-      chordifyMany: harmony.chords,
-    },
-    rhythm: {
-      ...rhythm,
-      onsets: rhythm.grid,
-      fromOnsets: rhythm.fromGrid,
-      clave: (options = {}) => {
-        const { name, ...rest } = options;
-        return rhythm.clave(name, rest);
-      },
-      clavePattern: (name, orientation) => rhythm.clavePattern(name, { orientation }),
-      euclidPattern: (steps, pulses, rotation) => rhythm.euclidPattern({ steps, pulses, rotation }),
-    },
-    profile: algorithms.theory.profile,
-  },
-  processors: algorithms.processors,
 
   // What a composer does to a list of notes: shift, transpose, canon, tile,
   // reverse, concatenate, quantize… and the builders track, piece, chordNotes.
@@ -109,44 +81,8 @@ const jm = {
   // The tables: theory, articulations, ornaments, and list/get/describe/search.
   constants,
 
-  // The names of 4.x, kept for one release while the pieces move to jm.notes
-  // and jm.performance. Nothing new goes here.
-  utils: {
-    sustained: performance.sustain,
-    bow: performance.bow,
-    humanize: performance.humanize,
-    expressivize: performance.embellish,
-    applySwing: performance.swing,
-    gcd: algorithms.utils.gcd,
-    lcm: algorithms.utils.lcm,
-    beatsToTime: notes.beatsToTime,
-    timeToBeats: notes.timeToBeats,
-    createTrack: notes.track,
-    createPiece: notes.piece,
-    chordNotes: notes.chordNotes,
-    shiftTime: notes.shift,
-    transpose: notes.transpose,
-    diatonic: notes.diatonic,
-    transposeDiatonic: notes.transposeDiatonic,
-    canon: notes.canon,
-    truncate: notes.truncate,
-    tile: notes.tile,
-    augment: notes.augment,
-    retrograde: notes.reverse,
-    invert: notes.invert,
-    concatenateNotes: notes.concatenate,
-    combineNotes: notes.combine,
-    quantize: notes.quantize,
-    removeDuplicates: notes.deduplicate,
-    splitLongNotes: notes.split,
-    normalizeVelocities: notes.normalize,
-    extractRhythm: notes.onsets,
-    getPitchRange: notes.range,
-    getTotalDuration: notes.span,
-  },
-
   // Keep in step with package.json; tests/notes.test.js asserts they match.
-  VERSION: "5.0.0",
+  VERSION: "5.1.0",
 };
 
 export { jm };

@@ -1,4 +1,4 @@
-import { MusicTheoryConstants } from '../../constants/MusicTheoryConstants.js';
+import { MusicTheoryConstants } from '../constants/MusicTheoryConstants.js';
 
 /**
  * Represents a musical scale for generating note sequences

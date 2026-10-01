@@ -9,13 +9,13 @@
  * @license GPL-3.0-or-later
  */
 
-import { chordify, chordifyMany } from "../algorithms/theory/harmony/Chordify.js";
-import { Voice } from "../algorithms/theory/harmony/Voice.js";
+import { chordify, chordifyMany } from "./Chordify.js";
+import { Voice } from "./Voice.js";
 
-export { Key, key } from "../algorithms/theory/harmony/Key.js";
-export { Progression } from "../algorithms/theory/harmony/Progression.js";
-export { chordDistance, isChordTone } from "../algorithms/theory/harmony/Solfege.js";
-import * as Solfege from "../algorithms/theory/harmony/Solfege.js";
+export { Key, key } from "./Key.js";
+export { Progression } from "./Progression.js";
+export { chordDistance, isChordTone } from "./Solfege.js";
+import * as Solfege from "./Solfege.js";
 
 /**
  * The chord built on a pitch in a key: the pitch, and the scale degrees

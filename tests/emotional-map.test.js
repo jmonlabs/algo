@@ -7,8 +7,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import * as Sol from "../src/algorithms/theory/harmony/Solfege.js";
-import * as E from "../src/algorithms/analysis/EmotionalMap.js";
+import * as Sol from "../src/harmony/Solfege.js";
+import * as E from "../src/analysis/EmotionalMap.js";
 import jm from "../src/index.js";
 
 const C = { tonic: "C", mode: "major" };
@@ -169,14 +169,14 @@ test("pillars can alternate with chord tones and prefer tension on request", () 
 test("melody analysis is reachable from jm", () => {
   assert.equal(typeof jm.analysis.emotionalMap, "function");
   assert.equal(typeof jm.analysis.salient, "function");
-  assert.equal(typeof jm.theory.harmony.Solfege.stability, "function");
+  assert.equal(typeof jm.harmony.stability, "function");
 });
 
 /* --- chord timelines: JMON chord notes are accepted everywhere ----------- */
 
 test("chordNotes lays a progression out as JMON chord notes", () => {
   const prog = jm.key("D", "minor").progression().numerals(["i", "VI", "III", "VII"]);
-  const track = jm.utils.chordNotes(prog, { duration: 4, start: 8 });
+  const track = jm.notes.chordNotes(prog, { duration: 4, start: 8 });
   assert.equal(track.length, 4);
   assert.deepEqual(track[0].pitch, prog[0]);
   assert.equal(track[1].time, 12);
@@ -186,7 +186,7 @@ test("chordNotes lays a progression out as JMON chord notes", () => {
 
 test("the analyses read JMON chord notes and bare { time, pitches } alike", () => {
   const prog = [[62, 65, 69], [58, 62, 65], [65, 69, 72], [60, 64, 67]];
-  const track = jm.utils.chordNotes(prog, { duration: 4 });
+  const track = jm.notes.chordNotes(prog, { duration: 4 });
   const bare = prog.map((pitches, i) => ({ time: i * 4, pitches }));
   const melody = [note(62, 0, 2), note(65, 3.5, 2), note(69, 8, 4), note(67, 12, 4)];
   const D = { tonic: "D", mode: "minor" };

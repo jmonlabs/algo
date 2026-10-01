@@ -16,7 +16,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Ornament } from "../src/algorithms/theory/harmony/Ornament.js";
+import { Ornament } from "../src/performance/Ornament.js";
 
 const note = (pitch, time, duration = 1, velocity = 0.8) =>
     ({ pitch, duration, time, velocity });

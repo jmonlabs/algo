@@ -1,5 +1,5 @@
-import { MusicTheoryConstants } from '../../constants/MusicTheoryConstants.js';
-import { STABILITY_MAJOR } from '../../../rhythm/profile/presets.js';
+import { MusicTheoryConstants } from '../constants/MusicTheoryConstants.js';
+import { STABILITY_MAJOR } from '../rhythm/profile/presets.js';
 
 export const SYLLABLES = Object.freeze(['DO', 'RE', 'MI', 'FA', 'SO', 'LA', 'TI']);
 

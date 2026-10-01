@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Corruptor, corruptJmon } from "../src/algorithms/processors/Corruptor.js";
+import { Corruptor, corruptJmon } from "../src/performance/Corruptor.js";
 
 const piece = () => ({
   format: "jmon",
@@ -322,6 +322,6 @@ test("corruptJmon corrupts in one call", () => {
 
 test("corruptJmon is reachable from the public namespace", async () => {
   const { default: jm } = await import("../src/index.js");
-  assert.equal(typeof jm.processors.Corruptor, "function");
-  assert.equal(typeof jm.processors.corruptJmon, "function");
+  assert.equal(typeof jm.performance.corrupt, "function");
+  assert.equal(jm.processors, undefined, "the 4.x façade is gone");
 });

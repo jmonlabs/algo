@@ -14,11 +14,11 @@ import { kit } from "../src/rhythm/kit.js";
 import { euclid, euclidPattern } from "../src/rhythm/euclid.js";
 import { grid, fromGrid, draw } from "../src/rhythm/pattern.js";
 import { isorhythm } from "../src/rhythm/isorhythm.js";
-import { lcm, gcd } from "../src/algorithms/utils.js";
+import { lcm, gcd } from "../src/shared/utils.js";
 import { place } from "../src/notes/index.js";
-import * as R from "../src/algorithms/analysis/RhythmCode.js";
-import * as S from "../src/algorithms/analysis/salience.js";
-import { groove, anticipate, applySteps } from "../src/algorithms/processors/Groove.js";
+import * as R from "../src/analysis/RhythmCode.js";
+import * as S from "../src/analysis/salience.js";
+import { groove, anticipate, applySteps } from "../src/performance/Groove.js";
 import jm from "../src/index.js";
 
 const note = (time, duration = 0.5, pitch = 60) => ({ pitch, duration, time, velocity: 0.8 });
@@ -213,10 +213,10 @@ test("anticipate only moves onto free places and never past another onset", () =
 });
 
 test("rhythm tools are reachable from jm", () => {
-  assert.equal(typeof jm.theory.profile.Profile, "function");
-  assert.equal(typeof jm.theory.rhythm.clave, "function");
+  assert.equal(typeof jm.rhythm.Profile, "function");
+  assert.equal(typeof jm.rhythm.clave, "function");
   assert.equal(typeof jm.analysis.rhythmCode, "function");
-  assert.equal(typeof jm.processors.groove, "function");
+  assert.equal(typeof jm.performance.groove, "function");
 });
 
 // ─── pattern ↔ notes ────────────────────────────────────────────────────

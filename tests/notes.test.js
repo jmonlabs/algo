@@ -215,12 +215,6 @@ test("jm.notes is the list of verbs and nouns, and nothing else", async () => {
   ]);
 });
 
-test("the names of 4.x still answer under jm.utils, for one release", async () => {
-  const { default: jm } = await import("../src/index.js");
-  for (const [was, is] of [["shiftTime", "shift"], ["retrograde", "reverse"], ["createTrack", "track"], ["getTotalDuration", "span"]]) {
-    assert.equal(jm.utils[was], jm.notes[is], `jm.utils.${was} is jm.notes.${is}`);
-  }
-});
 
 /* --- the JMON builders --------------------------------------------------- */
 

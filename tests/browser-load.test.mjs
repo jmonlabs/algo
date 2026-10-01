@@ -4,7 +4,7 @@
  * Spawns a static HTTP server over the repo, opens a fixture page in
  * headless Chrome, and verifies that `import("/src/index.js")` resolves
  * to a module exposing the public API the live REPL relies on
- * (`jm.key`, `jm.theory.harmony.Key`, `jm.generative.walks.Chain`,
+ * (`jm.key`, `jm.harmony.Key`, `jm.generative.walks.Chain`,
  * etc.). This is the exact load path used by the jsDelivr-served
  * `https://cdn.jsdelivr.net/gh/jmonlabs/algo@main/src/index.js` URL.
  *
@@ -70,8 +70,8 @@ const FIXTURE_HTML = `<!doctype html>
     const checks = {
       "jm exists": !!jm,
       "jm.key is function": typeof jm.key === "function",
-      "jm.theory.harmony.Key is function":
-        typeof jm.theory?.harmony?.Key === "function",
+      "jm.harmony.Key is function":
+        typeof jm.harmony?.Key === "function",
       "jm.generative.walks.Chain is function":
         typeof jm.generative?.walks?.Chain === "function",
       // play and score moved to jmon/show, converters to jmon/io. Assert
@@ -80,7 +80,8 @@ const FIXTURE_HTML = `<!doctype html>
       "jm.score is gone": jm.score === undefined,
       "jm.converters is gone": jm.converters === undefined,
       "jm.analysis is object": typeof jm.analysis === "object",
-      "jm.utils.retrograde is function": typeof jm.utils?.retrograde === "function",
+      "jm.notes.reverse is function": typeof jm.notes?.reverse === "function",
+      "jm.utils is gone": jm.utils === undefined,
     };
     const k = jm.key("C", "major");
     checks["jm.key('C','major').tonic === 'C'"] = k.tonic === "C";

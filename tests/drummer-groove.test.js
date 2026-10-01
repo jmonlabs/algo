@@ -7,8 +7,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { drummer } from "../src/algorithms/generative/drummer/index.js";
-import { detectOrientation } from "../src/algorithms/analysis/RhythmCode.js";
+import { drummer } from "../src/generative/drummer/index.js";
+import { detectOrientation } from "../src/analysis/RhythmCode.js";
 
 const GM = { kick: 36, snare: 38, hihat: 42, openhat: 46, crash: 49, rim: 37, tomLow: 41 };
 const only = (hits, pitch) => hits.filter((h) => h.pitch === pitch);

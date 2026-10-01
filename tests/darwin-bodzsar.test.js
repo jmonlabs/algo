@@ -8,9 +8,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Darwin } from "../src/algorithms/generative/genetic/Darwin.js";
-import * as ops from "../src/algorithms/generative/genetic/operators.js";
-import { metrics, metric, phraseToNotes } from "../src/algorithms/generative/genetic/fitness.js";
+import { Darwin } from "../src/generative/genetic/Darwin.js";
+import * as ops from "../src/generative/genetic/operators.js";
+import { metrics, metric, phraseToNotes } from "../src/generative/genetic/fitness.js";
 import jm from "../src/index.js";
 
 // [pitch, duration, offset], gap-free
@@ -161,7 +161,7 @@ test("genetic extensions are reachable from jm", () => {
 });
 
 test("melody operators accept a JMON chord track as context.chords", () => {
-  const ctx = { key: { tonic: "C" }, chords: jm.utils.chordNotes([[65, 69, 72], [57, 60, 64]], { duration: 4 }) };
+  const ctx = { key: { tonic: "C" }, chords: jm.notes.chordNotes([[65, 69, 72], [57, 60, 64]], { duration: 4 }) };
   const phrase = relayout([[65, 4], [60, 4]]);
   const moved = ops.toNonChordTone(phrase, () => 0, ctx);
   assert.ok(moved.some((n, i) => n[0] !== phrase[i][0]), "an anchor moved onto a non-chord tone");

@@ -13,7 +13,7 @@
  */
 
 import { normalizeChords } from './chords.js';
-import { timeToBeats } from '../../notes/index.js';
+import { timeToBeats } from '../notes/index.js';
 
 const numericTime = (t) => (typeof t === 'number' ? t : timeToBeats(t));
 const isRest = (n) => n.pitch === null || n.pitch === undefined;

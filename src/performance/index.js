@@ -10,12 +10,12 @@
  * @license GPL-3.0-or-later
  */
 
-import { Ornament } from "../algorithms/theory/harmony/Ornament.js";
-import { Articulation } from "../algorithms/theory/harmony/Articulation.js";
-import { Corruptor } from "../algorithms/processors/Corruptor.js";
-export { strum } from "../algorithms/theory/harmony/Strum.js";
-export { arpeggiate } from "../algorithms/theory/harmony/Arpeggiate.js";
-export { groove, anticipate, applySteps, STEPS as steps } from "../algorithms/processors/Groove.js";
+import { Ornament } from "./Ornament.js";
+import { Articulation } from "./Articulation.js";
+import { Corruptor } from "./Corruptor.js";
+export { strum } from "./Strum.js";
+export { arpeggiate } from "./Arpeggiate.js";
+export { groove, anticipate, applySteps, STEPS as steps } from "./Groove.js";
 
 /**
  * Build a long held tone by re-attacking the same pitch every `step` beats.

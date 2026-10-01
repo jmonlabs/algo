@@ -1,5 +1,5 @@
-import { MusicTheoryConstants } from '../../constants/MusicTheoryConstants.js';
-import { cdeToMidi } from '../../utils.js';
+import { MusicTheoryConstants } from '../constants/MusicTheoryConstants.js';
+import { cdeToMidi } from '../shared/utils.js';
 
 /**
  * Progressions in a key: the chords roman numerals name, and chords drawn

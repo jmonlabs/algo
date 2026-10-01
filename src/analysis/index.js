@@ -9,9 +9,9 @@
  * @license GPL-3.0-or-later
  */
 
-import { MusicalAnalysis as M } from "../algorithms/analysis/MusicalAnalysis.js";
-import * as code from "../algorithms/analysis/RhythmCode.js";
-import * as saliences from "../algorithms/analysis/salience.js";
+import { MusicalAnalysis as M } from "./MusicalAnalysis.js";
+import * as code from "./RhythmCode.js";
+import * as saliences from "./salience.js";
 
 /* --- values: pitches, durations, any series ------------------------------ */
 
@@ -209,8 +209,8 @@ export const rhythmCode = code.analyzeRhythm;
 
 /* --- Bodzsar's Emotional Map of Melody ----------------------------------- */
 
-export { emotionalMap, mapNotes, pillars } from "../algorithms/analysis/EmotionalMap.js";
-import { chordAt as chordAtTime } from "../algorithms/analysis/EmotionalMap.js";
+export { emotionalMap, mapNotes, pillars } from "./EmotionalMap.js";
+import { chordAt as chordAtTime } from "./EmotionalMap.js";
 
 /**
  * The chord a moment belongs to: the last chord started at or before it, or

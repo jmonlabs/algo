@@ -1,4 +1,4 @@
-import { DEFAULT_DRUM_MAP } from '../algorithms/generative/drummer/drum-map.js';
+import { DEFAULT_DRUM_MAP } from '../generative/drummer/drum-map.js';
 
 const SILENT = new Set(['.', ' ', '-', '_', '0']);
 

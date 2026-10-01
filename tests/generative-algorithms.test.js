@@ -11,17 +11,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { CellularAutomata } from "../src/algorithms/generative/cellular-automata/CellularAutomata.js";
-import { Mandelbrot } from "../src/algorithms/generative/fractals/Mandelbrot.js";
-import { Julia } from "../src/algorithms/generative/fractals/Julia.js";
-import { LogisticMap } from "../src/algorithms/generative/fractals/LogisticMap.js";
-import { Chain } from "../src/algorithms/generative/walks/Chain.js";
-import { RandomWalk } from "../src/algorithms/generative/walks/RandomWalk.js";
-import { Phasor, PhasorSystem } from "../src/algorithms/generative/walks/PhasorWalk.js";
-import { Tintinnabuli } from "../src/algorithms/generative/minimalism/MinimalismProcess.js";
+import { CellularAutomata } from "../src/generative/cellular-automata/CellularAutomata.js";
+import { Mandelbrot } from "../src/generative/fractals/Mandelbrot.js";
+import { Julia } from "../src/generative/fractals/Julia.js";
+import { LogisticMap } from "../src/generative/fractals/LogisticMap.js";
+import { Chain } from "../src/generative/walks/Chain.js";
+import { RandomWalk } from "../src/generative/walks/RandomWalk.js";
+import { Phasor, PhasorSystem } from "../src/generative/walks/PhasorWalk.js";
+import { Tintinnabuli } from "../src/generative/minimalism/MinimalismProcess.js";
 import { unfold, phase } from "../src/generative/index.js";
-import { Darwin } from "../src/algorithms/generative/genetic/Darwin.js";
-import { drummer, presets } from "../src/algorithms/generative/drummer/index.js";
+import { Darwin } from "../src/generative/genetic/Darwin.js";
+import { drummer, presets } from "../src/generative/drummer/index.js";
 
 const SEQ = [
   { pitch: 60, duration: 1, time: 0 },

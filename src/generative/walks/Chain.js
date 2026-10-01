@@ -1,4 +1,4 @@
-import { random } from '../../random.js';
+import { random } from '../../shared/random.js';
 
 /**
  * A walk by steps drawn from a list: each step adds one of `steps` to the

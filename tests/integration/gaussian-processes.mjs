@@ -3,7 +3,7 @@
  * Tests GP with different kernels
  */
 
-import { GaussianProcessRegressor } from '../../src/algorithms/generative/gaussian-processes/GaussianProcessRegressor.js';
+import { GaussianProcessRegressor } from '../../src/generative/gaussian-processes/GaussianProcessRegressor.js';
 
 console.log('=== Testing Gaussian Process Regression ===\n');
 

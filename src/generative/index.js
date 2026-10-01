@@ -9,13 +9,13 @@
  * @license GPL-3.0-or-later
  */
 
-import { CellularAutomata } from "../algorithms/generative/cellular-automata/index.js";
-import { Darwin, operators, metrics, metric, phraseToNotes } from "../algorithms/generative/genetic/index.js";
-import { RandomWalk, Chain, Phasor, PhasorSystem } from "../algorithms/generative/walks/index.js";
-import { Mandelbrot, Julia, BurningShip, Fractal, LogisticMap } from "../algorithms/generative/fractals/index.js";
-import { MinimalismProcess, Tintinnabuli } from "../algorithms/generative/minimalism/MinimalismProcess.js";
-import { phaseShift } from "../algorithms/generative/minimalism/phaseShift.js";
-import { drummer as drum, presets as drummerPresets } from "../algorithms/generative/drummer/index.js";
+import { CellularAutomata } from "./cellular-automata/index.js";
+import { Darwin, operators, metrics, metric, phraseToNotes } from "./genetic/index.js";
+import { RandomWalk, Chain, Phasor, PhasorSystem } from "./walks/index.js";
+import { Mandelbrot, Julia, BurningShip, Fractal, LogisticMap } from "./fractals/index.js";
+import { MinimalismProcess, Tintinnabuli } from "./minimalism/MinimalismProcess.js";
+import { phaseShift } from "./minimalism/phaseShift.js";
+import { drummer as drum, presets as drummerPresets } from "./drummer/index.js";
 
 /**
  * A phrase unfolded the minimalist way: played again and again, gaining a

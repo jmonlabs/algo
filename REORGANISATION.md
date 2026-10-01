@@ -27,7 +27,7 @@ Nuit du 30 : les classes de `generative` à la règle d'appel (CellularAutomata,
 
 Après coup (soir du 30) : `notes.cut`, `notes.fit`, `performance.detach`, `rhythm.kit` (avec chiffres de nuance), `Progression.numerals`/`draw` à la place de `generate`.
 
-Tous les espaces sont en place ; `jm.utils`, `jm.processors` et `jm.theory` restent des façades des noms de 4.x, à retirer en 5.1.
+Tous les espaces sont en place. 5.1.0 : les façades `jm.utils`, `jm.processors` et `jm.theory` sont retirées, chaque fichier est sous son espace (`src/<espace>/`, `src/shared/` pour le commun), `src/algorithms/` n'existe plus. L'historique des noms est dans CHANGELOG.md.
 
 ## La cible
 

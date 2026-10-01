@@ -9,10 +9,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import jm from "../src/index.js";
-import { Key, key } from "../src/algorithms/theory/harmony/Key.js";
-import { Scale } from "../src/algorithms/theory/harmony/Scale.js";
-import { Voice } from "../src/algorithms/theory/harmony/Voice.js";
-import { Chain } from "../src/algorithms/generative/walks/Chain.js";
+import { Key, key } from "../src/harmony/Key.js";
+import { Scale } from "../src/harmony/Scale.js";
+import { Voice } from "../src/harmony/Voice.js";
+import { Chain } from "../src/generative/walks/Chain.js";
 
 /* --- the factory --------------------------------------------------------- */
 
@@ -154,7 +154,7 @@ test("Chain.line() leaves the instance reusable", () => {
 test("jm.key is wired up on the default export", async () => {
   const { default: jm } = await import("../src/index.js");
   assert.equal(typeof jm.key, "function");
-  assert.equal(typeof jm.theory.harmony.Key, "function");
+  assert.equal(typeof jm.harmony.Key, "function");
   assert.deepEqual(jm.key("C", "major").chord(60), [60, 64, 67]);
 });
 

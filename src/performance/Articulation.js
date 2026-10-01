@@ -3,7 +3,7 @@
  * Handles articulation application with immutable transformations
  */
 
-import { ARTICULATION_TYPES } from "../../constants/ArticulationTypes.js";
+import { ARTICULATION_TYPES } from "../constants/ArticulationTypes.js";
 
 export class Articulation {
   /**

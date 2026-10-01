@@ -9,11 +9,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Mandelbrot } from "../src/algorithms/generative/fractals/Mandelbrot.js";
-import { Julia } from "../src/algorithms/generative/fractals/Julia.js";
-import { BurningShip } from "../src/algorithms/generative/fractals/BurningShip.js";
-import { Fractal } from "../src/algorithms/generative/fractals/Fractal.js";
-import { CellularAutomata } from "../src/algorithms/generative/cellular-automata/CellularAutomata.js";
+import { Mandelbrot } from "../src/generative/fractals/Mandelbrot.js";
+import { Julia } from "../src/generative/fractals/Julia.js";
+import { BurningShip } from "../src/generative/fractals/BurningShip.js";
+import { Fractal } from "../src/generative/fractals/Fractal.js";
+import { CellularAutomata } from "../src/generative/cellular-automata/CellularAutomata.js";
 
 const GRID = { width: 7, height: 5, maxIterations: 20 };
 const JULIA_C = { c: { real: -0.4, imaginary: 0.6 } };
@@ -83,7 +83,7 @@ test("the removed visualization wrappers are gone from the public surface", asyn
   const { default: jm } = await import("../src/index.js");
 
   assert.equal(jm.visualization, undefined, "jm.visualization should be removed");
-  assert.equal(jm.theory.motifs, undefined, "jm.theory.motifs should be removed");
+  assert.equal(jm.theory, undefined, "the 4.x façade is gone");
 
   const ca = new CellularAutomata({ ruleNumber: 30, width: 9, ruleLength: 3 });
   for (const method of ["plotEvolution", "plotGeneration", "plotDensity"]) {

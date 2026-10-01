@@ -1,6 +1,6 @@
-import { MusicTheoryConstants } from '../../constants/MusicTheoryConstants.js';
-import { ORNAMENT_TYPES } from '../../constants/OrnamentTypes.js';
-import { Voice } from './Voice.js';
+import { MusicTheoryConstants } from '../constants/MusicTheoryConstants.js';
+import { ORNAMENT_TYPES } from '../constants/OrnamentTypes.js';
+import { Voice } from '../harmony/Voice.js';
 
 /**
  * A note derived from `source`: everything the note carried, with the

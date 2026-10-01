@@ -4,7 +4,7 @@ import {
   barsBeatsTicksToOffset,
   notesToTrack,
   DEFAULT_TIMING_CONFIG
-} from '../../utils/jmon-timing.js';
+} from '../../shared/timing.js';
 
 /**
  * @typedef {'additive'|'subtractive'} MinimalismOperation

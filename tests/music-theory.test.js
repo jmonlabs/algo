@@ -13,15 +13,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Scale } from "../src/algorithms/theory/harmony/Scale.js";
-import { Key } from "../src/algorithms/theory/harmony/Key.js";
-import { Progression } from "../src/algorithms/theory/harmony/Progression.js";
-import { Voice } from "../src/algorithms/theory/harmony/Voice.js";
-import { Ornament } from "../src/algorithms/theory/harmony/Ornament.js";
-import { Articulation } from "../src/algorithms/theory/harmony/Articulation.js";
-import { strum } from "../src/algorithms/theory/harmony/Strum.js";
-import { arpeggiate } from "../src/algorithms/theory/harmony/Arpeggiate.js";
-import { chordify, chordifyMany } from "../src/algorithms/theory/harmony/Chordify.js";
+import { Scale } from "../src/harmony/Scale.js";
+import { Key } from "../src/harmony/Key.js";
+import { Progression } from "../src/harmony/Progression.js";
+import { Voice } from "../src/harmony/Voice.js";
+import { Ornament } from "../src/performance/Ornament.js";
+import { Articulation } from "../src/performance/Articulation.js";
+import { strum } from "../src/performance/Strum.js";
+import { arpeggiate } from "../src/performance/Arpeggiate.js";
+import { chordify, chordifyMany } from "../src/harmony/Chordify.js";
 import { Rhythm } from "../src/rhythm/Rhythm.js";
 import { isorhythm } from "../src/rhythm/isorhythm.js";
 import { beatcycle } from "../src/rhythm/beatcycle.js";
@@ -85,7 +85,7 @@ test("Scale reports its note names and membership", () => {
 
 test("a custom scale registered on the shared table is usable", async () => {
   const { MusicTheoryConstants } = await import(
-    "../src/algorithms/constants/MusicTheoryConstants.js"
+    "../src/constants/MusicTheoryConstants.js"
   );
   MusicTheoryConstants.scaleIntervals["test hirajoshi"] = [0, 2, 3, 7, 8];
   try {

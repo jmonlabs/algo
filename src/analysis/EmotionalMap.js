@@ -1,5 +1,5 @@
-import { degree, solfege, stability, chordDistance, triadOf, scalePitchClasses } from '../theory/harmony/Solfege.js';
-import { timeToBeats } from '../../notes/index.js';
+import { degree, solfege, stability, chordDistance, triadOf, scalePitchClasses } from '../harmony/Solfege.js';
+import { timeToBeats } from '../notes/index.js';
 import { salience as weigh } from './salience.js';
 import { normalizeChords } from './chords.js';
 

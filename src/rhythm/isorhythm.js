@@ -1,5 +1,5 @@
 import { beatsToTime } from '../notes/index.js';
-import { gcd, lcm } from '../algorithms/utils.js';
+import { gcd, lcm } from '../shared/utils.js';
 
 /**
  * Merges durations and pitches until both ends coincide, then sets each note's

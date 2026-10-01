@@ -1,4 +1,4 @@
-import { random } from '../../random.js';
+import { random } from '../../shared/random.js';
 
 /**
  * A Brownian walk in one or more dimensions: at each step the velocity

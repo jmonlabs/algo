@@ -140,14 +140,12 @@ test("corrupt takes the piece first and its entropy named, and returns a new pie
 
 /* --- public surface ------------------------------------------------------ */
 
-test("jm.performance is the list of verbs, and jm.utils still answers to the old names", () => {
+test("jm.performance is the list of verbs, and nothing else", () => {
   assert.deepEqual(Object.keys(jm.performance).sort(), [
     "anticipate", "applySteps", "arpeggiate", "articulate", "bow", "corrupt", "detach", "embellish", "groove",
     "humanize", "ornament", "steps", "strum", "sustain", "swing",
   ]);
-  assert.equal(jm.utils.sustained, jm.performance.sustain);
-  assert.equal(jm.utils.expressivize, jm.performance.embellish);
-  assert.equal(jm.utils.applySwing, jm.performance.swing);
+  assert.equal(jm.utils, undefined, "the 4.x façade is gone");
 });
 
 /* --- detach -------------------------------------------------------------- */

@@ -94,11 +94,9 @@ test("voiceChorale says which chord cannot be written, and when the rules cannot
   assert.deepEqual(voiceChorale(chords, { ranges: [[58, 60]], allowParallels: true }), [[60], [58]]);
 });
 
-test("lead is reached from the voices namespace, and the old name still answers", () => {
+test("lead and counterpoint are reached from the voices namespace", () => {
   assert.equal(jm.voices.lead, voiceChorale);
   assert.equal(jm.voices.counterpoint, counterpoint);
-  assert.equal(jm.theory.harmony.voiceChorale, voiceChorale);
-  assert.equal(jm.theory.harmony.counterpoint, counterpoint);
 });
 
 /* --- counterpoint -------------------------------------------------------- */

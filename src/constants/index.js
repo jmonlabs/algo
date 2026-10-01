@@ -9,7 +9,10 @@
  * @license GPL-3.0-or-later
  */
 
-import { MusicTheoryConstants, ARTICULATION_TYPES, ORNAMENT_TYPES, ConstantsAPI } from "../algorithms/constants/index.js";
+import { ARTICULATION_TYPES } from "./ArticulationTypes.js";
+import { ORNAMENT_TYPES } from "./OrnamentTypes.js";
+import { MusicTheoryConstants } from "./MusicTheoryConstants.js";
+import { ConstantsAPI } from "./ConstantsAPI.js";
 
 export const theory = MusicTheoryConstants;
 export const articulations = ARTICULATION_TYPES;

@@ -1,7 +1,7 @@
-import { MusicTheoryConstants } from '../../constants/MusicTheoryConstants.js';
+import { MusicTheoryConstants } from '../constants/MusicTheoryConstants.js';
 import { Scale } from './Scale.js';
 import { chordify, chordifyMany } from './Chordify.js';
-import { findClosestPitchAtMeasureStart } from '../../utils.js';
+import { findClosestPitchAtMeasureStart } from '../shared/utils.js';
 
 /**
  * A class for voicing operations on musical tracks.
