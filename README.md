@@ -77,15 +77,15 @@ const track = [
 
 ### Notes — `jm.notes.*`
 What a composer does to a list of notes. Every function takes the list first and returns a new one.
-- Move and repeat: `shift(notes, beats)`, `place(notes, { time, octave, velocity })`, `truncate(notes, beats)`, `tile(notes, { times, cycle })`, `concatenate(lists)`, `combine(lists)`
+- Move and repeat: `shift(notes, beats)`, `place(notes, { time, octave, velocity })`, `truncate(notes, beats)`, `cut(notes, { from, to })` (a slice, moved to 0), `tile(notes, { times, cycle })`, `concatenate(lists)`, `combine(lists)`
 - Change the pitches: `transpose(notes, semitones)`, `transposeDiatonic(notes, { steps, scale })`, `diatonic(pitch, { steps, scale })`, `invert(notes, pivot)`, `canon(notes, { delay, steps, scale, octave })`
-- Change the time: `augment(notes, factor)`, `reverse(notes)`, `quantize(notes, { grid, mode })`, `split(notes, maxDuration)`, `deduplicate(notes, tolerance)`, `normalize(notes, { min, max })`
+- Change the time: `augment(notes, factor)`, `fit(notes, beats)` (stretched to a length), `reverse(notes)`, `quantize(notes, { grid, mode })`, `split(notes, maxDuration)`, `deduplicate(notes, tolerance)`, `normalize(notes, { min, max })`
 - Measure: `span(notes)`, `range(notes)`, `onsets(notes)`
 - Build: `track(notes, { label, synth })`, `piece(tracks, { tempo })`, `chordNotes(chords, { duration })` (a progression laid out as chord notes: playable, and what the analyses and `Darwin` read as `chords`), `beatsToTime`, `timeToBeats`
 
 ### Performance — `jm.performance.*`
 How the notes are played, written back into them. A verb for each.
-- A held note as strokes: `sustain(pitch, { duration, time, velocity, step })`; the shape of a bow stroke: `bow(notes, { attack, swell, peak, fade })`
+- A held note as strokes: `sustain(pitch, { duration, time, velocity, step })`; the shape of a bow stroke: `bow(notes, { attack, swell, peak, fade })`; the breath between two: `detach(notes, { gap })`
 - A hand: `humanize(notes, { seed, timing, velocity, lag })`; `embellish(notes, { seed, bendProb, vibratoProb })` for bends and vibratos on the long notes
 - A style: `ornament(notes, { type, at, key })`, `articulate(notes, { type, at })`, `strum(notes, { direction, speed })`, `arpeggiate(notes, { order, delay })`
 - A rhythm's feel: `swing(notes, { ratio })`; `groove(notes, { profile, reach })` slides stops to heavier places on a rhythm profile, `anticipate` moves chosen onsets earlier when the target is free, `applySteps` runs Bodzsar's four-step procedure (`steps` holds the presets)
@@ -94,7 +94,7 @@ How the notes are played, written back into them. A verb for each.
 ### Harmony — `jm.harmony.*`
 In a key. `jm.key(tonic, mode)` sets it once: `k.scale({ start, length })` is its pitches, `k.pitchClasses()` its pitch classes, `k.progression({ circleOf, radius })` a `Progression`, `k.chord(pitch)` and `k.solfege(pitch)` shortcuts for the functions below, and the key is handed to the rest as `{ key: k }` or as `k` itself.
 - Chords: `chord(pitch, { key, degrees })` stacks scale degrees on a pitch, `chords(pitches, { key })` does it for several, `harmonize(melody, { key, measureLength, output })` puts a chord under each measure of a melody (or under each note with `perNote`), as pitch arrays, as chord notes or as roots.
-- Progressions: `new Progression({ tonic, mode })` reads roman numerals, `generate(["i", "VI", "III", "VII"])`, or draws chords on a circle of intervals, `generate(4, { seed })` with `circleOf` and `radius`.
+- Progressions: `key.progression()` (a `Progression`) reads roman numerals, `numerals(["i", "VI", "III", "VII"])`, or draws chords on a circle of intervals, `draw(4, { seed })` with `circleOf` and `radius`.
 - Solfège, after Bodzsar: `solfege(pitch, key)` is the syllable relative to the relative major (a minor tonic is LA), `degree(pitch, key)` its number, `stability(pitch, { key, order })` its rank on the order DO SO MI LA RE TI FA; `chordDistance(pitch, chord)` and `isChordTone(pitch, chord)` look at a chord instead.
 
 ### Voices — `jm.voices.*`
@@ -105,7 +105,7 @@ What the voices do from one chord to the next. No key here: a chord is three pit
 
 ### Rhythm — `jm.rhythm.*`
 Where the notes fall. A rhythm is a grid, one place per step, hit or not: `grid(notes, { subdivision, beats })` reads one off notes, `fromGrid("x..x..x.", { pitches, subdivision })` lays one out as notes, `draw(notes)` prints either.
-- A kit as lines of text, one per drum: `kit({ kick: "x.......x.x.....", snare: "....X.......X...", hihat: "x.x.x.x.x.x.x.x." }, { subdivision, repeat, velocity })`, `X` an accent, a drum named or given as its pitch.
+- A kit as lines of text, one per drum: `kit({ kick: "x.......x.x.....", snare: "....X.......X...", hihat: "x.x.x.x.x.x.x.x." }, { subdivision, repeat, velocity })`, `X` an accent, a digit `1`–`9` a hit at that many tenths of the velocity, a drum named or given as its pitch.
 - Patterns: `euclid({ steps, pulses, rotation, pitches })` and `euclidPattern({ steps, pulses })`; `clave("son", { orientation, pitches })` and `clavePattern("son", { orientation })` for the son, rumba, bossa, tresillo and afro claves, in 2-3 or 3-2 (`CLAVES` holds them); `isorhythm({ pitches, durations })` and `beatcycle({ pitches, durations })` cycle pitches over durations; `new Rhythm({ measureLength, durations }).random({ seed })` and `.darwin({ seed })` return notes with `pitches` cycled across them. `metricStrengths` grades the places of any meter into downbeat, half-bar, beat, upbeat.
 - Profiles: `Profile` is a weight per position over a cycle, with `fit`, `rotate`, `bestRotation` and `fromPositions`. Bodzsar's Rhythm Code (16 eighth-note places), Tonality Code (12 pitch classes) and stability order (7 degrees) ship as `presets`; a profile folded out of your own tracks is the same object.
 
@@ -199,7 +199,7 @@ rotation })`, `clavePattern(name, orientation)` is `clavePattern(name, {
 orientation })`, and `clave({ name, ...options })` is `clave(name, options)`:
 the pattern's name is the subject. `jm.theory.rhythm` and `jm.theory.profile`
 answer to the old names and shapes for one release.
-New: `kit(lines, options)`, a drum pattern written as one line of text per drum.
+New: `kit(lines, options)`, a drum pattern written as one line of text per drum; `notes.cut` and `notes.fit`; `performance.detach`. `Progression.generate` was two functions under one name: `numerals(["i", "VI"])` reads roman numerals, `draw(4, { seed })` draws from the circle; an unknown numeral is an error now, not a silent I.
 
 **`jm.generative`.** The same sub-spaces, with `MinimalismProcess` become
 the verb `unfold(notes, { operation, direction, repetition })` and

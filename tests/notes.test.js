@@ -10,7 +10,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  invert, reverse, augment, onsets, normalize, range, span, split, deduplicate, quantize, tile, track, piece,
+  invert, reverse, augment, onsets, normalize, range, span, split, deduplicate, quantize, tile, track, piece, cut, fit,
 } from "../src/notes/index.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
@@ -209,8 +209,8 @@ test("quantize leaves non-timing fields alone, rejects a bad grid, and passes ma
 test("jm.notes is the list of verbs and nouns, and nothing else", async () => {
   const { default: jm } = await import("../src/index.js");
   assert.deepEqual(Object.keys(jm.notes).sort(), [
-    "augment", "beatsToTime", "canon", "chordNotes", "combine", "concatenate", "deduplicate", "diatonic",
-    "invert", "normalize", "onsets", "piece", "place", "quantize", "range", "reverse", "shift", "span", "split",
+    "augment", "beatsToTime", "canon", "chordNotes", "combine", "concatenate", "cut", "deduplicate", "diatonic",
+    "fit", "invert", "normalize", "onsets", "piece", "place", "quantize", "range", "reverse", "shift", "span", "split",
     "tile", "timeToBeats", "track", "transpose", "transposeDiatonic", "truncate",
   ]);
 });
@@ -345,4 +345,22 @@ test("tile keeps bars:beats:ticks times in their own notation", () => {
 test("tile returns nothing when there is nothing to repeat", () => {
   assert.deepEqual(tile([], { times: 4 }), []);
   assert.deepEqual(tile([{ pitch: 60, duration: 1, time: 0 }], { times: 0 }), []);
+});
+
+/* --- cut and fit --------------------------------------------------------- */
+
+test("cut takes a slice, clipped at both ends and moved to 0", () => {
+  const phrase = [n(60, 0, 4), n(62, 4, 2), n(64, 6, 4), n(65, 10, 2)];
+  const slice = cut(phrase, { from: 5, to: 8 });
+  assert.deepEqual(slice.map((x) => [x.pitch, x.time, x.duration]), [[62, 0, 1], [64, 1, 2]]);
+  assert.deepEqual(cut(phrase, { from: 10 }).map((x) => [x.pitch, x.time, x.duration]), [[65, 0, 2]], "to defaults to the end");
+  assert.throws(() => cut(phrase, { from: 8, to: 8 }), /must come after/);
+});
+
+test("fit stretches a phrase to a length, keeping its proportions", () => {
+  const phrase = [n(60, 0, 1), n(62, 1, 1), n(64, 2, 1)];
+  const four = fit(phrase, 4);
+  assert.deepEqual(four.map((x) => [x.time, x.duration]), [[0, 4 / 3], [4 / 3, 4 / 3], [8 / 3, 4 / 3]]);
+  assert.deepEqual(fit([], 4), []);
+  assert.throws(() => fit(phrase, 0), /positive/);
 });

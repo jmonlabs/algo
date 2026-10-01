@@ -8,7 +8,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import jm from "../src/index.js";
-import { articulate, bow, corrupt, embellish, ornament, sustain, swing } from "../src/performance/index.js";
+import { articulate, bow, corrupt, detach, embellish, ornament, sustain, swing } from "../src/performance/index.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
 
@@ -142,10 +142,21 @@ test("corrupt takes the piece first and its entropy named, and returns a new pie
 
 test("jm.performance is the list of verbs, and jm.utils still answers to the old names", () => {
   assert.deepEqual(Object.keys(jm.performance).sort(), [
-    "anticipate", "applySteps", "arpeggiate", "articulate", "bow", "corrupt", "embellish", "groove",
+    "anticipate", "applySteps", "arpeggiate", "articulate", "bow", "corrupt", "detach", "embellish", "groove",
     "humanize", "ornament", "steps", "strum", "sustain", "swing",
   ]);
   assert.equal(jm.utils.sustained, jm.performance.sustain);
   assert.equal(jm.utils.expressivize, jm.performance.embellish);
   assert.equal(jm.utils.applySwing, jm.performance.swing);
+});
+
+/* --- detach -------------------------------------------------------------- */
+
+test("detach shortens each note by the gap, and never to nothing", () => {
+  const notes = [{ pitch: 69, duration: 2, time: 0, velocity: 0.8 }, { pitch: 69, duration: 0.05, time: 2, velocity: 0.8 }];
+  const out = detach(notes, { gap: 0.25 });
+  assert.equal(out[0].duration, 1.75);
+  assert.equal(out[1].duration, 0.005, "a note shorter than the gap keeps a tenth of itself");
+  assert.equal(detach(notes)[0].duration, 2 - 1 / 16, "the default gap is a sixteenth");
+  assert.throws(() => detach(notes, { gap: -1 }), /gap/);
 });

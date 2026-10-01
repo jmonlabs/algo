@@ -14,7 +14,7 @@ import { solfege, stability, degree } from './Solfege.js';
  * const k = jm.key('C', 'major');
  *
  * const scale = k.scale({ start: 60, length: 8 });   // MIDI pitches, C4 to C5
- * const prog  = k.progression().generate(['I', 'IV', 'V', 'I']);
+ * const prog  = k.progression().numerals(['I', 'IV', 'V', 'I']);
  * const chord = k.chord(60);          // [60, 64, 67], jm.harmony.chord(60, k) as well
  * const chords = k.chords([60, 62, 64]);
  * k.solfege(64);                      // 'MI'

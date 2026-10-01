@@ -8,13 +8,11 @@ import { cdeToMidi } from '../../utils.js';
  * 
  * @example
  * ```js
- * // Generate a chord progression from roman numerals
- * const prog = new Progression({ tonic: 'C', mode: 'major' })
- * prog.generate(['I', 'IV', 'V', 'I'])
- * 
- * // Generate a random progression
- * const prog2 = new Progression({ tonic: 'A', mode: 'minor' })
- * prog2.generate(4)
+ * // The chords roman numerals name
+ * new Progression({ tonic: 'C', mode: 'major' }).numerals(['I', 'IV', 'V', 'I'])
+ *
+ * // Four chords drawn from the circle of fifths around the tonic
+ * new Progression({ tonic: 'A', mode: 'minor' }).draw(4, { seed: 1 })
  * ```
  */
 export class Progression extends MusicTheoryConstants {
@@ -30,7 +28,7 @@ export class Progression extends MusicTheoryConstants {
     /**
      * A key, and the circle its progressions are drawn from.
      *
-     * The constructor configures; the method executes: `generate` takes only
+     * The constructor configures; the method executes: `draw` takes only
      * what varies per run, how many chords and which seed.
      *
      * @param {Object} [options]
@@ -42,11 +40,11 @@ export class Progression extends MusicTheoryConstants {
      * @param {Array<number>} [options.radius=[3,3,1]] - How many circle roots
      *   each quality may use: `[major, minor, diminished]`.
      * @param {Array<number>|Object} [options.weights] - How likely each quality
-     *   is to be drawn by `generate`. Defaults to `radius`.
+     *   is to be drawn by `draw`. Defaults to `radius`.
      *
      * @example
      * // The circle, drawing ordinary tonal progressions
-     * new Progression({ tonic: 'D', mode: 'minor' }).generate(4, { seed: 1 });
+     * new Progression({ tonic: 'D', mode: 'minor' }).draw(4, { seed: 1 });
      */
     constructor(options = {}) {
         super();
@@ -132,7 +130,8 @@ export class Progression extends MusicTheoryConstants {
         const chordIntervals = {
             'major': [0, 4, 7],
             'minor': [0, 3, 7],
-            'diminished': [0, 3, 6]
+            'diminished': [0, 3, 6],
+            'augmented': [0, 4, 8],
         };
 
         const intervals = chordIntervals[chordType] || [0, 4, 7];
@@ -143,20 +142,16 @@ export class Progression extends MusicTheoryConstants {
     }
 
     /**
-     * A progression: chords drawn at random from the circle (see `circleOf`
-     * and `radius`), or the chords the roman numerals name.
-     * @param {number|Array} lengthOrNumerals - Either number of chords or array of roman numerals
+     * Chords drawn at random from the circle (see `circleOf` and `radius`).
+     * @param {number} [length=4] - How many chords
      * @param {Object} [options]
      * @param {number|null} [options.seed=null] - Seed of the draw; the same seed gives the same progression
-     * @returns {Array} Array of chord arrays representing the progression
+     * @returns {Array<Array<number>>} One chord per draw, as MIDI pitches
      */
-    generate(lengthOrNumerals = 4, { seed = null } = {}) {
-        // Check if first argument is an array of roman numerals
-        if (Array.isArray(lengthOrNumerals)) {
-            return this.generateFromRomanNumerals(lengthOrNumerals);
+    draw(length = 4, { seed = null } = {}) {
+        if (!Number.isInteger(length) || length < 0) {
+            throw new Error(`Progression.draw: length is how many chords, got ${length}`);
         }
-
-        const length = lengthOrNumerals;
 
         // A seeded RNG when `seed` is given (deterministic), else Math.random.
         const rng = seed !== null ? Progression._mulberry32(seed) : Math.random;
@@ -195,11 +190,13 @@ export class Progression extends MusicTheoryConstants {
     }
 
     /**
-     * Generate chords from roman numerals (e.g., ['I', 'IV', 'V', 'I'])
-     * @param {Array} numerals - Array of roman numerals
-     * @returns {Array} Array of chord arrays
+     * The chords roman numerals name, in this key: upper case for major
+     * (`'I'`, `'VI'`), lower case for minor (`'i'`, `'iv'`), `'°'` for
+     * diminished (`'vii°'`).
+     * @param {Array<string>} numerals - e.g. `['i', 'VI', 'III', 'VII']`
+     * @returns {Array<Array<number>>} One chord per numeral, as MIDI pitches
      */
-    generateFromRomanNumerals(numerals) {
+    numerals(numerals) {
         const progression = [];
 
         // Define scale degrees (in semitones from tonic)
@@ -224,11 +221,6 @@ export class Progression extends MusicTheoryConstants {
 
         for (const numeral of numerals) {
             const { degree, quality } = this.parseRomanNumeral(numeral);
-
-            if (degree < 1 || degree > 7) {
-                console.warn(`Invalid degree ${degree} in ${numeral}`);
-                continue;
-            }
 
             // Get root note (scale degree, 1-indexed to 0-indexed)
             const rootOffset = scaleDegrees[degree - 1];
@@ -269,7 +261,10 @@ export class Progression extends MusicTheoryConstants {
             'V': 5, 'VI': 6, 'VII': 7
         };
 
-        const degree = romanToNumber[cleanNumeral] || 1;
+        const degree = romanToNumber[cleanNumeral];
+        if (!degree) {
+            throw new Error(`Progression.numerals: "${numeral}" is not a roman numeral I to VII`);
+        }
 
         // Determine quality from indicators
         let quality = null;

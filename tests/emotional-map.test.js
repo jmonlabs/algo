@@ -175,7 +175,7 @@ test("melody analysis is reachable from jm", () => {
 /* --- chord timelines: JMON chord notes are accepted everywhere ----------- */
 
 test("chordNotes lays a progression out as JMON chord notes", () => {
-  const prog = jm.key("D", "minor").progression().generate(["i", "VI", "III", "VII"]);
+  const prog = jm.key("D", "minor").progression().numerals(["i", "VI", "III", "VII"]);
   const track = jm.utils.chordNotes(prog, { duration: 4, start: 8 });
   assert.equal(track.length, 4);
   assert.deepEqual(track[0].pitch, prog[0]);

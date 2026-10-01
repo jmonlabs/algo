@@ -101,7 +101,7 @@ test("a custom scale registered on the shared table is usable", async () => {
 
 test("Progression builds triads from roman numerals", () => {
   const progression = new Progression({ tonic: "C", mode: "major" });
-  assert.deepEqual(progression.generate(["I", "IV", "V", "I"]), [
+  assert.deepEqual(progression.numerals(["I", "IV", "V", "I"]), [
     [60, 64, 67],
     [65, 69, 72],
     [67, 71, 74],
@@ -112,13 +112,13 @@ test("Progression builds triads from roman numerals", () => {
 test("generate draws from the circle within the radius, the same way for the same seed", () => {
   // radius [2, 0, 0]: two major roots on the circle of fifths from C — C and G — and nothing else.
   const tight = new Progression({ tonic: "C", mode: "major", radius: [2, 0, 0], weights: [1, 0, 0] });
-  const chords = tight.generate(8, { seed: 3 });
+  const chords = tight.draw(8, { seed: 3 });
   assert.equal(chords.length, 8);
   for (const chord of chords) assert.ok([60, 67].includes(chord[0]), `root ${chord[0]} is not C or G`);
-  assert.deepEqual(chords, tight.generate(8, { seed: 3 }), "a seed is reproducible");
+  assert.deepEqual(chords, tight.draw(8, { seed: 3 }), "a seed is reproducible");
   // The circle of thirds instead: C, E, G#.
   const thirds = new Progression({ tonic: "C", mode: "major", circleOf: "M3", radius: [3, 0, 0], weights: [1, 0, 0] });
-  const roots = new Set(thirds.generate(30, { seed: 1 }).map((c) => c[0]));
+  const roots = new Set(thirds.draw(30, { seed: 1 }).map((c) => c[0]));
   assert.deepEqual([...roots].sort((a, b) => a - b), [60, 64, 68]);
 });
 
@@ -150,7 +150,7 @@ test("Progression defaults to C4 and accepts an octave-qualified tonic", () => {
   // a semitone flat. Every default-constructed Progression was wrong.
   assert.equal(new Progression().tonicMidi, 60);
   assert.equal(new Progression().tonicNote, "C");
-  assert.deepEqual(new Progression().generate(["I", "IV", "V", "I"]), [
+  assert.deepEqual(new Progression().numerals(["I", "IV", "V", "I"]), [
     [60, 64, 67], [65, 69, 72], [67, 71, 74], [60, 64, 67],
   ]);
 });
@@ -494,4 +494,11 @@ test("euclid handles the degenerate densities", () => {
   assert.throws(() => euclid({ steps: 4, pulses: 5 }), /cannot exceed/);
   assert.throws(() => euclid({ steps: 0, pulses: 0 }), /positive integer/);
   assert.throws(() => euclid({ steps: 8, pulses: 3, subdivision: 0 }), /subdivision/);
+});
+
+test("numerals refuses what is not a roman numeral, instead of playing I", () => {
+  const pg = new Progression({ tonic: "D", mode: "minor" });
+  assert.throws(() => pg.numerals(["i", "VIII"]), /not a roman numeral/);
+  assert.deepEqual(pg.numerals(["III+"]), [[65, 69, 73]], "+ is augmented");
+  assert.throws(() => pg.draw(-1), /how many chords/);
 });

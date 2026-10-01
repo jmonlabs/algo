@@ -309,3 +309,8 @@ test("kit repeats, starts where it is told, and refuses an unknown drum", () => 
   assert.throws(() => kit({ cowbell: "x..." }), /unknown drum "cowbell"/);
   assert.equal(kit({ bell: "x..." }, { map: { bell: 56 } })[0].pitch, 56, "your own names");
 });
+
+test("kit reads a digit as a hit at that many tenths of the velocity", () => {
+  const notes = kit({ hihat: "6.3X" }, { velocity: 0.5 });
+  assert.deepEqual(notes.map((n) => n.velocity), [0.3, 0.15, 1]);
+});

@@ -49,7 +49,7 @@ const jm = {
   //
   //   const k = jm.key("D", "minor");
   //   k.scale({ start: 50, length: 8 });
-  //   k.progression().generate(4, { seed: 1 });
+  //   k.progression().draw(4, { seed: 1 });
   //   jm.harmony.chord(62, k);
   key: harmony.key,
 

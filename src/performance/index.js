@@ -82,6 +82,24 @@ export function sustain(pitch, { duration, time = 0, velocity = 0.4, step = 4 } 
 }
 
 /**
+ * A breath between the notes: each note shortened by `gap` beats, so that it
+ * ends before the next one begins. A note shorter than `gap` keeps a tenth
+ * of itself. For strings, the silence that separates two bow strokes.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {Object} [options]
+ * @param {number} [options.gap=0.0625] - Beats taken off the end of each note
+ * @returns {Array} New notes
+ *
+ * @example
+ * detach(sustain(69, { duration: 12, step: 6 }), { gap: 1 / 16 });
+ */
+export function detach(notes, { gap = 1 / 16 } = {}) {
+  if (!(gap >= 0)) throw new Error(`detach: gap must be a number of beats, got ${gap}`);
+  return notes.map((n) => ({ ...n, duration: Math.max(n.duration - gap, n.duration / 10) }));
+}
+
+/**
  * Shape each note like a bow stroke: its loudness enters softly, swells to a
  * peak, and eases off before the note ends.
  *

@@ -175,7 +175,7 @@ function normalizeNotes(notes) {
  * `createScale` with names that say what it is for.
  *
  * @example
- * const prog = jm.key("D", "minor").progression().generate(["i", "VI", "III", "VII"]);
+ * const prog = jm.key("D", "minor").progression().numerals(["i", "VI", "III", "VII"]);
  * const chords = jm.utils.chordNotes(prog, { duration: 4 });
  * // [{ pitch: [50, 53, 57], duration: 4, time: 0 }, { pitch: [...], duration: 4, time: 4 }, ...]
  *
@@ -372,6 +372,48 @@ export function truncate(notes, maxTime) {
       ...n,
       duration: Math.min(n.duration, maxTime - n.time),
     }));
+}
+
+/**
+ * A slice of a phrase: the notes sounding between `from` and `to`, moved so
+ * that `from` is the new time 0, and clipped at both ends.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {Object} options
+ * @param {number} [options.from=0] - Where the slice starts, in beats
+ * @param {number} [options.to] - Where it ends; the end of the phrase by default
+ * @returns {Array} New notes, starting at 0
+ *
+ * @example
+ * cut(phrase, { from: 8, to: 16 });   // bars 3 and 4, as a phrase of their own
+ */
+export function cut(notes, { from = 0, to } = {}) {
+  const end = to ?? span(notes);
+  if (!(end > from)) throw new Error(`cut: \`to\` (${end}) must come after \`from\` (${from})`);
+  return notes
+    .filter((n) => n.time < end && n.time + n.duration > from)
+    .map((n) => {
+      const start = Math.max(n.time, from);
+      return { ...n, time: start - from, duration: Math.min(n.time + n.duration, end) - start };
+    });
+}
+
+/**
+ * A phrase stretched or squeezed to last exactly `beats`: times and
+ * durations scaled by the same factor, so the rhythm keeps its proportions.
+ *
+ * @param {Array} notes - JMON notes
+ * @param {number} beats - The length wanted, from time 0 to the end of the last note
+ * @returns {Array} New notes
+ *
+ * @example
+ * fit(phrase, 16);   // a 12-beat phrase, now over four bars
+ */
+export function fit(notes, beats) {
+  if (!(beats > 0)) throw new Error(`fit: beats must be a positive number, got ${beats}`);
+  const length = span(notes);
+  if (length === 0) return notes.map((n) => ({ ...n }));
+  return augment(notes, beats / length);
 }
 
 /**
