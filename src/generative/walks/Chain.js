@@ -2,39 +2,29 @@ import { random } from '../../shared/random.js';
 
 /**
  * A walk by steps drawn from a list: each step adds one of `steps` to the
- * position, kept within `range`. Given a `scale`, the position is a degree
- * of it and `walk` returns notes. The walk may branch (a second walker sets
+ * position, kept within `range`. The walk may branch (a second walker sets
  * off from the same place) and branches may merge back when they meet.
  *
  * @example
- * // Sixteen eighth notes walking on a scale, from its seventh degree, by one or two degrees at a time
- * const chain = new Chain({ scale: SCALE, start: 7, steps: [-2, -1, 1, 2] });
- * chain.walk({ length: 16, seed: 42, duration: 0.5 });
- *
- * // The degrees alone
- * chain.line({ length: 16, seed: 42 });
+ * // One line of 16 values between 0 and 7, stepping by -1, 0 or 1
+ * new Chain({ range: [0, 7], start: 3 }).line({ length: 16, seed: 42 });
  *
  * // Branching walks, as notes: a chord wherever two walkers sound at once
- * new Chain({ scale: SCALE, start: 7, branching: 0.1, merging: 0.2 }).walk({ length: 16, seed: 1 });
+ * const chain = new Chain({ range: [60, 72], start: 64, branching: 0.1, merging: 0.2 });
+ * chain.notes(chain.generate({ length: 16, seed: 1 }), { durations: [0.5] });
  */
 export class Chain {
   /**
    * @param {Object} [options]
-   * @param {Array<number>} [options.scale] - Pitches; the position is then an index into them, kept within them
    * @param {Array<number>} [options.range] - `[low, high]` the position stays within; unbounded if absent
-   * @param {number} [options.start] - The first position; the middle of `range` or of `scale`, or 0
+   * @param {number} [options.start] - The first position; the middle of `range`, or 0
    * @param {Array<number>|{mean: number, std: number}} [options.steps=[-1, 0, 1]] - The steps drawn from, or a normal distribution of them
    * @param {number} [options.roundTo] - Decimals a normal step is rounded to
    * @param {number} [options.branching=0] - Probability, per step, that a walker branches
    * @param {number} [options.merging=0] - Probability that two walkers at the same place merge
    */
-  constructor({ scale = null, range = null, start, steps = [-1, 0, 1], roundTo = null, branching = 0, merging = 0 } = {}) {
-    if (scale !== null && (!Array.isArray(scale) || scale.length === 0)) {
-      throw new Error('Chain: scale must be a non-empty list of pitches');
-    }
-    this.scale = scale;
-    this.range = scale ? [0, scale.length - 1] : range;
-    range = this.range;
+  constructor({ range = null, start, steps = [-1, 0, 1], roundTo = null, branching = 0, merging = 0 } = {}) {
+    this.range = range;
     this.start = start ?? (range ? Math.floor((range[1] - range[0]) / 2) + range[0] : 0);
     this.steps = steps;
     this.roundTo = roundTo;
@@ -93,24 +83,6 @@ export class Chain {
   }
 
   /**
-   * The walk as notes, one per step: the position read in `scale` (or
-   * taken as a MIDI pitch when there is no scale), `duration` beats each,
-   * one after the other. With branching, a chord wherever two walkers
-   * sound at once.
-   * @param {Object} options
-   * @param {number} options.length - How many notes
-   * @param {number} [options.seed] - The same seed gives the same walk
-   * @param {number} [options.duration=1] - Beats per note
-   * @param {number} [options.velocity=0.8]
-   * @returns {Array} JMON notes
-   */
-  walk({ length, seed, duration = 1, velocity = 0.8 } = {}) {
-    const walks = this.generate({ length, seed });
-    const pitched = walks.map((w) => w.map((p) => (p === null ? null : this._pitch(p))));
-    return this.notes(pitched, { durations: [duration] }).map((n) => ({ ...n, velocity }));
-  }
-
-  /**
    * Walks as notes, one step after the other: a note where one walker is
    * alive, a chord where several are.
    * @param {Array<Array<number|null>>} walks - From `generate`
@@ -132,13 +104,6 @@ export class Chain {
       i++;
     }
     return notes;
-  }
-
-  /** @private A position as a pitch: a degree of the scale, or the number itself. */
-  _pitch(position) {
-    if (this.scale === null) return position;
-    const i = Math.max(0, Math.min(this.scale.length - 1, Math.round(position)));
-    return this.scale[i];
   }
 
   /** @private */

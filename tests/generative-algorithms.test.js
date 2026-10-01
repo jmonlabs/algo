@@ -439,19 +439,3 @@ test("project maps a series onto a list by rank, keeping nulls", async () => {
   [0.3, 0.6, 0.9].forEach((v, i) => assert.ok(Math.abs(scaled[i] - v) < 1e-12));
   assert.deepEqual(rescale([], { min: 0, max: 1 }), []);
 });
-
-test("a Chain on a scale walks by degrees and returns notes", () => {
-  const SCALE = [50, 52, 53, 55, 57, 58, 60, 62, 64, 65, 67, 69, 70, 72, 74];
-  const chain = new Chain({ scale: SCALE, start: 7, steps: [-2, -1, 1, 2] });
-  const degrees = chain.line({ length: 16, seed: 42 });
-  const notes = chain.walk({ length: 16, seed: 42, duration: 0.5 });
-  assert.equal(notes.length, 16);
-  assert.deepEqual(notes.map((n) => n.pitch), degrees.map((d) => SCALE[d]), "walk reads line's degrees in the scale");
-  assert.equal(notes[0].pitch, SCALE[7], "start is a degree");
-  assert.deepEqual(notes.map((n) => n.time), notes.map((_, i) => i * 0.5));
-  assert.ok(notes.every((n) => n.duration === 0.5 && n.velocity === 0.8));
-  assert.ok(degrees.every((d) => d >= 0 && d < SCALE.length), "the walk stays inside the scale");
-  assert.throws(() => new Chain({ scale: [] }), /scale/);
-  const bare = new Chain({ range: [60, 72], start: 64 }).walk({ length: 4, seed: 1 });
-  assert.ok(bare.every((n) => n.pitch >= 60 && n.pitch <= 72), "without a scale, the position is the pitch");
-});
