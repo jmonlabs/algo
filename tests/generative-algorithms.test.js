@@ -452,6 +452,5 @@ test("a Chain on a scale walks by degrees and returns notes", () => {
   assert.ok(notes.every((n) => n.duration === 0.5 && n.velocity === 0.8));
   assert.ok(degrees.every((d) => d >= 0 && d < SCALE.length), "the walk stays inside the scale");
   assert.throws(() => new Chain({ scale: [] }), /scale/);
-  const bare = new Chain({ range: [60, 72], start: 64 }).walk({ length: 4, seed: 1 });
-  assert.ok(bare.every((n) => n.pitch >= 60 && n.pitch <= 72), "without a scale, the position is the pitch");
+  assert.throws(() => new Chain({ range: [60, 72], start: 64 }).walk({ length: 4, seed: 1 }), /give the Chain a scale/);
 });

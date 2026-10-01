@@ -93,10 +93,10 @@ export class Chain {
   }
 
   /**
-   * The walk as notes, one per step: the position read in `scale` (or
-   * taken as a MIDI pitch when there is no scale), `duration` beats each,
-   * one after the other. With branching, a chord wherever two walkers
-   * sound at once.
+   * The walk as notes, one per step: the position read in `scale`,
+   * `duration` beats each, one after the other. With branching, a chord
+   * wherever two walkers sound at once. Needs a `scale`; `line` gives the
+   * bare positions.
    * @param {Object} options
    * @param {number} options.length - How many notes
    * @param {number} [options.seed] - The same seed gives the same walk
@@ -105,6 +105,9 @@ export class Chain {
    * @returns {Array} JMON notes
    */
   walk({ length, seed, duration = 1, velocity = 0.8 } = {}) {
+    if (this.scale === null) {
+      throw new Error('Chain.walk: give the Chain a scale (new Chain({ scale, start, steps })); line() gives the bare positions');
+    }
     const walks = this.generate({ length, seed });
     const pitched = walks.map((w) => w.map((p) => (p === null ? null : this._pitch(p))));
     return this.notes(pitched, { durations: [duration] }).map((n) => ({ ...n, velocity }));
@@ -134,9 +137,8 @@ export class Chain {
     return notes;
   }
 
-  /** @private A position as a pitch: a degree of the scale, or the number itself. */
+  /** @private A position as a pitch: a degree of the scale. */
   _pitch(position) {
-    if (this.scale === null) return position;
     const i = Math.max(0, Math.min(this.scale.length - 1, Math.round(position)));
     return this.scale[i];
   }
