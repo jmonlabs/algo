@@ -23,6 +23,8 @@ Colonnes : la sorte d'entrée (183 fonctions, 27 classes, 91 données), qui l'ap
 - `jm.analysis` : fait. Une couche plate ; `MusicalAnalysis` reste la classe interne derrière (Darwin la lit), `MusicalIndex` retiré (`git show 0a8aed4:src/algorithms/analysis/MusicalIndex.js`), `onsetGrid` est `positions`, `analyzeRhythm` est `rhythmCode` ; `quadrantOf` et `chordChangeBehaviours` restent internes (dans le rapport d'`emotionalMap`). Aucune pièce n'appelait `jm.analysis` : pas de façade.
 - `jm.constants` : fait, tel quel, comme module `src/constants/index.js`.
 
+Nuit du 30 : les classes de `generative` à la règle d'appel (CellularAutomata, fractales, Chain, RandomWalk, Phasor, Darwin), `generative.project`/`rescale` ; les `console.warn` sont des erreurs ; `tests/integration` réduit à `gaussian-processes.mjs`.
+
 Après coup (soir du 30) : `notes.cut`, `notes.fit`, `performance.detach`, `rhythm.kit` (avec chiffres de nuance), `Progression.numerals`/`draw` à la place de `generate`.
 
 Tous les espaces sont en place ; `jm.utils`, `jm.processors` et `jm.theory` restent des façades des noms de 4.x, à retirer en 5.1.

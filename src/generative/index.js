@@ -51,6 +51,50 @@ export function phase(notes, options) {
   return phaseShift(notes, options);
 }
 
+/**
+ * A series projected onto a list: each value, by where it sits between the
+ * lowest and the highest of the series, picks the target at that place.
+ * What a walk, a fractal path or a logistic map need to become pitches,
+ * durations or anything chosen from a list. `null` stays `null`.
+ *
+ * @param {Array<number|null>} values
+ * @param {Array} targets - What to choose from, in order, e.g. the pitches of a scale
+ * @returns {Array}
+ *
+ * @example
+ * project(new LogisticMap({ iterations: 16 }).generate(), jm.key("D", "minor").scale({ length: 15 }));
+ * project(walk, [0.25, 0.5, 1, 2]);   // durations
+ */
+export function project(values, targets) {
+  if (!Array.isArray(targets) || targets.length === 0) throw new Error("project: targets must be a non-empty list");
+  const numbers = values.filter((v) => v !== null && v !== undefined);
+  if (numbers.length === 0) return values.map(() => null);
+  const low = Math.min(...numbers);
+  const range = Math.max(...numbers) - low || 1;
+  return values.map((v) => {
+    if (v === null || v === undefined) return null;
+    const i = Math.floor(((v - low) / range) * targets.length);
+    return targets[Math.max(0, Math.min(i, targets.length - 1))];
+  });
+}
+
+/**
+ * A series rescaled to an interval: its lowest value becomes `min`, its
+ * highest `max`, the rest in proportion. For velocities, mostly.
+ *
+ * @param {Array<number>} values
+ * @param {Object} [options]
+ * @param {number} [options.min=0]
+ * @param {number} [options.max=1]
+ * @returns {Array<number>}
+ */
+export function rescale(values, { min = 0, max = 1 } = {}) {
+  if (values.length === 0) return [];
+  const low = Math.min(...values);
+  const range = Math.max(...values) - low || 1;
+  return values.map((v) => min + ((v - low) / range) * (max - min));
+}
+
 export const minimalism = { Tintinnabuli, unfold, phase };
 export const automata = { CellularAutomata };
 export const walks = { RandomWalk, Chain, Phasor, PhasorSystem };

@@ -92,8 +92,8 @@ const FIXTURE_HTML = `<!doctype html>
     checks["jm.notes.shift is function"] = typeof jm.notes?.shift === "function";
     checks["jm.performance.bow is function"] = typeof jm.performance?.bow === "function";
     const chain = new jm.generative.walks.Chain({
-      walkRange: [0, 7], walkStart: 3,
-      walkProbability: [-1, 0, 1], roundTo: 0,
+      range: [0, 7], start: 3,
+      steps: [-1, 0, 1], roundTo: 0,
     });
     const walk = chain.line({ length: 8, seed: 42 });
     checks["Chain.line returns 8-length array"] =

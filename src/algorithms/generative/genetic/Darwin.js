@@ -10,7 +10,7 @@
  * 
  * Phrases come in and go out as JMON notes. Inside, a phrase is a genome of
  * `[pitch, duration, time]` triples laid end to end, rests as `null` pitches;
- * `toGenome` and `fromGenome` convert, and `getBestGenome()` exposes the raw
+ * `toGenome` and `fromGenome` convert, and `bestGenome()` exposes the raw
  * form for the operators.
  */
 
@@ -586,67 +586,49 @@ export class Darwin {
   }
 
   /**
-   * Evolve the population for one generation
-   * @param {number} [k=25] - Number of parents to select
-   * @returns {Object} Evolution statistics
+   * One generation: the `survivors` fittest phrases breed the next
+   * population, each child crossed, mutated and put through the operators.
+   * @private
    */
-  evolve(k = 25) {
-    // Selection
-    const selectedParents = this.select(k);
-    
-    // Store best individual and fitness
+  _generation(survivors) {
+    const selectedParents = this.select(survivors);
     const bestFitness = this.fitness(selectedParents[0]);
     this.bestIndividuals.push([...selectedParents[0]]);
     this.bestScores.push(bestFitness);
-    
-    // Create new generation through crossover and mutation
+
     const newPopulation = [];
-    
     while (newPopulation.length < this.populationSize) {
-      // Select two random parents
       const parent1 = selectedParents[Math.floor(this.randomState.random() * selectedParents.length)];
       const parent2 = selectedParents[Math.floor(this.randomState.random() * selectedParents.length)];
-      
-      // Create child through crossover
       const child = this.crossover([...parent1], [...parent2]);
-      
-      // Mutate child, then apply position-aware operators
-      const mutatedChild = this.applyOperators(this.mutate(child));
-      
-      newPopulation.push(mutatedChild);
+      newPopulation.push(this.applyOperators(this.mutate(child)));
     }
-    
     this.population = newPopulation;
     this.generationCount++;
-    
+
     return {
       generation: this.generationCount,
-      bestFitness: bestFitness,
+      bestFitness,
       averageFitness: selectedParents.reduce((sum, phrase) => sum + this.fitness(phrase), 0) / selectedParents.length,
-      populationSize: this.populationSize
+      populationSize: this.populationSize,
     };
   }
 
   /**
-   * Evolve for multiple generations
-   * @param {Object} options - Configuration object
-   * @param {number} options.generations - Number of generations to evolve
-   * @param {number} [options.k=25] - Number of parents per generation
-   * @param {Function} [options.callback=null] - Optional callback for progress updates
-   * @returns {Array} Array of evolution statistics
+   * Evolve the population.
+   * @param {Object} [options]
+   * @param {number} [options.generations=1] - How many generations
+   * @param {number} [options.survivors=25] - How many phrases breed each generation
+   * @param {Function} [options.callback] - Called after each generation with its statistics
+   * @returns {Array<Object>} One `{ generation, bestFitness, averageFitness, populationSize }` per generation
    */
-  evolveGenerations({ generations, k = 25, callback = null }) {
+  evolve({ generations = 1, survivors = 25, callback = null } = {}) {
     const stats = [];
-
     for (let i = 0; i < generations; i++) {
-      const generationStats = this.evolve(k);
+      const generationStats = this._generation(survivors);
       stats.push(generationStats);
-
-      if (callback) {
-        callback(generationStats, i, generations);
-      }
+      if (callback) callback(generationStats, i, generations);
     }
-
     return stats;
   }
 
@@ -654,8 +636,8 @@ export class Darwin {
    * The best phrase so far, as JMON notes.
    * @returns {Array<Object>|null}
    */
-  getBestIndividual() {
-    const genome = this.getBestGenome();
+  best() {
+    const genome = this.bestGenome();
     return genome ? Darwin.fromGenome(genome) : null;
   }
 
@@ -664,50 +646,39 @@ export class Darwin {
    * triples, rests included — what the operators and the metrics work on.
    * @returns {Array<Array>|null}
    */
-  getBestGenome() {
+  bestGenome() {
     return this.bestIndividuals.length > 0
       ? this.bestIndividuals[this.bestIndividuals.length - 1].map((t) => [...t])
       : null;
   }
 
   /**
-   * Get evolution history
-   * @returns {Object} Evolution history with individuals and scores
+   * The best phrase of every generation, with its score.
+   * @returns {{individuals: Array<Array>, scores: Array<number>, generations: number}}
    */
-  getEvolutionHistory() {
+  history() {
     return {
-      individuals: this.bestIndividuals.map(ind => [...ind]),
+      individuals: this.bestIndividuals.map((ind) => [...ind]),
       scores: [...this.bestScores],
-      generations: this.generationCount
+      generations: this.generationCount,
     };
   }
 
   /**
-   * Reset the evolution state
+   * The population's fitness, summed up.
+   * @returns {{populationSize: number, meanFitness: number, standardDeviation: number, minFitness: number, maxFitness: number, generation: number}}
    */
-  reset() {
-    this.population = this.initializePopulation();
-    this.bestIndividuals = [];
-    this.bestScores = [];
-    this.generationCount = 0;
-  }
-
-  /**
-   * Get population statistics
-   * @returns {Object} Population statistics
-   */
-  getPopulationStats() {
-    const fitnessValues = this.population.map(phrase => this.fitness(phrase));
+  stats() {
+    const fitnessValues = this.population.map((phrase) => this.fitness(phrase));
     const mean = fitnessValues.reduce((sum, f) => sum + f, 0) / fitnessValues.length;
     const variance = fitnessValues.reduce((sum, f) => sum + Math.pow(f - mean, 2), 0) / fitnessValues.length;
-    
     return {
       populationSize: this.population.length,
       meanFitness: mean,
       standardDeviation: Math.sqrt(variance),
       minFitness: Math.min(...fitnessValues),
       maxFitness: Math.max(...fitnessValues),
-      generation: this.generationCount
+      generation: this.generationCount,
     };
   }
 }

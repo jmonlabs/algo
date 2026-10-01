@@ -111,10 +111,11 @@ Where the notes fall. A rhythm is a grid, one place per step, hit or not: `grid(
 
 ### Generative — `jm.generative.*`
 - Minimalism: `unfold(notes, { operation, direction, repetition })` plays a phrase again and again, gaining or losing a note each time (`additive` or `subtractive`; `forward`, `backward`, `inward`, `outward`); `phase(notes, { cycles, shift })` sets two voices on one pattern, the second drifting behind; `Tintinnabuli`
-- Walks: `Chain` (Markov), `RandomWalk` (Brownian), `Phasor` and `PhasorSystem`. `Chain.line()` for a single flat walk
-- Fractals: Mandelbrot, Julia, Burning Ship and logistic maps
-- Automata: `CellularAutomata`
-- Genetic: `Darwin` breeds variations of a phrase toward targets. Phrases go in and come out as JMON notes; `getBestGenome()` exposes the raw `[pitch, duration, time]` form the operators work on
+- Walks: `new Chain({ range, start, steps, branching, merging })` steps by offsets drawn from a list, `.line({ length, seed })` one flat walk, `.generate(…)` the branching walks and `.notes(walks, { durations })` those as notes; `new RandomWalk({ dimensions, stepSize, bounds, attractor })` is Brownian, `.generate({ length, seed, start })` positions, `.line(…)` one dimension; `Phasor` and `PhasorSystem` turn points around points, `.simulate(times)` and `.notes(times, { pitchRange, pitches })`
+- Fractals: `new Mandelbrot({ center, size, width, height, maxIterations })`, `Julia({ c, … })`, `BurningShip`: `.generate()` the grid, `.sequence({ path, index })` a series along a diagonal, border, spiral, row or column, `.notes({ pitches, min, max, duration })` the grid as a piano roll; `new LogisticMap({ r, x0, iterations }).generate()` and `.bifurcation({ from, to, steps })`
+- Any series onto a list: `project(values, pitches)` picks, for each value, the target at its rank between the lowest and the highest; `rescale(values, { min, max })` for velocities
+- Automata: `new CellularAutomata({ ruleNumber, width, initialState }).generate(steps)` is the rows, `CellularAutomata.pitches(rows, pitchSet)` reads them as notes and chords
+- Genetic: `Darwin` breeds variations of a phrase toward targets: `.evolve({ generations, survivors })`, `.best()` as JMON notes, `.bestGenome()` the raw `[pitch, duration, time]` form the operators work on, `.history()`, `.stats()`
 - Drummer: 19 styles, multi-metre sections, variations and fills. `orientation: '2-3' | '3-2'` reweights the kick by the Rhythm Code over a two-bar cycle; `decorations` adds ghost snares, open hats, phrase crashes, a clave sidestick and several fill shapes.
 
 `Darwin` takes `metrics` (`{ name, fn(phrase, ctx), target, weight }`), a `context` (key, chords, profile, pulse), position-aware `operators`, and `crossoverMode: 'time'` to splice parents on a bar boundary. `generative.genetic.metrics` provides clave fit, anticipation rate, upbeat ratio, emotional-map sweetness and balance, last-note stability and more; `generative.genetic.operators` provides anticipate, delay, restify, to-chord-tone, to-non-chord-tone and step-stability moves.
@@ -217,6 +218,31 @@ same numbers); `analysis.rhythm.onsetGrid` is `positions`, `analyzeRhythm` is
 time, anticipation })`; the salience modes and the Emotional Map functions
 keep their names, flat. Nothing outside the tests called the old paths, so
 there is no façade.
+
+**The generative classes, to the convention.** One object at the
+constructor, one or two methods that return rows, positions or notes, the
+rest internal. `CellularAutomata`: `generate01` is `generate` (the cells were
+0 or 1 already), `stripToPitches` is `pitches`, the setters and getters are
+gone. Fractals: `extractSequence(method, index)` is `sequence({ path, index })`,
+`gridToNotes({ grid, … })` is `notes({ pitches, … })`, `mapToScale` and
+`mapToRhythm` are `generative.project(values, targets)`, which every series
+shares; `LogisticMap.bifurcationDiagram(rMin, rMax, steps)` is
+`bifurcation({ from, to, steps })`. `Chain`: `walkRange`, `walkStart` and
+`walkProbability` are `range`, `start` and `steps`, `branchingProbability`
+and `mergingProbability` are `branching` and `merging`, `toJmonNotes` is
+`notes`. `RandomWalk`: `length` moves to `generate({ length, seed, start })`,
+which is seeded now, `branchProbability`/`mergeProbability` are
+`branching`/`merging`, `attractorStrength`/`attractorPosition` are
+`attractor: { strength, position }`, `line({ dimension })` is one dimension
+flat; its `mapTo*`, `generateCorrelated` and `analyze` are gone. `Phasor`:
+`getPosition` is `position`, `addSubPhasor` is the constructor's
+`subPhasors`; `PhasorSystem` takes `{ phasors }`, `mapToMusic` is
+`notes(times, options)`, `generateTimeArray` is `times`. `Darwin`:
+`evolveGenerations({ generations, k })` is `evolve({ generations,
+survivors })`, `getBestIndividual`/`getBestGenome`/`getEvolutionHistory`/
+`getPopulationStats` are `best`/`bestGenome`/`history`/`stats`. The
+`generateTrack` methods are gone everywhere: `notes.track(notes, { label })`
+makes a track.
 
 **`jm.constants`.** Unchanged in content: `theory`, `articulations`,
 `ornaments` and the `list`, `get`, `describe`, `search` helpers, now a module
@@ -350,7 +376,7 @@ Breaking, and the compositions written against 2.x stay on the `v2.1.0` tag.
 - `MusicTheoryConstants.scaleIntervals`, `chromaticScale`, `chromaticScaleFlats`, `flatToSharp`; drum map keys `tomLow`, `tomMid`, `tomHigh`.
 - `createPart`, `createComposition`, `offsetNotes`, `concatenateSequences`, `combineSequences`, `setOffsetsAccordingToDurations`, `sequenceToPart`, `Loop#toJMonTracks`, `Loop#toJMonSequences` are gone; use `createTrack`, `createPiece`, `shiftTime`, `concatenateTracks`, `combineTracks`, `setTimeAccordingToDurations`, `notesToTrack`.
 - `MusicalIndex` methods are `gini`, `spread`, `motifStrength`, `dissonance`, `measureFit`, `restProportion`, each the same function as in `MusicalAnalysis`; `balance`, `motif`, `rhythmic` on the index are gone. `Darwin` weights and targets use these names.
-- `Darwin` accepts JMON notes in `initialPhrases` and returns notes from `getBestIndividual()`; `getBestGenome()` returns the triples.
+- `Darwin` accepts JMON notes in `initialPhrases` and returns notes from `best()`; `bestGenome()` returns the triples.
 - `Rhythm.random()` and `Rhythm.darwin()` return JMON notes with a `pitch`.
 - `phaseShift(pattern, { cycles, shift })`, `getDegreeFromPitch(pitch, { scale, tonic })`, `getPitchFromDegree(degree, { scale, tonic })`, `scaleList(numbers, { toMin, toMax, from, to })`, `repeatPolyloops(dict, { measures, measureLength })`.
 

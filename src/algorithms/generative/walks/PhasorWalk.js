@@ -1,313 +1,123 @@
-import { 
-  offsetToBarsBeatsTicks,
-  notesToTrack,
-  DEFAULT_TIMING_CONFIG 
-} from '../../utils/jmon-timing.js';
-
 /**
- * Phasor that rotates around a center point or another phasor
- * Represents a rotating vector (complex exponential) used in harmonic oscillation
+ * A phasor: a point turning around a centre at a steady rate. Its
+ * sub-phasors turn around it (epicycles), and theirs around them.
+ *
+ * @example
+ * const moon = new Phasor({ distance: 0.3, frequency: 5 });
+ * const planet = new Phasor({ distance: 2, frequency: 1, subPhasors: [moon] });
+ * planet.simulate(PhasorSystem.times({ start: 0, end: 10, steps: 100 }));
  */
 export class Phasor {
-  distance;
-  frequency;
-  phase;
-  subPhasors;
-  center;
-
   /**
-   * @param {Object} [options={}]
-   * @param {number} [options.distance=1.0]
-   * @param {number} [options.frequency=1.0]
-   * @param {number} [options.phase=0]
-   * @param {Array<Phasor>} [options.subPhasors=[]]
+   * @param {Object} [options]
+   * @param {number} [options.distance=1] - Radius, from its centre
+   * @param {number} [options.frequency=1] - Radians per unit of time
+   * @param {number} [options.phase=0] - Angle at time 0, in radians
+   * @param {Array<Phasor>} [options.subPhasors=[]] - Phasors turning around this one
    */
-  constructor(options = {}) {
-    const { distance = 1.0, frequency = 1.0, phase = 0, subPhasors = [] } = options;
+  constructor({ distance = 1.0, frequency = 1.0, phase = 0, subPhasors = [] } = {}) {
     this.distance = distance;
     this.frequency = frequency;
     this.phase = phase;
-    this.subPhasors = subPhasors || [];
-    this.center = { x: 0, y: 0 }; // Will be updated during simulation
+    this.subPhasors = subPhasors;
   }
 
   /**
-   * Add a sub-phasor to this phasor (like epicycles)
+   * Where the phasor is at `time`, around a centre.
+   * @param {number} time
+   * @param {{x: number, y: number}} [center]
+   * @returns {{x: number, y: number, angle: number}}
    */
-  addSubPhasor(phasor) {
-    this.subPhasors.push(phasor);
-  }
-
-  /**
-   * Calculate position at given time
-   */
-  getPosition(time) {
+  position(time, center = { x: 0, y: 0 }) {
     const angle = this.frequency * time + this.phase;
-    const x = this.center.x + this.distance * Math.cos(angle);
-    const y = this.center.y + this.distance * Math.sin(angle);
-    
-    return { x, y, angle, distance: this.distance };
+    return { x: center.x + this.distance * Math.cos(angle), y: center.y + this.distance * Math.sin(angle), angle };
   }
 
   /**
-   * Calculate distance from origin
+   * The phasor and its sub-phasors over time: for each time, one entry per
+   * phasor with its position, its distance from the origin and its angle
+   * from the origin in degrees.
+   * @param {Array<number>} times
+   * @param {{x: number, y: number}} [center]
+   * @returns {Array<{time: number, position: Object, distance: number, angle: number, phasor: Phasor}>}
    */
-  getDistanceFromOrigin(time) {
-    const position = this.getPosition(time);
-    return Math.sqrt(position.x * position.x + position.y * position.y);
-  }
-
-  /**
-   * Calculate angle from origin in degrees
-   */
-  getAngleFromOrigin(time) {
-    const position = this.getPosition(time);
-    let angle = Math.atan2(position.y, position.x) * 180 / Math.PI;
-    // Convert to 0-360 range
-    if (angle < 0) angle += 360;
-    return angle;
-  }
-
-  /**
-   * Simulate this phasor and all its sub-phasors
-   */
-  simulate(timeArray, centerPosition = { x: 0, y: 0 }) {
-    this.center = centerPosition;
+  simulate(times, center = { x: 0, y: 0 }) {
     const results = [];
-
-    for (const time of timeArray) {
-      const position = this.getPosition(time);
-      const distance = this.getDistanceFromOrigin(time);
-      const angle = this.getAngleFromOrigin(time);
-      
-      results.push({
-        time,
-        position,
-        distance,
-        angle,
-        phasor: this
-      });
-
-      // Simulate sub-phasors
-      for (const subPhasor of this.subPhasors) {
-        subPhasor.center = position;
-        const subResults = subPhasor.simulate([time], position);
-        results.push(...subResults);
-      }
+    for (const time of times) {
+      const position = this.position(time, center);
+      const distance = Math.sqrt(position.x ** 2 + position.y ** 2);
+      let angle = Math.atan2(position.y, position.x) * 180 / Math.PI;
+      if (angle < 0) angle += 360;
+      results.push({ time, position, distance, angle, phasor: this });
+      for (const sub of this.subPhasors) results.push(...sub.simulate([time], position));
     }
-
     return results;
   }
 }
 
 /**
- * Phasor system containing multiple rotating vectors and their sub-phasors
- * Represents a sum of harmonic oscillators (like Fourier series components)
+ * Several phasors around one origin, and their reading as notes.
  */
 export class PhasorSystem {
-  phasors;
-  timingConfig;
-
-  constructor(timingConfig = DEFAULT_TIMING_CONFIG) {
-    this.phasors = [];
-    this.timingConfig = timingConfig;
+  /**
+   * @param {Object} [options]
+   * @param {Array<Phasor>} [options.phasors=[]]
+   */
+  constructor({ phasors = [] } = {}) {
+    this.phasors = phasors;
   }
 
   /**
-   * Add a phasor to the system
+   * Each phasor's `simulate`, in order.
+   * @param {Array<number>} times
+   * @returns {Array<Array<Object>>}
    */
-  addPhasor(phasor) {
-    this.phasors.push(phasor);
+  simulate(times) {
+    return this.phasors.map((p) => p.simulate(times));
   }
 
   /**
-   * Alias for addPhasor (for compatibility)
+   * The phasors as notes, one list per phasor: at each time a note whose
+   * pitch follows the distance from the origin (or the angle) and whose
+   * duration follows the other.
+   * @param {Array<number>} times
+   * @param {Object} [options]
+   * @param {Array<number>} [options.pitchRange=[40, 80]]
+   * @param {Array<number>} [options.durationRange=[0.25, 2]]
+   * @param {'distance'|'angle'} [options.pitchBy='distance'] - What the pitch follows; the duration follows the other
+   * @param {Array<number>} [options.pitches] - Snap the pitch to these
+   * @param {number} [options.reach=10] - The distance read as the top of the range
+   * @returns {Array<Array<Object>>} JMON notes per phasor, each with `phasorData`
    */
-  addPlanet(phasor) {
-    return this.addPhasor(phasor);
-  }
-
-  /**
-   * Simulate all phasors and sub-phasors in the system
-   */
-  simulate(timeArray) {
-    const allResults = [];
-
-    for (const phasor of this.phasors) {
-      const phasorResults = phasor.simulate(timeArray);
-      allResults.push(phasorResults);
-    }
-
-    return allResults;
-  }
-
-  /**
-   * Get a flattened list of all phasors (primary + sub-phasors)
-   */
-  getAllPhasors() {
-    const phasors = [];
-    
-    for (const phasor of this.phasors) {
-      phasors.push(phasor);
-      this.collectSubPhasors(phasor, phasors);
-    }
-    
-    return phasors;
-  }
-
-  /**
-   * Recursively collect all sub-phasors
-   */
-  collectSubPhasors(phasor, collection) {
-    for (const subPhasor of phasor.subPhasors) {
-      collection.push(subPhasor);
-      this.collectSubPhasors(subPhasor, collection);
-    }
-  }
-
-  /**
-   * Map phasor motion to musical parameters
-   */
-  mapToMusic(timeArray, mappingOptions = {}) {
-    const results = this.simulate(timeArray);
-    const musicalTracks = [];
-
-    for (let phasorIndex = 0; phasorIndex < results.length; phasorIndex++) {
-      const phasorResults = results[phasorIndex];
-      const track = this.createMusicalTrack(phasorResults, { ...mappingOptions, phasorIndex });
-      musicalTracks.push(track);
-    }
-
-    return musicalTracks;
-  }
-
-  /**
-   * Create a musical track from phasor motion
-   * @param {Array} phasorResults
-   * @param {Object} [options={}]
-   * @param {number} [options.phasorIndex=0]
-   * @param {Array<number>} [options.pitchRange=[40,80]]
-   * @param {Array<number>} [options.durationRange=[0.25,2]]
-   * @param {boolean} [options.useDistance=true]
-   * @param {boolean} [options.useAngle=false]
-   * @param {Array<number>|null} [options.quantizeToScale=null]
-   * @param {Object} [options.timingConfig]
-   * @param {boolean} [options.useStringTime=false]
-   */
-  createMusicalTrack(phasorResults, options = {}) {
-    const {
-      pitchRange = [40, 80],
-      durationRange = [0.25, 2],
-      useDistance = true,
-      useAngle = false,
-      quantizeToScale = null,
-      timingConfig = this.timingConfig,
-      useStringTime = false
-    } = options;
-
-    const notes = [];
-
-    for (const result of phasorResults) {
-      let pitch, duration;
-
-      if (useDistance) {
-        // Map distance to pitch
-        const normalizedDistance = Math.max(0, Math.min(1, result.distance / 10)); // Assuming max distance ~10
-        pitch = pitchRange[0] + normalizedDistance * (pitchRange[1] - pitchRange[0]);
-      } else {
-        // Map angle to pitch  
-        pitch = pitchRange[0] + (result.angle / 360) * (pitchRange[1] - pitchRange[0]);
-      }
-
-      if (useAngle) {
-        // Map angle to duration
-        duration = durationRange[0] + (result.angle / 360) * (durationRange[1] - durationRange[0]);
-      } else {
-        // Map distance to duration (inverted - closer phasors play faster)
-        const normalizedDistance = Math.max(0, Math.min(1, result.distance / 10));
-        duration = durationRange[1] - normalizedDistance * (durationRange[1] - durationRange[0]);
-      }
-
-      // Quantize to scale if provided
-      if (quantizeToScale) {
-        const scaleIndex = Math.floor(((pitch - pitchRange[0]) / (pitchRange[1] - pitchRange[0])) * quantizeToScale.length);
-        const clampedIndex = Math.max(0, Math.min(scaleIndex, quantizeToScale.length - 1));
-        pitch = quantizeToScale[clampedIndex];
+  notes(times, { pitchRange = [40, 80], durationRange = [0.25, 2], pitchBy = 'distance', pitches = null, reach = 10 } = {}) {
+    return this.simulate(times).map((results) => results.map((r) => {
+      const near = Math.max(0, Math.min(1, r.distance / reach));
+      const turn = r.angle / 360;
+      const byDistance = pitchBy === 'distance';
+      let pitch = pitchRange[0] + (byDistance ? near : turn) * (pitchRange[1] - pitchRange[0]);
+      const duration = byDistance
+        ? durationRange[1] - near * (durationRange[1] - durationRange[0])
+        : durationRange[0] + turn * (durationRange[1] - durationRange[0]);
+      if (pitches) {
+        const i = Math.floor(((pitch - pitchRange[0]) / (pitchRange[1] - pitchRange[0])) * pitches.length);
+        pitch = pitches[Math.max(0, Math.min(i, pitches.length - 1))];
       } else {
         pitch = Math.round(pitch);
       }
-
-      notes.push({
-        pitch,
-        duration,
-        time: useStringTime ? offsetToBarsBeatsTicks(result.time, timingConfig) : result.time,
-        phasorData: {
-          distance: result.distance,
-          angle: result.angle,
-          position: result.position
-        }
-      });
-    }
-
-    return notes;
+      return { pitch, duration, time: r.time, phasorData: { distance: r.distance, angle: r.angle, position: r.position } };
+    }));
   }
 
   /**
-   * Generate JMON tracks directly from phasor motion
-   * @param {Array} timeArray
-   * @param {Object} [options={}] - Combines what {@link PhasorSystem#createMusicalTrack}
-   *   and {@link notesToTrack} each accept; keys are passed to both.
+   * Evenly spaced times.
+   * @param {Object} [options]
+   * @param {number} [options.start=0]
+   * @param {number} [options.end=10]
+   * @param {number} [options.steps=100]
+   * @returns {Array<number>}
    */
-  generateTracks(timeArray, options = {}) {
-    const musicalTracks = this.mapToMusic(timeArray, options);
-    const jmonTracks = [];
-
-    musicalTracks.forEach((notes, index) => {
-      const track = notesToTrack(notes, {
-        label: `phasor-${index + 1}`,
-        midiChannel: index % 16,
-        synth: { type: 'Synth' },
-        ...options
-      });
-      jmonTracks.push(track);
-    });
-
-    return jmonTracks;
-  }
-
-  /**
-   * Create complex harmonic patterns with sub-phasors (epicycles)
-   */
-  static createComplexSystem() {
-    const system = new PhasorSystem();
-    
-    // Create a phasor with multiple sub-phasors (epicycles)
-    const subPhasor1 = new Phasor({ distance: 0.2, frequency: 5.0, phase: 0 });
-    const subPhasor2 = new Phasor({ distance: 0.3, frequency: 3.0, phase: Math.PI / 2 });
-    const subSubPhasor = new Phasor({ distance: 0.1, frequency: 8.0, phase: Math.PI });
-
-    subPhasor1.addSubPhasor(subSubPhasor);
-
-    const phasor1 = new Phasor({ distance: 2.0, frequency: 1.0, phase: 0, subPhasors: [subPhasor1, subPhasor2] });
-    const phasor2 = new Phasor({ distance: 3.5, frequency: 0.6, phase: Math.PI / 3 });
-    
-    system.addPhasor(phasor1);
-    system.addPhasor(phasor2);
-    
-    return system;
-  }
-
-  /**
-   * Generate time array with linear spacing
-   */
-  static generateTimeArray({ start = 0, end = 10, steps = 100 } = {}) {
-    const timeArray = [];
-    const stepSize = (end - start) / (steps - 1);
-    
-    for (let i = 0; i < steps; i++) {
-      timeArray.push(start + i * stepSize);
-    }
-    
-    return timeArray;
+  static times({ start = 0, end = 10, steps = 100 } = {}) {
+    const step = (end - start) / (steps - 1);
+    return Array.from({ length: steps }, (_, i) => start + i * step);
   }
 }

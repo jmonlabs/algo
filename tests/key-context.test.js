@@ -115,7 +115,7 @@ test("the pre-context constructors keep working unchanged", () => {
 
 test("Chain.line() returns one flat walk of the requested length", () => {
   const walk = new Chain({
-    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+    range: [0, 10], start: 5, steps: [-1, 0, 1], roundTo: 0,
   }).line({ length: 8, seed: 42 });
 
   assert.ok(Array.isArray(walk));
@@ -126,7 +126,7 @@ test("Chain.line() returns one flat walk of the requested length", () => {
 
 test("Chain.line() is reproducible for a given seed", () => {
   const build = () => new Chain({
-    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+    range: [0, 10], start: 5, steps: [-1, 0, 1], roundTo: 0,
   });
   assert.deepEqual(build().line({ length: 8, seed: 42 }), build().line({ length: 8, seed: 42 }));
   assert.notDeepEqual(build().line({ length: 8, seed: 42 }), build().line({ length: 8, seed: 7 }));
@@ -134,19 +134,19 @@ test("Chain.line() is reproducible for a given seed", () => {
 
 test("Chain.line() starts where walkStart says", () => {
   const walk = new Chain({
-    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+    range: [0, 10], start: 5, steps: [-1, 0, 1], roundTo: 0,
   }).line({ length: 4, seed: 42 });
   assert.equal(walk[0], 5);
 });
 
 test("Chain.line() leaves the instance reusable", () => {
   const chain = new Chain({
-    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+    range: [0, 10], start: 5, steps: [-1, 0, 1], roundTo: 0,
   });
   const first = chain.line({ length: 8, seed: 42 });
   const second = chain.line({ length: 8, seed: 42 });
   assert.deepEqual(second, first, "instance state leaked between calls");
-  assert.equal(chain.walkStart, 5, "walkStart was mutated");
+  assert.equal(chain.start, 5, "start was mutated");
 });
 
 /* --- reachable from the public API --------------------------------------- */

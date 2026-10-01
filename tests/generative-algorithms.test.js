@@ -57,15 +57,15 @@ test("toPlotData maps live cells to time/pitch pairs", () => {
   assert.ok(data.every((d) => Number.isInteger(d.time) && Number.isFinite(d.pitch)));
 });
 
-test("stripToPitches maps each row of a strip onto a pitch set", () => {
+test("pitches maps each row of a strip onto a pitch set", () => {
   // A strip is a 2-D binary grid: one row per step, one column per pitch.
   const strip = [[1, 0, 0], [0, 0, 1], [0, 1, 0]];
-  assert.deepEqual(CellularAutomata.stripToPitches(strip, [60, 62, 64]), [60, 64, 62]);
+  assert.deepEqual(CellularAutomata.pitches(strip, [60, 62, 64]), [60, 64, 62]);
 });
 
-test("stripToPitches returns a chord for a row with several live cells", () => {
+test("pitches returns a chord for a row with several live cells", () => {
   assert.deepEqual(
-    CellularAutomata.stripToPitches([[1, 0, 1], [0, 0, 0]], [60, 62, 64]),
+    CellularAutomata.pitches([[1, 0, 1], [0, 0, 0]], [60, 62, 64]),
     [[60, 64], null],
   );
 });
@@ -88,14 +88,26 @@ test("Mandelbrot is deterministic", () => {
   assert.deepEqual(build().generate(), build().generate());
 });
 
-test("extractSequence pulls a 1-D series out of the plane", () => {
+test("sequence pulls a 1-D series out of the plane along a path", () => {
   const mb = new Mandelbrot({ width: 5, height: 5, maxIterations: 20 });
-  for (const method of ["diagonal", "border", "spiral", "column", "row"]) {
-    const seq = mb.extractSequence(method);
-    assert.ok(Array.isArray(seq), `${method} did not return an array`);
-    assert.ok(seq.length > 0, `${method} returned nothing`);
-    assert.ok(seq.every(Number.isFinite), `${method} produced non-finite values`);
+  for (const path of ["diagonal", "border", "spiral", "column", "row"]) {
+    const seq = mb.sequence({ path });
+    assert.ok(Array.isArray(seq), `${path} did not return an array`);
+    assert.ok(seq.length > 0, `${path} returned nothing`);
+    assert.ok(seq.every(Number.isFinite), `${path} produced non-finite values`);
   }
+  assert.equal(mb.sequence({ path: "spiral" }).length, 25, "the spiral visits every cell");
+  assert.deepEqual(mb.sequence({ path: "row", index: 2 }), mb.generate()[2]);
+  assert.throws(() => mb.sequence({ path: "zigzag" }), /unknown path/);
+});
+
+test("notes reads the plane as a piano roll and merges held cells", () => {
+  const mb = new Mandelbrot({ width: 8, height: 4, maxIterations: 20 });
+  const notes = mb.notes({ pitches: [60, 62, 64, 65], duration: 0.5 });
+  assert.ok(notes.length > 0);
+  assert.ok(notes.every((n) => [60, 62, 64, 65].includes(n.pitch) && n.velocity >= 0.2 && n.velocity <= 1));
+  assert.ok(notes.every((n, i) => i === 0 || n.time >= notes[i - 1].time), "sorted by time");
+  assert.throws(() => mb.notes({}), /pitches/);
 });
 
 test("Julia needs its c parameter and honours it", () => {
@@ -130,7 +142,7 @@ test("a chaotic logistic map diverges from a periodic one", () => {
 
 test("Chain stays inside its range and repeats for a given seed", () => {
   const build = () => new Chain({
-    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+    range: [0, 10], start: 5, steps: [-1, 0, 1], roundTo: 0,
   });
   const walk = build().line({ length: 20, seed: 42 });
 
@@ -142,7 +154,7 @@ test("Chain stays inside its range and repeats for a given seed", () => {
 
 test("Chain.generate returns branches, line() flattens to one", () => {
   const chain = new Chain({
-    walkRange: [0, 10], walkStart: 5, walkProbability: [-1, 0, 1], roundTo: 0,
+    range: [0, 10], start: 5, steps: [-1, 0, 1], roundTo: 0,
   });
   const branches = chain.generate({ length: 10, seed: 42 });
 
@@ -153,7 +165,7 @@ test("Chain.generate returns branches, line() flattens to one", () => {
 
 test("Chain steps only by the offsets it was given", () => {
   const walk = new Chain({
-    walkRange: [0, 100], walkStart: 50, walkProbability: [-2, 2], roundTo: 0,
+    range: [0, 100], start: 50, steps: [-2, 2], roundTo: 0,
   }).line({ length: 30, seed: 3 });
 
   for (let i = 1; i < walk.length; i++) {
@@ -161,18 +173,46 @@ test("Chain steps only by the offsets it was given", () => {
   }
 });
 
-test("RandomWalk produces a finite series", () => {
-  const walk = new RandomWalk({ length: 16, dimensions: 1 });
-  const out = walk.generate([0]);
-  assert.ok(out);
-  assert.ok(Array.isArray(out) || typeof out === "object");
+test("RandomWalk stays in its bounds and repeats for a seed", () => {
+  const walk = new RandomWalk({ dimensions: 2, stepSize: 2, bounds: [-10, 10], branching: 0.2, merging: 0.5 });
+  const out = walk.generate({ length: 40, seed: 3 });
+  assert.equal(out.length, 40);
+  assert.ok(out.every((p) => p.length === 2 && p.every((v) => v >= -10 && v <= 10)));
+  assert.deepEqual(out, walk.generate({ length: 40, seed: 3 }));
+  assert.notDeepEqual(out, walk.generate({ length: 40, seed: 4 }));
+  const line = walk.line({ length: 10, seed: 3, dimension: 1 });
+  assert.equal(line.length, 10);
+  assert.ok(line.every(Number.isFinite));
+  assert.throws(() => walk.generate({}), /length/);
 });
 
-test("a Phasor system oscillates without drifting to infinity", () => {
-  const system = new PhasorSystem();
-  system.addPhasor(new Phasor({ distance: 1.0, frequency: 1.0, phase: 0 }));
-  const points = [0, 0.25, 0.5, 0.75, 1].map((t) => system.getPosition?.(t) ?? t);
-  assert.ok(points.every((p) => p === undefined || Number.isFinite(p) || typeof p === "object"));
+test("an attractor pulls the walk toward its position", () => {
+  const free = new RandomWalk({ stepSize: 1 }).line({ length: 200, seed: 1, start: [50] });
+  const pulled = new RandomWalk({ stepSize: 1, attractor: { strength: 0.1 } }).line({ length: 200, seed: 1, start: [50] });
+  const mean = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
+  assert.ok(Math.abs(mean(pulled)) < Math.abs(mean(free)), "the pulled walk sits nearer 0");
+});
+
+test("a phasor turns around its centre, and its sub-phasors around it", () => {
+  const moon = new Phasor({ distance: 0.5, frequency: 4 });
+  const planet = new Phasor({ distance: 2, frequency: 1, subPhasors: [moon] });
+  const at0 = planet.position(0);
+  assert.deepEqual([at0.x, at0.y], [2, 0]);
+  const results = planet.simulate([0, Math.PI / 2]);
+  assert.equal(results.length, 4, "planet and moon, at two times");
+  assert.ok(Math.abs(results[1].distance - 2.5) < 1e-9, "the moon at time 0 is 2.5 from the origin");
+  assert.ok(results.every((r) => Number.isFinite(r.distance) && r.angle >= 0 && r.angle < 360));
+});
+
+test("a phasor system reads its phasors as notes", () => {
+  const system = new PhasorSystem({ phasors: [new Phasor({ distance: 1 }), new Phasor({ distance: 3, frequency: 0.5 })] });
+  const times = PhasorSystem.times({ start: 0, end: 4, steps: 5 });
+  assert.deepEqual(times, [0, 1, 2, 3, 4]);
+  const notes = system.notes(times, { pitchRange: [60, 72], pitches: [60, 62, 64, 65, 67, 69, 71, 72] });
+  assert.equal(notes.length, 2);
+  assert.equal(notes[0].length, 5);
+  assert.ok(notes.flat().every((n) => [60, 62, 64, 65, 67, 69, 71, 72].includes(n.pitch) && n.duration > 0));
+  assert.deepEqual(notes[0].map((n) => n.time), times);
 });
 
 /* --- minimalism ---------------------------------------------------------- */
@@ -244,20 +284,20 @@ test("Darwin evolves and reports a best individual", () => {
     scale: [60, 62, 64, 65, 67, 69, 71],
   });
 
-  const perGeneration = darwin.evolveGenerations({ generations: 3, k: 6 });
+  const perGeneration = darwin.evolve({ generations: 3, survivors: 6 });
   assert.equal(perGeneration.length, 3, "one entry per generation");
 
-  const best = darwin.getBestIndividual();
+  const best = darwin.best();
   assert.ok(best, "no best individual after evolving");
 
-  // getEvolutionHistory() returns a report object, not an array.
-  const history = darwin.getEvolutionHistory();
+  // history() returns a report object, not an array.
+  const history = darwin.history();
   assert.equal(typeof history, "object");
   assert.ok(Array.isArray(history.scores), "history.scores should be an array");
   assert.ok(Array.isArray(history.individuals));
   assert.equal(history.generations, 3);
 
-  const stats = darwin.getPopulationStats();
+  const stats = darwin.stats();
   assert.equal(stats.populationSize, 12);
   assert.ok(Number.isFinite(stats.meanFitness));
 });
@@ -273,9 +313,9 @@ test("Darwin is reproducible for a given seed", () => {
 
   const a = build();
   const b = build();
-  a.evolveGenerations({ generations: 2, k: 5 });
-  b.evolveGenerations({ generations: 2, k: 5 });
-  assert.deepEqual(a.getBestIndividual(), b.getBestIndividual());
+  a.evolve({ generations: 2, survivors: 5 });
+  b.evolve({ generations: 2, survivors: 5 });
+  assert.deepEqual(a.best(), b.best());
 });
 
 /* --- drummer ------------------------------------------------------------- */
@@ -385,4 +425,17 @@ test("multi-meter sections keep the meter's anchors and add the style's layers",
   // Style layer: house's off-beat open hihat survives the odd meter.
   assert.ok(hits.some((h) => h.pitch === GM.openhat), "style cymbal layer missing");
   assert.ok(hits.every((h) => h.time < 7), "3.5 × 2 beats is the whole span");
+});
+
+/* --- project and rescale ------------------------------------------------- */
+
+test("project maps a series onto a list by rank, keeping nulls", async () => {
+  const { project, rescale } = await import("../src/generative/index.js");
+  assert.deepEqual(project([0, 5, 10], [60, 64, 67]), [60, 64, 67]);
+  assert.deepEqual(project([3, null, 3], ["a", "b"]), ["a", null, "a"], "a flat series lands on the first target");
+  assert.deepEqual(project([0, 0.49, 0.5, 1], [1, 2]), [1, 1, 2, 2]);
+  assert.throws(() => project([1, 2], []), /targets/);
+  const scaled = rescale([2, 4, 6], { min: 0.3, max: 0.9 });
+  [0.3, 0.6, 0.9].forEach((v, i) => assert.ok(Math.abs(scaled[i] - v) < 1e-12));
+  assert.deepEqual(rescale([], { min: 0, max: 1 }), []);
 });

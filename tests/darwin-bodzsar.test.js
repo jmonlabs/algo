@@ -113,9 +113,9 @@ test("Darwin is reproducible under a seed, operators and time crossover included
     operators: ops.rhythmOperators, crossoverMode: "time", period: 4,
     metrics: [metric("claveFit", { target: 0.8, weight: 4 })],
   });
-  const a = build(); a.evolveGenerations({ generations: 6, k: 6 });
-  const b = build(); b.evolveGenerations({ generations: 6, k: 6 });
-  assert.deepEqual(a.getBestIndividual(), b.getBestIndividual());
+  const a = build(); a.evolve({ generations: 6, survivors: 6 });
+  const b = build(); b.evolve({ generations: 6, survivors: 6 });
+  assert.deepEqual(a.best(), b.best());
   assert.deepEqual(a.bestScores, b.bestScores);
 });
 
@@ -141,8 +141,8 @@ test("a clave-fit target pulls the population off the downbeats", () => {
     metrics: [metric("claveFit", { target: 1, weight: 10 }), metric("rareRate", { target: 0, weight: 5 })],
   });
   const before = metrics.claveFit(FLAT, {});
-  d.evolveGenerations({ generations: 25, k: 10 });
-  const after = metrics.claveFit(d.getBestGenome(), {});   // metrics read genomes; getBestIndividual() returns notes
+  d.evolve({ generations: 25, survivors: 10 });
+  const after = metrics.claveFit(d.bestGenome(), {});   // metrics read genomes; best() returns notes
   assert.ok(after > before, `claveFit ${before} → ${after}`);
 });
 

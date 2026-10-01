@@ -1,382 +1,149 @@
-import { 
-  offsetToBarsBeatsTicks, 
-  barsBeatsTicksToOffset,
-  notesToTrack,
-  DEFAULT_TIMING_CONFIG 
-} from '../../utils/jmon-timing.js';
+import { random } from '../../random.js';
 
 /**
- * Chain class for random walks with branching and merging
- * Based on the Python djalgo Chain class
- * Provides JMON-native output with proper timing integration
+ * A walk by steps drawn from a list: each step adds one of `steps` to the
+ * position, kept within `range`. The walk may branch (a second walker sets
+ * off from the same place) and branches may merge back when they meet.
+ *
+ * @example
+ * // One line of 16 values between 0 and 7, stepping by -1, 0 or 1
+ * new Chain({ range: [0, 7], start: 3 }).line({ length: 16, seed: 42 });
+ *
+ * // Branching walks, as notes: a chord wherever two walkers sound at once
+ * const chain = new Chain({ range: [60, 72], start: 64, branching: 0.1, merging: 0.2 });
+ * chain.notes(chain.generate({ length: 16, seed: 1 }), { durations: [0.5] });
  */
 export class Chain {
-  walkRange;
-  walkStart;
-  walkProbability;
-  roundTo;
-  branchingProbability;
-  mergingProbability;
-  timingConfig;
-
-  constructor(options = {}) {
-    this.walkRange = options.walkRange || null;
-    this.walkStart = options.walkStart !== undefined ? options.walkStart : 
-      (this.walkRange ? Math.floor((this.walkRange[1] - this.walkRange[0]) / 2) + this.walkRange[0] : 0);
-    this.walkProbability = options.walkProbability || [-1, 0, 1]; // Default to discrete steps like Python
-    this.roundTo = options.roundTo !== undefined ? options.roundTo : null;
-    this.branchingProbability = options.branchingProbability || 0.0;
-    this.mergingProbability = options.mergingProbability || 0.0;
-    this.timingConfig = options.timingConfig || DEFAULT_TIMING_CONFIG;
+  /**
+   * @param {Object} [options]
+   * @param {Array<number>} [options.range] - `[low, high]` the position stays within; unbounded if absent
+   * @param {number} [options.start] - The first position; the middle of `range`, or 0
+   * @param {Array<number>|{mean: number, std: number}} [options.steps=[-1, 0, 1]] - The steps drawn from, or a normal distribution of them
+   * @param {number} [options.roundTo] - Decimals a normal step is rounded to
+   * @param {number} [options.branching=0] - Probability, per step, that a walker branches
+   * @param {number} [options.merging=0] - Probability that two walkers at the same place merge
+   */
+  constructor({ range = null, start, steps = [-1, 0, 1], roundTo = null, branching = 0, merging = 0 } = {}) {
+    this.range = range;
+    this.start = start ?? (range ? Math.floor((range[1] - range[0]) / 2) + range[0] : 0);
+    this.steps = steps;
+    this.roundTo = roundTo;
+    this.branching = branching;
+    this.merging = merging;
   }
 
   /**
-   * Generate random walk sequence(s) with branching and merging
+   * The walks: one list per walker, `length` long, `null` where the walker
+   * is not alive (before it branched off, after it merged).
    * @param {Object} options
-   * @param {number} options.length - Length of the walk
-   * @param {number} [options.seed] - Random seed for reproducibility
-   * @returns {Array<Array>} Array of walk sequences (branches)
+   * @param {number} options.length - How many positions
+   * @param {number} [options.seed] - The same seed gives the same walks
+   * @returns {Array<Array<number|null>>}
    */
   generate({ length, seed } = {}) {
-    // Use a simple seeded random if seed is provided
-    let randomFunc = Math.random;
-    if (seed !== undefined) {
-      randomFunc = this.createSeededRandom(seed);
-    }
-
-    // Initialize first walker
-    const walks = [this.initializeWalk(length)];
-    let currentPositions = [this.walkStart];
+    if (!(length > 0)) throw new Error('Chain.generate: `length` is how many positions, at least 1');
+    const rng = seed === undefined ? Math.random : random(seed);
+    const walks = [this._walk(length)];
+    let positions = [this.start];
 
     for (let step = 1; step < length; step++) {
-      const newPositions = [...currentPositions]; // Start with current positions
-      const newWalks = [];
-
-      for (let walkIndex = 0; walkIndex < currentPositions.length; walkIndex++) {
-        const walk = walks[walkIndex];
-        const currentPosition = currentPositions[walkIndex];
-
-        if (currentPosition === null) {
-          // This walk has ended due to merging
-          if (walk) walk[step] = null;
+      const next = [...positions];
+      const born = [];
+      for (let w = 0; w < positions.length; w++) {
+        if (positions[w] === null) {
+          walks[w][step] = null;
           continue;
         }
-
-        // Generate next step
-        const stepSize = this.generateStep(randomFunc);
-        let nextPosition = currentPosition + stepSize;
-        
-        // Check for NaN and handle it
-        if (isNaN(nextPosition)) {
-          nextPosition = currentPosition; // Fallback to current position
-        }
-
-        // Apply bounds (only if walkRange is specified)
-        if (this.walkRange !== null) {
-          if (nextPosition < this.walkRange[0]) {
-            nextPosition = this.walkRange[0];
-          } else if (nextPosition > this.walkRange[1]) {
-            nextPosition = this.walkRange[1];
-          }
-        }
-        
-        // Final NaN check
-        if (isNaN(nextPosition)) {
-          nextPosition = this.walkStart; // Ultimate fallback
-        }
-
-        if (walk) {
-          walk[step] = nextPosition;
-        }
-        newPositions[walkIndex] = nextPosition;
-
-        // Check for branching
-        if (randomFunc() < this.branchingProbability) {
-          const newWalk = this.createBranch(walks[walkIndex], step);
-          const branchStepSize = this.generateStep(randomFunc);
-          let branchPosition = currentPosition + branchStepSize;
-          
-          // Check for NaN in branch
-          if (isNaN(branchPosition)) {
-            branchPosition = currentPosition;
-          }
-
-          // Apply bounds to branch (only if walkRange is specified)
-          if (this.walkRange !== null) {
-            if (branchPosition < this.walkRange[0]) {
-              branchPosition = this.walkRange[0];
-            } else if (branchPosition > this.walkRange[1]) {
-              branchPosition = this.walkRange[1];
-            }
-          }
-          
-          // Final NaN check for branch
-          if (isNaN(branchPosition)) {
-            branchPosition = this.walkStart;
-          }
-
-          newWalk[step] = branchPosition;
-          newWalks.push(newWalk);
-          newPositions.push(branchPosition);
+        const moved = this._bounded(positions[w] + this._step(rng));
+        walks[w][step] = moved;
+        next[w] = moved;
+        if (rng() < this.branching) {
+          const branch = this._walk(length, null);
+          branch[step] = this._bounded(positions[w] + this._step(rng));
+          born.push(branch);
+          next.push(branch[step]);
         }
       }
-
-      // Add new branches
-      walks.push(...newWalks);
-      currentPositions = newPositions;
-
-      // Handle merging
-      currentPositions = this.handleMerging(walks, currentPositions, step, randomFunc);
+      walks.push(...born);
+      positions = this._merge(walks, next, step, rng);
     }
-
     return walks;
   }
 
   /**
-   * Generate a single clean walk — no branching, no merging, no null
-   * padding. Convenience for the common case where you just want one
-   * melodic line and don't want to deal with the `[branches]` shape or
-   * filter out nulls.
-   *
-   * Equivalent to forcing `branchingProbability = 0` and
-   * `mergingProbability = 0` for this call only; the configured
-   * probabilities on the instance are restored afterwards.
-   *
+   * One walk, flat, without branching: `length` positions.
    * @param {Object} options
-   * @param {number} options.length - Length of the walk
-   * @param {number} [options.seed] - Random seed for reproducibility
-   * @returns {Array<number>} A flat array of walk values
-   *
-   * @example
-   * ```js
-   * const chain = new jm.generative.walks.Chain({
-   *   walkRange: [0, 7],
-   *   walkStart: 3,
-   *   walkProbability: [-1, 0, 1],
-   *   roundTo: 0
-   * });
-   * const walk = chain.line({ length: 16, seed: 42 });  // [3, 4, 5, 5, 5, 6, 7, 7, ...]
-   * ```
+   * @param {number} options.length
+   * @param {number} [options.seed]
+   * @returns {Array<number>}
    */
   line({ length, seed } = {}) {
-    const prevBranch = this.branchingProbability;
-    const prevMerge = this.mergingProbability;
-    this.branchingProbability = 0;
-    this.mergingProbability = 0;
-    try {
-      const walks = this.generate({ length, seed });
-      return (walks[0] || []).filter(v => v !== null);
-    } finally {
-      this.branchingProbability = prevBranch;
-      this.mergingProbability = prevMerge;
-    }
+    const single = new Chain({ range: this.range, start: this.start, steps: this.steps, roundTo: this.roundTo });
+    return single.generate({ length, seed })[0];
   }
 
   /**
-   * Generate a single step according to the probability distribution
+   * Walks as notes, one step after the other: a note where one walker is
+   * alive, a chord where several are.
+   * @param {Array<Array<number|null>>} walks - From `generate`
+   * @param {Object} [options]
+   * @param {Array<number>} [options.durations=[1]] - Cycled over the steps
+   * @returns {Array} JMON notes
    */
-  generateStep(randomFunc = Math.random) {
-    if (Array.isArray(this.walkProbability)) {
-      // Discrete step choices (like Python default [-1, 0, 1])
-      return this.walkProbability[Math.floor(randomFunc() * this.walkProbability.length)];
-    }
-    
-    if (typeof this.walkProbability === 'object' && this.walkProbability.mean !== undefined && this.walkProbability.std !== undefined) {
-      // Normal distribution object with mean and std
-      let step = this.generateNormal(this.walkProbability.mean, this.walkProbability.std, randomFunc);
-      
-      // Apply rounding to step (like Python: round(step, round_to))
-      if (this.roundTo !== null) {
-        step = parseFloat(step.toFixed(this.roundTo));
-      }
-      
-      return step;
-    }
-    
-    // Default to discrete steps [-1, 0, 1]
-    return [-1, 0, 1][Math.floor(randomFunc() * 3)];
-  }
-
-  /**
-   * Generate a sample from normal distribution
-   */
-  generateNormal(mean, std, randomFunc = Math.random) {
-    // Box-Muller transformation with edge case handling
-    let u1;
-    do {
-      u1 = randomFunc();
-    } while (u1 === 0); // Avoid log(0)
-
-    const u2 = randomFunc();
-    const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-    const result = mean + std * z;
-    
-    // Check for NaN and return fallback
-    if (isNaN(result)) {
-      return mean; // Fallback to mean if calculation fails
-    }
-    
-    return result;
-  }
-
-  /**
-   * Initialize a new walk with null values
-   */
-  initializeWalk(length) {
-    const walk = new Array(length);
-    walk[0] = this.walkStart;
-    for (let i = 1; i < length; i++) {
-      walk[i] = null;
-    }
-    return walk;
-  }
-
-  /**
-   * Create a branch from an existing walk
-   */
-  createBranch(parentWalk, branchStep) {
-    const branch = new Array(parentWalk.length);
-    
-    // Fill with null values before the branch point
-    for (let i = 0; i < branchStep; i++) {
-      branch[i] = null;
-    }
-    
-    // Fill remaining with null (will be filled as walk continues)
-    for (let i = branchStep; i < branch.length; i++) {
-      branch[i] = null;
-    }
-    
-    return branch;
-  }
-
-  /**
-   * Handle merging of walks that collide
-   */
-  handleMerging(walks, positions, step, randomFunc = Math.random) {
-    const newPositions = [...positions];
-    
-    for (let i = 0; i < positions.length; i++) {
-      if (positions[i] === null) continue;
-      
-      for (let j = i + 1; j < positions.length; j++) {
-        if (positions[j] === null) continue;
-        
-        // Check if positions are close enough to merge  
-        const tolerance = this.roundTo !== null ? this.roundTo : 0.001;
-        if (Math.abs(positions[i] - positions[j]) <= tolerance && randomFunc() < this.mergingProbability) {
-          // Merge walk j into walk i
-          newPositions[j] = null;
-          
-          // Fill remaining steps of walk j with null
-          if (walks[j]) {
-            for (let k = step; k < walks[j].length; k++) {
-              walks[j][k] = null;
-            }
-          }
-        }
-      }
-    }
-    
-    return newPositions;
-  }
-
-  /**
-   * Convert walk sequences to JMON notes
-   * @param {Array<Array>} walks - Walk sequences
-   * @param {Object} [options={}]
-   * @param {Array} [options.durations=[1]] - Duration sequence to map to
-   * @param {boolean} [options.useStringTime=false]
-   * @returns {Array} JMON note objects
-   */
-  toJmonNotes(walks, options = {}) {
-    const { durations = [1], useStringTime = false } = options;
+  notes(walks, { durations = [1] } = {}) {
     const notes = [];
-    let currentTime = 0;
-    let durationIndex = 0;
-
-    const maxLength = Math.max(...walks.map(w => w.length));
-    
-    for (let step = 0; step < maxLength; step++) {
-      const activePitches = walks
-        .map(walk => walk[step])
-        .filter(pitch => pitch !== null);
-
-      if (activePitches.length > 0) {
-        const duration = durations[durationIndex % durations.length];
-        
-        // Create chord if multiple active pitches, single note otherwise
-        const pitch = activePitches.length === 1 ? activePitches[0] : activePitches;
-        
-        notes.push({
-          pitch,
-          duration,
-          time: useStringTime ? offsetToBarsBeatsTicks(currentTime, this.timingConfig) : currentTime
-        });
-
-        currentTime += duration;
-        durationIndex++;
-      }
+    let time = 0;
+    let i = 0;
+    const length = Math.max(...walks.map((w) => w.length));
+    for (let step = 0; step < length; step++) {
+      const alive = walks.map((w) => w[step]).filter((p) => p !== null && p !== undefined);
+      if (alive.length === 0) continue;
+      const duration = durations[i % durations.length];
+      notes.push({ pitch: alive.length === 1 ? alive[0] : alive, duration, time });
+      time += duration;
+      i++;
     }
-
     return notes;
   }
 
-  /**
-   * Generate a JMON track directly from walk
-   * @param {Object} options
-   * @param {number} options.length - Walk length
-   * @param {number} [options.seed]
-   * @param {Array} [options.durations=[1]] - Duration sequence
-   * @returns {Object} JMON track
-   */
-  generateTrack(options = {}) {
-    const { length, seed, durations = [1] } = options;
-    const walks = this.generate({ length, seed });
-    const notes = this.toJmonNotes(walks, { durations, ...options });
-
-    return notesToTrack(notes, {
-      label: 'random-walk',
-      midiChannel: 0,
-      synth: { type: 'Synth' },
-      ...options
-    });
+  /** @private */
+  _walk(length, first = this.start) {
+    const walk = new Array(length).fill(null);
+    walk[0] = first;
+    return walk;
   }
 
-  /**
-   * Map walk values to a musical scale
-   * @param {Array<Array>} walks - Walk sequences  
-   * @param {Array} scale - Scale to map to
-   * @returns {Array<Array>} Walks mapped to scale
-   */
-  mapToScale(walks, scale = [60, 62, 64, 65, 67, 69, 71]) {
-    return walks.map(walk => {
-      return walk.map(value => {
-        if (value === null) return null;
-        
-        // Normalize to scale range
-        const minVal = this.walkRange[0];
-        const maxVal = this.walkRange[1];
-        const range = maxVal - minVal;
-        const normalized = (value - minVal) / range;
-        const scaleIndex = Math.floor(normalized * scale.length);
-        const clampedIndex = Math.max(0, Math.min(scaleIndex, scale.length - 1));
-        
-        return scale[clampedIndex];
-      });
-    });
+  /** @private One step, from the list or the distribution. */
+  _step(rng) {
+    if (Array.isArray(this.steps)) return this.steps[Math.floor(rng() * this.steps.length)];
+    const { mean, std } = this.steps;
+    let u1;
+    do { u1 = rng(); } while (u1 === 0);
+    const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * rng());
+    const step = mean + std * z;
+    return this.roundTo === null ? step : parseFloat(step.toFixed(this.roundTo));
   }
 
-  /**
-   * Create a seeded random number generator
-   */
-  createSeededRandom(seed) {
-    let currentSeed = Math.abs(seed) || 1; // Ensure positive non-zero seed
-    return function() {
-      currentSeed = (currentSeed * 9301 + 49297) % 233280;
-      const result = currentSeed / 233280;
-      // Ensure result is in (0,1) range, never exactly 0 or 1
-      return Math.max(0.0000001, Math.min(0.9999999, result));
-    };
+  /** @private */
+  _bounded(position) {
+    if (this.range === null) return position;
+    return Math.min(this.range[1], Math.max(this.range[0], position));
+  }
+
+  /** @private Walkers at the same place may merge: the later one ends. */
+  _merge(walks, positions, step, rng) {
+    const next = [...positions];
+    const tolerance = this.roundTo !== null ? this.roundTo : 0.001;
+    for (let i = 0; i < positions.length; i++) {
+      if (positions[i] === null) continue;
+      for (let j = i + 1; j < positions.length; j++) {
+        if (positions[j] === null) continue;
+        if (Math.abs(positions[i] - positions[j]) <= tolerance && rng() < this.merging) {
+          next[j] = null;
+          for (let k = step; k < walks[j].length; k++) walks[j][k] = null;
+        }
+      }
+    }
+    return next;
   }
 }
