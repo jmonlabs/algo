@@ -105,6 +105,7 @@ What the voices do from one chord to the next. No key here: a chord is three pit
 
 ### Rhythm — `jm.rhythm.*`
 Where the notes fall. A rhythm is a grid, one place per step, hit or not: `grid(notes, { subdivision, beats })` reads one off notes, `fromGrid("x..x..x.", { pitches, subdivision })` lays one out as notes, `draw(notes)` prints either.
+- A kit as lines of text, one per drum: `kit({ kick: "x.......x.x.....", snare: "....X.......X...", hihat: "x.x.x.x.x.x.x.x." }, { subdivision, repeat, velocity })`, `X` an accent, a drum named or given as its pitch.
 - Patterns: `euclid({ steps, pulses, rotation, pitches })` and `euclidPattern({ steps, pulses })`; `clave("son", { orientation, pitches })` and `clavePattern("son", { orientation })` for the son, rumba, bossa, tresillo and afro claves, in 2-3 or 3-2 (`CLAVES` holds them); `isorhythm({ pitches, durations })` and `beatcycle({ pitches, durations })` cycle pitches over durations; `new Rhythm({ measureLength, durations }).random({ seed })` and `.darwin({ seed })` return notes with `pitches` cycled across them. `metricStrengths` grades the places of any meter into downbeat, half-bar, beat, upbeat.
 - Profiles: `Profile` is a weight per position over a cycle, with `fit`, `rotate`, `bestRotation` and `fromPositions`. Bodzsar's Rhythm Code (16 eighth-note places), Tonality Code (12 pitch classes) and stability order (7 degrees) ship as `presets`; a profile folded out of your own tracks is the same object.
 
@@ -198,6 +199,7 @@ rotation })`, `clavePattern(name, orientation)` is `clavePattern(name, {
 orientation })`, and `clave({ name, ...options })` is `clave(name, options)`:
 the pattern's name is the subject. `jm.theory.rhythm` and `jm.theory.profile`
 answer to the old names and shapes for one release.
+New: `kit(lines, options)`, a drum pattern written as one line of text per drum.
 
 **`jm.generative`.** The same sub-spaces, with `MinimalismProcess` become
 the verb `unfold(notes, { operation, direction, repetition })` and

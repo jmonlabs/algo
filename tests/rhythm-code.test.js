@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 
 import { Profile, presets, RHYTHM_CODE_23 } from "../src/rhythm/profile/index.js";
 import { clave, clavePattern, metricStrengths } from "../src/rhythm/clave.js";
+import { kit } from "../src/rhythm/kit.js";
 import { euclid, euclidPattern } from "../src/rhythm/euclid.js";
 import { grid, fromGrid, draw } from "../src/rhythm/pattern.js";
 import { isorhythm } from "../src/rhythm/isorhythm.js";
@@ -288,4 +289,23 @@ test("at and draw refuse nonsense loudly", () => {
   assert.throws(() => grid([], { subdivision: 0 }), /subdivision/);
   assert.throws(() => fromGrid("x", { subdivision: -1 }), /subdivision/);
   assert.throws(() => fromGrid("x", { pitches: [] }), /empty array/);
+});
+
+/* --- kit ------------------------------------------------------------------ */
+
+test("kit reads one line per drum, by name or by pitch", () => {
+  const notes = kit({ kick: "x...x...", snare: "..X...x.", 42: "xxxxxxxx" }, { subdivision: 0.5 });
+  const of = (pitch) => notes.filter((n) => n.pitch === pitch);
+  assert.deepEqual(of(36).map((n) => n.time), [0, 2]);
+  assert.deepEqual(of(38).map((n) => [n.time, n.velocity]), [[1, 1], [3, 0.8]], "X is an accent");
+  assert.equal(of(42).length, 8);
+  assert.deepEqual(notes.map((n) => n.time), [...notes.map((n) => n.time)].sort((a, b) => a - b), "sorted by time");
+});
+
+test("kit repeats, starts where it is told, and refuses an unknown drum", () => {
+  const twice = kit({ kick: "x..." }, { subdivision: 0.5, repeat: 2, time: 8, velocity: 0.5, duration: 0.25 });
+  assert.deepEqual(twice.map((n) => n.time), [8, 10]);
+  assert.deepEqual(twice.map((n) => [n.duration, n.velocity]), [[0.25, 0.5], [0.25, 0.5]]);
+  assert.throws(() => kit({ cowbell: "x..." }), /unknown drum "cowbell"/);
+  assert.equal(kit({ bell: "x..." }, { map: { bell: 56 } })[0].pitch, 56, "your own names");
 });
