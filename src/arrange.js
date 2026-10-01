@@ -7,60 +7,52 @@
 import { place } from "./notes/index.js";
 
 /**
- * The montage of a piece: sections put end to end, in the order of `form`,
- * each lasting its own `length` and playing some of the parts. The result is
- * the piece, ready for `play`: one track per part, and whatever else is given
- * beside `sections` and `parts` (tempo, title, audioGraph…).
+ * The montage of a piece: sections put end to end, each lasting its own
+ * `length`, and their tracks gathered by `label` into one track each for the
+ * whole piece. The result is the piece, ready for `play`.
  *
- * A part is a track written from its own beat 0: `{ label, synth, notes }`.
- * A section names the parts it plays, as a list, or as an object whose values
- * are `place` options, to set a part's velocity, octave or offset in that
- * section only. A section's length is its own, whatever its notes do: a part
- * that ends early leaves a silence, one that runs over is heard under the
- * next section.
+ * A section is `{ length, tracks }`, where `tracks` are JMON tracks,
+ * `{ label, synth, notes }`, written from the section's own beat 0. The same
+ * section may appear several times. A track keeps the `synth` (and any other
+ * field) of its first appearance; the same label with another synth is an
+ * error. A section's length is its own, whatever its notes do: notes that end
+ * early leave a silence, notes that run over are heard under the next
+ * section.
  *
  * @example
- * const parts = {
- *   pad: { label: "Pad", synth: 48, notes: pad },
- *   melody: { label: "Melody", synth: 69, notes: melody },
- * };
- * const sections = {
- *   intro: { length: 16, parts: ["pad"] },
- *   verse: { length: 16, parts: { pad: { velocity: 0.4 }, melody: { time: 2 } } },
- *   chorus: { length: 16, parts: { pad: {}, melody: { octave: 1, velocity: 0.8 } } },
- * };
- * const piece = jm.arrange(["intro", "verse", "chorus", "verse"], { sections, parts, tempo: 96 });
+ * const pad = { label: "Pad", synth: 48 };
+ * const bass = { label: "Bass", synth: 33 };
+ * const intro = { length: 16, tracks: [{ ...pad, notes: introPad }] };
+ * const verse = { length: 16, tracks: [{ ...pad, notes: versePad }, { ...bass, notes: verseBass }] };
+ * const piece = jm.arrange([intro, verse, verse], { tempo: 96, title: "sketch" });
  *
- * @param {Array<string>} form - Section names, in the order they are heard
- * @param {Object} options
- * @param {Object<string, {length: number, parts: Array<string>|Object<string, Object>}>} options.sections
- * @param {Object<string, {notes: Array}>} options.parts - Tracks, by name
- * @returns {Object} A JMON piece: `{ ...rest, tracks }`, tracks in the order of `parts`
+ * @param {Array<{length: number, tracks: Array<Object>}>} sections - In the order they are heard
+ * @param {Object} [piece] - The piece's own fields: tempo, title, audioGraph…
+ * @returns {Object} A JMON piece: `{ ...piece, tracks }`, tracks in order of first appearance
  */
-export function arrange(form, { sections, parts, ...rest } = {}) {
-  if (!sections || !parts) throw new Error('arrange: give { sections, parts }');
-  const filled = {};
+export function arrange(sections, piece = {}) {
+  if (!Array.isArray(sections)) throw new Error("arrange: give a list of sections, { length, tracks }");
+  const byLabel = new Map();
   let start = 0;
-  for (const name of form) {
-    const section = sections[name];
-    if (!section) throw new Error(`arrange: no section "${name}" (${Object.keys(sections).join(', ')})`);
-    if (!(section.length > 0)) throw new Error(`arrange: section "${name}" needs a length, in beats`);
-    const used = Array.isArray(section.parts)
-      ? section.parts.map((partName) => [partName, {}])
-      : Object.entries(section.parts ?? {});
-    for (const [partName, options] of used) {
-      const part = parts[partName];
-      if (!part) throw new Error(`arrange: section "${name}" plays "${partName}", which is not a part (${Object.keys(parts).join(', ')})`);
-      if (!filled[partName]) {
-        const { notes, ...rest } = part;
-        filled[partName] = { ...rest, notes: [] };
+  sections.forEach((section, index) => {
+    if (!section || !(section.length > 0)) {
+      throw new Error(`arrange: section ${index} needs a length, in beats`);
+    }
+    for (const track of section.tracks ?? []) {
+      if (typeof track.label !== "string") {
+        throw new Error(`arrange: a track of section ${index} has no label`);
       }
-      const { time = 0, ...placement } = options ?? {};
-      filled[partName].notes.push(...place(part.notes, { ...placement, time: start + time }));
+      const { notes = [], ...fields } = track;
+      if (!byLabel.has(track.label)) {
+        byLabel.set(track.label, { ...fields, notes: [] });
+      }
+      const merged = byLabel.get(track.label);
+      if (JSON.stringify(merged.synth) !== JSON.stringify(fields.synth)) {
+        throw new Error(`arrange: track "${track.label}" has two synths, ${JSON.stringify(merged.synth)} and ${JSON.stringify(fields.synth)}`);
+      }
+      merged.notes.push(...place(notes, { time: start }));
     }
     start += section.length;
-  }
-  const tracks = Object.keys(parts).filter((partName) => filled[partName]).map((partName) => filled[partName]);
-  return { ...rest, tracks };
+  });
+  return { ...piece, tracks: [...byLabel.values()] };
 }
-

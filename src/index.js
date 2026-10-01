@@ -53,8 +53,8 @@ const jm = {
   //   jm.harmony.chord(62, k);
   key: harmony.key,
 
-  // The montage of a piece: sections end to end, each playing some of the
-  // parts. Returns the piece, ready for play.
+  // The montage of a piece: sections { length, tracks } end to end, tracks
+  // gathered by label. Returns the piece, ready for play.
   arrange,
 
   // What a composer does to a list of notes: shift, transpose, canon, tile,

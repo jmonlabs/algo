@@ -12,29 +12,35 @@ import { arrange } from "../src/arrange.js";
 
 const n = (pitch, time, duration = 1, velocity = 0.8) => ({ pitch, time, duration, velocity });
 
-test("arrange puts sections end to end by their length, one track per part", () => {
-  const pad = [n(50, 0, 4), n(53, 4, 4)];
-  const melody = [n(62, 0, 1), n(64, 1, 0.5)];
-  const parts = {
-    pad: { label: "Pad", synth: 48, notes: pad },
-    melody: { label: "Melody", synth: 69, notes: melody },
-    unused: { label: "Unused", synth: 0, notes: [n(60, 0)] },
-  };
-  const sections = {
-    intro: { length: 8, parts: ["pad"] },
-    verse: { length: 16, parts: { pad: { velocity: 0.3 }, melody: { time: 2, octave: 1 } } },
-  };
-  const piece = arrange(["intro", "verse", "intro"], { sections, parts, tempo: 96 });
-  assert.equal(piece.tempo, 96, "the rest is the piece's own");
-  const tracks = piece.tracks;
-  assert.deepEqual(tracks.map((t) => t.label), ["Pad", "Melody"], "one track per part used, in the order of parts");
-  assert.equal(tracks[0].synth, 48);
-  assert.deepEqual(tracks[0].notes.map((x) => x.time), [0, 4, 8, 12, 24, 28], "each section starts at the sum of the lengths before it");
-  assert.deepEqual(tracks[0].notes.map((x) => x.velocity), [0.8, 0.8, 0.3, 0.3, 0.8, 0.8], "the velocity is set for that section only");
-  assert.deepEqual(tracks[1].notes.map((x) => [x.pitch, x.time]), [[74, 10], [76, 11]], "offset and octave inside the section");
-  assert.throws(() => arrange(["bridge"], { sections, parts }), /no section "bridge"/);
-  assert.throws(() => arrange(["x"], { sections: { x: { length: 4, parts: ["drums"] } }, parts }), /"drums", which is not a part/);
-  assert.throws(() => arrange(["x"], { sections: { x: { parts: ["pad"] } }, parts }), /needs a length/);
+const pad = { label: "Pad", synth: 48 };
+const bass = { label: "Bass", synth: 33 };
+
+test("arrange puts sections end to end and gathers tracks by label", () => {
+  const intro = { length: 8, tracks: [{ ...pad, notes: [n(50, 0, 8)] }] };
+  const verse = { length: 16, tracks: [{ ...pad, notes: [n(53, 0, 16)] }, { ...bass, notes: [n(38, 0), n(38, 2)] }] };
+  const piece = arrange([intro, verse, verse], { tempo: 96, title: "t" });
+  assert.equal(piece.tempo, 96);
+  assert.equal(piece.title, "t");
+  assert.deepEqual(piece.tracks.map((t) => [t.label, t.synth]), [["Pad", 48], ["Bass", 33]], "one track per label, in order of first appearance");
+  assert.deepEqual(piece.tracks[0].notes.map((x) => [x.pitch, x.time]), [[50, 0], [53, 8], [53, 24]], "each section starts at the sum of the lengths before it");
+  assert.deepEqual(piece.tracks[1].notes.map((x) => x.time), [8, 10, 24, 26]);
+});
+
+test("a section's length is its own: short notes leave silence, long notes run over", () => {
+  const a = { length: 4, tracks: [{ ...bass, notes: [n(38, 0, 0.9)] }] };
+  const b = { length: 4, tracks: [{ ...pad, notes: [n(50, 0, 10)] }] };
+  const piece = arrange([a, b, a]);
+  assert.deepEqual(piece.tracks.find((t) => t.label === "Bass").notes.map((x) => x.time), [0, 8]);
+  assert.equal(piece.tracks.find((t) => t.label === "Pad").notes[0].duration, 10, "a held note is not cut");
+});
+
+test("arrange keeps a track's other fields and refuses two synths for one label", () => {
+  const withOutput = { length: 4, tracks: [{ ...pad, output: "padBus", notes: [n(50, 0)] }] };
+  assert.equal(arrange([withOutput]).tracks[0].output, "padBus");
+  const other = { length: 4, tracks: [{ label: "Pad", synth: 0, notes: [n(50, 0)] }] };
+  assert.throws(() => arrange([withOutput, other]), /"Pad" has two synths/);
+  assert.throws(() => arrange([{ tracks: [] }]), /section 0 needs a length/);
+  assert.throws(() => arrange([{ length: 4, tracks: [{ synth: 0, notes: [] }] }]), /has no label/);
 });
 
 test("arrange is reached as jm.arrange", () => {

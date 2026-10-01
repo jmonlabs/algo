@@ -76,7 +76,7 @@ const track = [
 ## What is here
 
 ### Arrange — `jm.arrange`
-The montage of a piece. `jm.arrange(form, { sections, parts, tempo, title, audioGraph })` puts the sections named in `form` end to end, each lasting its own `length` and playing some of the parts, and returns the piece, ready for `play`, with one track per part. A part is a track written from its own beat 0, `{ label, synth, notes }`; a section lists the parts it plays, `parts: ["pad", "bass"]`, or sets a part's `velocity`, `octave` or `time` for that section only, `parts: { pad: { velocity: 0.3 }, melody: { time: 2, octave: 1 } }`.
+The montage of a piece. `jm.arrange(sections, { tempo, title, audioGraph })` puts the sections end to end, each lasting its own `length`, gathers their tracks by `label` into one track each for the whole piece, and returns the piece, ready for `play`. A section is `{ length, tracks }`, its tracks ordinary JMON tracks `{ label, synth, notes }` written from the section's beat 0; the same section may be used several times. Notes that run past a section's end are heard under the next one. Velocity or offset for one passage are set on its notes with `jm.notes.place`; playing over a whole line (`humanize`, `embellish`) is done afterwards on the returned tracks.
 
 ### Notes — `jm.notes.*`
 What a composer does to a list of notes. Every function takes the list first and returns a new one.

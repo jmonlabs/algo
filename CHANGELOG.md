@@ -10,7 +10,7 @@ The generative classes follow the calling convention, nothing writes to the
 console, and `tests/integration/` keeps one script. New: `notes.cut`,
 `notes.fit`, `performance.detach`, `rhythm.kit`, `generative.project` and
 `rescale`, `Progression.numerals` and `draw`.
-`jm.arrange(form, { sections, parts, tempo })`: the montage of a piece, returned ready to play.
+`jm.arrange(sections, { tempo, title })`: the montage of a piece; sections `{ length, tracks }` end to end, tracks gathered by label, returned ready to play.
 
 ## 5.0
 
