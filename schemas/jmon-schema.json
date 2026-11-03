@@ -884,9 +884,22 @@
                 },
                 "additionalProperties": false,
                 "description": "Inline synth definition with type and options"
+              },
+              {
+                "type": "object",
+                "required": ["format"],
+                "properties": { "format": { "const": "ison" } },
+                "description": "An instrument said in JSON (ison): its sources, modes, play rules, level and controls. The schema is ison-schema.json, at https://github.com/jmonlabs/ison."
+              },
+              {
+                "type": "object",
+                "description": "A sampled or modelled instrument as jmon/sound reads it: `{ gm, strategy?, options? }`, `{ sf2, program, bankSelect?, variants? }`, `{ sfz, envelope?, volume? }`, `{ faust, params?, voices? }`, `{ drums }`, `{ kit }`.",
+                "anyOf": [
+                  { "required": ["gm"] }, { "required": ["sf2"] }, { "required": ["sfz"] }, { "required": ["faust"] }, { "required": ["drums"] }, { "required": ["kit"] }
+                ]
               }
             ],
-            "description": "Synth specification: synth type name (string), GM instrument number (0-127), audioGraph node reference (string), or inline synth object with type/options"
+            "description": "Synth specification: synth type name (string), GM instrument number (0-127), audioGraph node reference (string), inline synth object with type/options, an ison, or a sampled instrument spec"
           },
           "clef": {
             "type": "string",
@@ -1234,6 +1247,10 @@
                       }
                     ]
                   }
+                },
+                "variant": {
+                  "type": "string",
+                  "description": "How the note is played, by name, when the track's instrument has several ways: another preset of a SoundFont bank declared in the track's `synth.variants` (`vibrato`, `tremolo`, `pizzicato`…). A note with no variant, or one the instrument does not have, is played the track's usual way. Not an articulation: `articulations` describe the note, `variant` picks the recording."
                 },
                 "microtuning": { "type": "number", "description": "Deprecated: use `tuning`." },
                 "pitchEnvelope": { "type": "array", "description": "Deprecated: use `bend`." },

@@ -2,6 +2,21 @@
 
 The current API is the README. This is what moved, release by release.
 
+## Unreleased
+
+The schema gains a note field, `variant`: how the note is played, by name,
+when the track's instrument has several ways (another preset of a SoundFont
+bank, declared in the track's `synth.variants`). A note with no variant, or
+one the instrument lacks, plays the usual way. It is not an articulation:
+`articulations` describe the note and compile to modulations; `variant` picks
+the recording. jmon/sound and jmon/show read it.
+
+A track's `synth` may be an ison, an instrument said in JSON (sources, modes,
+play rules, level, controls): its schema lives at github.com/jmonlabs/ison.
+The `synth` of the jmon schema also admits, at last, the sampled specs
+jmon/sound has read for a while (`{ gm }`, `{ sf2 }`, `{ sfz }`, `{ faust }`,
+`{ drums }`, `{ kit }`).
+
 ## 5.1
 
 The façades `jm.utils`, `jm.processors` and `jm.theory` are gone; every file
